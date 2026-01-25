@@ -14,3 +14,23 @@
 
 (Ralph will append learnings after each iteration below)
 
+## Iteration 1 - 2026-01-25
+Task: arcology-4ct.1 - Create Godot 4 project structure
+Status: PASSED
+Changes:
+- project.godot: Godot 4.3 config with input mappings
+- scenes/main.tscn: Entry scene with Camera2D, World, UI
+- src/core/main.gd: Camera pan/zoom controls
+Learnings:
+- Godot 4 uses config_version=5
+- Camera2D zoom needs matching Vector2 components
+
+## Iteration 2 - 2026-01-25
+Task: arcology-4ct.2 - Add placeholder sprite
+Status: PASSED
+Changes:
+- assets/sprites/blocks/placeholder.svg: 64x32 isometric diamond
+- scenes/main.tscn: Added PlaceholderSprite node
+Learnings:
+- SVG works well for placeholder sprites in Godot 4
+
