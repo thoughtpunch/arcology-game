@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="32" viewBox="0 0 64 32">
+  <!-- Isometric diamond shape - placeholder block -->
+  <polygon points="32,0 64,16 32,32 0,16" fill="#6b7280" stroke="#374151" stroke-width="1"/>
+  <!-- Top highlight -->
+  <polygon points="32,0 64,16 32,16 0,16" fill="#9ca3af" opacity="0.3"/>
+</svg>
