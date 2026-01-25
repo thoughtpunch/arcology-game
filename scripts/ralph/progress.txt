@@ -1,0 +1,16 @@
+## Codebase Patterns
+
+(Add patterns discovered during development here. Future iterations will read this first.)
+
+- Use Vector3i for grid positions (x, y = horizontal, z = floor level)
+- All block types defined in data/blocks.json, not hardcoded
+- Sprites go in assets/sprites/blocks/{category}/
+- Signals over polling: blocks emit signals, systems connect to them
+- Balance numbers loaded from data/balance.json at runtime
+
+---
+
+## Iteration Log
+
+(Ralph will append learnings after each iteration below)
+

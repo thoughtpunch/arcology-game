@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# ralph-beads.sh - Autonomous AI coding loop using Beads for task tracking
+# Usage: ./ralph-beads.sh [max_iterations]
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+MAX_ITERATIONS=${1:-20}
+ITERATION=0
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLAUDE_PROMPT="$SCRIPT_DIR/CLAUDE-beads.md"
+
+echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║  RALPH + BEADS - Autonomous Agent Loop ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
+
+# Check prerequisites
+command -v claude >/dev/null 2>&1 || { echo -e "${RED}Error: 'claude' CLI not found${NC}"; exit 1; }
+command -v bd >/dev/null 2>&1 || { echo -e "${RED}Error: 'bd' (Beads) not found. Install: curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash${NC}"; exit 1; }
+command -v jq >/dev/null 2>&1 || { echo -e "${RED}Error: 'jq' not found${NC}"; exit 1; }
+
+# Check for .beads directory
+if [ ! -d ".beads" ]; then
+    echo -e "${YELLOW}No .beads directory found. Initializing...${NC}"
+    bd init --quiet
+fi
+
+# Check for prompt file
+if [ ! -f "$CLAUDE_PROMPT" ]; then
+    echo -e "${RED}Error: $CLAUDE_PROMPT not found${NC}"
+    exit 1
+fi
+
+# Create progress.txt if it doesn't exist
+PROGRESS_FILE="$SCRIPT_DIR/progress.txt"
+if [ ! -f "$PROGRESS_FILE" ]; then
+    echo "## Codebase Patterns" > "$PROGRESS_FILE"
+    echo "- Use Vector3i for grid positions (x, y = horizontal, z = floor)" >> "$PROGRESS_FILE"
+    echo "- Block types in data/blocks.json" >> "$PROGRESS_FILE"
+    echo "- Sprites in assets/sprites/blocks/{category}/" >> "$PROGRESS_FILE"
+    echo "- Signals over polling" >> "$PROGRESS_FILE"
+    echo "" >> "$PROGRESS_FILE"
+    echo "---" >> "$PROGRESS_FILE"
+    echo "" >> "$PROGRESS_FILE"
+    echo "## Iteration Log" >> "$PROGRESS_FILE"
+    echo -e "${GREEN}Created progress.txt${NC}"
+fi
+
+echo -e "${BLUE}Max iterations: $MAX_ITERATIONS${NC}"
+echo ""
+
+while [ $ITERATION -lt $MAX_ITERATIONS ]; do
+    ITERATION=$((ITERATION + 1))
+    
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Iteration $ITERATION / $MAX_ITERATIONS${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    
+    # Check ready tasks
+    READY_TASKS=$(bd ready --json 2>/dev/null || echo "[]")
+    READY_COUNT=$(echo "$READY_TASKS" | jq 'length')
+    
+    if [ "$READY_COUNT" -eq 0 ]; then
+        echo -e "${GREEN}✓ No ready tasks - checking if all done...${NC}"
+        OPEN_COUNT=$(bd list --status open --json 2>/dev/null | jq 'length' || echo "0")
+        if [ "$OPEN_COUNT" -eq 0 ]; then
+            echo -e "${GREEN}╔════════════════════════════════════════╗${NC}"
+            echo -e "${GREEN}║  ALL TASKS COMPLETE! 🎉                ║${NC}"
+            echo -e "${GREEN}╚════════════════════════════════════════╝${NC}"
+            exit 0
+        else
+            echo -e "${YELLOW}⚠ $OPEN_COUNT open tasks but none ready (blocked?)${NC}"
+            echo -e "${YELLOW}  Run 'bd list --status open' to see them${NC}"
+            exit 1
+        fi
+    fi
+    
+    # Show next task
+    NEXT_TASK=$(echo "$READY_TASKS" | jq -r '.[0]')
+    TASK_ID=$(echo "$NEXT_TASK" | jq -r '.id')
+    TASK_TITLE=$(echo "$NEXT_TASK" | jq -r '.title')
+    TASK_PRIORITY=$(echo "$NEXT_TASK" | jq -r '.priority // "P2"')
+    
+    echo -e "${YELLOW}Ready tasks: $READY_COUNT${NC}"
+    echo -e "${YELLOW}Next: $TASK_ID - $TASK_TITLE ($TASK_PRIORITY)${NC}"
+    echo ""
+    
+    # Run Claude with the prompt
+    echo -e "${BLUE}Running Claude...${NC}"
+    OUTPUT=$(claude --dangerously-skip-permissions --print < "$CLAUDE_PROMPT" 2>&1) || true
+    
+    # Check for completion signal
+    if echo "$OUTPUT" | grep -q "<promise>COMPLETE</promise>"; then
+        echo -e "${GREEN}╔════════════════════════════════════════╗${NC}"
+        echo -e "${GREEN}║  RALPH COMPLETE! All tasks done! 🎉    ║${NC}"
+        echo -e "${GREEN}╚════════════════════════════════════════╝${NC}"
+        exit 0
+    fi
+    
+    # Check for stuck signal
+    if echo "$OUTPUT" | grep -q "<ralph>STUCK</ralph>"; then
+        echo -e "${RED}╔════════════════════════════════════════╗${NC}"
+        echo -e "${RED}║  RALPH STUCK - Agent needs help        ║${NC}"
+        echo -e "${RED}╚════════════════════════════════════════╝${NC}"
+        echo ""
+        echo "Check blocked tasks with: bd list --status blocked"
+        exit 2
+    fi
+    
+    # Sync beads after each iteration
+    bd sync 2>/dev/null || true
+    
+    echo ""
+    sleep 2
+done
+
+echo -e "${YELLOW}╔════════════════════════════════════════╗${NC}"
+echo -e "${YELLOW}║  Max iterations reached ($MAX_ITERATIONS)           ║${NC}"
+echo -e "${YELLOW}╚════════════════════════════════════════╝${NC}"
+
+REMAINING=$(bd ready --json 2>/dev/null | jq 'length' || echo "?")
+echo -e "${YELLOW}Remaining ready tasks: $REMAINING${NC}"
+echo "Run again to continue: ./ralph-beads.sh"
+exit 1

@@ -1,0 +1,281 @@
+{
+  "name": "Arcology",
+  "description": "3D isometric city-builder where players cultivate human flourishing in vertical megastructures",
+  "branchName": "feature/milestone-1-grid-blocks",
+  "techStack": ["Godot 4.x", "GDScript"],
+  "qualityChecks": {
+    "commands": [],
+    "notes": "Godot project must open and run without errors"
+  },
+  "epics": [
+    {
+      "id": "E-001",
+      "title": "Milestone 0: Project Skeleton",
+      "description": "Empty Godot project that runs"
+    },
+    {
+      "id": "E-002", 
+      "title": "Milestone 1: Grid & Blocks",
+      "description": "Place and remove blocks on a 3D grid with isometric rendering"
+    },
+    {
+      "id": "E-003",
+      "title": "Milestone 2: Floor Navigation",
+      "description": "Multiple floors with switching between views"
+    },
+    {
+      "id": "E-004",
+      "title": "Milestone 3: Connectivity",
+      "description": "Blocks know what they're connected to, paths work"
+    }
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "epicId": "E-001",
+      "title": "Create Godot project structure",
+      "description": "As a developer, I need the basic Godot 4 project structure so we have a foundation to build on.",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "project.godot exists and is valid Godot 4 format",
+        "Folder structure matches ARCHITECTURE.md (src/, scenes/, assets/, data/)",
+        "Main scene exists at scenes/main.tscn",
+        "Project opens in Godot without errors"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "epicId": "E-001",
+      "title": "Basic camera with pan and zoom",
+      "description": "As a player, I need to pan and zoom the camera so I can view different parts of the arcology.",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "Camera2D exists in main scene",
+        "WASD or arrow keys pan the camera",
+        "Mouse wheel or +/- zooms in/out",
+        "Zoom has min/max limits",
+        "Camera starts centered on origin"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "epicId": "E-002",
+      "title": "Grid data structure",
+      "description": "As a developer, I need a Grid class that stores blocks in a 3D sparse dictionary.",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "src/core/grid.gd exists with class_name Grid",
+        "Uses Dictionary with Vector3i keys",
+        "Has set_block(pos, block), get_block(pos), remove_block(pos) methods",
+        "Has grid_to_screen(pos) -> Vector2 for isometric conversion",
+        "Has screen_to_grid(screen_pos, z_level) -> Vector3i",
+        "Constants: TILE_WIDTH=64, TILE_HEIGHT=32, FLOOR_HEIGHT=24"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "epicId": "E-002",
+      "title": "Block base class",
+      "description": "As a developer, I need a Block base class that all block types inherit from.",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "src/core/block.gd exists with class_name Block",
+        "Has properties: grid_position (Vector3i), block_type (String)",
+        "Has reference to sprite node",
+        "Emits signals: block_updated",
+        "Can be instantiated with type and position"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "epicId": "E-002",
+      "title": "Block registry with JSON loading",
+      "description": "As a developer, I need a registry that loads block definitions from JSON.",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "src/core/block_registry.gd exists with class_name BlockRegistry",
+        "data/blocks.json exists with at least 4 block types: corridor, residential, commercial, industrial",
+        "Each block definition has: name, size, cost, category, sprite path",
+        "Registry can return block definition by type string",
+        "Registry loads JSON on _ready()"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "epicId": "E-002",
+      "title": "Placeholder block sprites",
+      "description": "As a developer, I need placeholder sprites for basic blocks so I can see them render.",
+      "priority": 6,
+      "acceptanceCriteria": [
+        "assets/sprites/blocks/ directory exists",
+        "At least 4 placeholder sprites (64x64 colored rectangles are fine)",
+        "corridor.png (gray), residential.png (blue), commercial.png (green), industrial.png (orange)",
+        "Sprites are importable by Godot"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "epicId": "E-002",
+      "title": "Render blocks isometrically",
+      "description": "As a player, I want blocks to render at correct isometric positions based on their grid coordinates.",
+      "priority": 7,
+      "acceptanceCriteria": [
+        "Blocks placed at different grid positions render at correct screen positions",
+        "Uses grid_to_screen() from Grid class",
+        "Y-sorting works (blocks at higher Y render behind)",
+        "Z-levels work (higher floors render above lower)",
+        "Test: place blocks at (0,0,0), (1,0,0), (0,1,0), (0,0,1) - all visible and correctly positioned"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "epicId": "E-002",
+      "title": "Click to place blocks",
+      "description": "As a player, I want to click on the grid to place the currently selected block type.",
+      "priority": 8,
+      "acceptanceCriteria": [
+        "Clicking on empty grid cell places a block",
+        "Uses screen_to_grid() to convert click position",
+        "Block appears immediately at clicked position",
+        "Block is added to Grid data structure",
+        "Only places on current Z level"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-009",
+      "epicId": "E-002",
+      "title": "Right-click to remove blocks",
+      "description": "As a player, I want to right-click on a block to remove it.",
+      "priority": 9,
+      "acceptanceCriteria": [
+        "Right-clicking on existing block removes it",
+        "Block disappears from screen",
+        "Block is removed from Grid data structure",
+        "Right-clicking empty cell does nothing"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-010",
+      "epicId": "E-002",
+      "title": "Simple block picker UI",
+      "description": "As a player, I want a simple UI to select which block type to place.",
+      "priority": 10,
+      "acceptanceCriteria": [
+        "HBoxContainer at bottom of screen with block buttons",
+        "At least 4 buttons for: Corridor, Residential, Commercial, Industrial",
+        "Clicking button selects that block type",
+        "Selected button shows visual feedback (highlight/pressed state)",
+        "Selected block type is used when clicking to place"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-011",
+      "epicId": "E-003",
+      "title": "Floor level tracking",
+      "description": "As a developer, I need to track which floor the player is viewing.",
+      "priority": 11,
+      "acceptanceCriteria": [
+        "Game state tracks current_floor (int, default 0)",
+        "Block placement uses current_floor for Z coordinate",
+        "Current floor is displayed somewhere in UI"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-012",
+      "epicId": "E-003",
+      "title": "Floor navigation controls",
+      "description": "As a player, I want up/down buttons to change which floor I'm viewing.",
+      "priority": 12,
+      "acceptanceCriteria": [
+        "Up arrow button increases current_floor",
+        "Down arrow button decreases current_floor", 
+        "Floor has min (0) and max (10 for now) limits",
+        "Keyboard shortcuts: Page Up / Page Down also work",
+        "UI updates to show new floor number"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-013",
+      "epicId": "E-003",
+      "title": "Floor visibility - show current and below",
+      "description": "As a player, I want to see the current floor and 1-2 floors below with transparency.",
+      "priority": 13,
+      "acceptanceCriteria": [
+        "Current floor renders at full opacity",
+        "Floor below renders at 50% opacity",
+        "2 floors below renders at 25% opacity",
+        "Floors above current are hidden",
+        "Changing floors updates visibility correctly"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-014",
+      "epicId": "E-004",
+      "title": "Adjacency detection",
+      "description": "As a developer, I need blocks to know their neighbors in 6 directions.",
+      "priority": 14,
+      "acceptanceCriteria": [
+        "Grid.get_neighbors(pos) returns array of 6 adjacent positions",
+        "Directions: +X, -X, +Y, -Y, +Z, -Z",
+        "Block can query which neighbors have blocks vs empty"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-015",
+      "epicId": "E-004",
+      "title": "Entrance block and connectivity",
+      "description": "As a developer, I need a special entrance block and flood-fill connectivity check.",
+      "priority": 15,
+      "acceptanceCriteria": [
+        "Entrance block type exists (or use any ground-floor corridor as entrance)",
+        "Grid.calculate_connectivity(entrance_pos) does flood-fill",
+        "Each block has 'connected' boolean property",
+        "Blocks reachable from entrance are marked connected=true",
+        "Isolated blocks are marked connected=false"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-016",
+      "epicId": "E-004",
+      "title": "Visual indicator for unconnected blocks",
+      "description": "As a player, I want to see which blocks are not connected to the entrance.",
+      "priority": 16,
+      "acceptanceCriteria": [
+        "Unconnected blocks show warning indicator (red tint or icon)",
+        "Connected blocks render normally",
+        "Indicator updates when blocks are added/removed",
+        "Can toggle connectivity overlay on/off (optional)"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-017",
+      "epicId": "E-004",
+      "title": "Stairs block for vertical connectivity",
+      "description": "As a player, I want stairs that connect adjacent floors.",
+      "priority": 17,
+      "acceptanceCriteria": [
+        "Stairs block type exists in blocks.json",
+        "Stairs connects floor Z to floor Z+1",
+        "Connectivity flood-fill traverses through stairs vertically",
+        "Upper floor blocks reachable via stairs are marked connected"
+      ],
+      "passes": false
+    }
+  ]
+}
