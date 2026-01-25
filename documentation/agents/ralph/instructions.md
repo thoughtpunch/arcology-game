@@ -8,28 +8,77 @@
 
 Instructions for each iteration of autonomous development.
 
+**Key principle:** Documentation first. Every task has required reading. Every completion requires updating docs.
+
+---
+
+## ⚠️ MANDATORY HOOKS
+
+Before and after every task, you MUST run the enforcement hooks:
+
+```bash
+# BEFORE starting work
+./scripts/hooks/pre-task.sh <ticket-id>
+
+# AFTER completing work
+./scripts/hooks/post-task.sh <ticket-id>
+```
+
+These hooks enforce the Definition of Done.
+
 ---
 
 ## Your Task (One Iteration)
 
-1. Run `bd ready --json` to get unblocked tasks
-2. Read `scripts/ralph/progress.txt` for codebase patterns (check **Codebase Patterns** section first)
-3. Check you're on the correct branch. If not, check it out or create from `main`
-4. Pick the **highest priority** ready task (lowest P number = highest priority)
-5. Update task: `bd update <id> --status in_progress`
-6. Implement that **single** task
-7. Run quality checks (see below)
-8. If checks pass, commit ALL changes with message: `feat: <bd-id> - <title>`
-9. Close task: `bd close <id> --reason "Implemented"`
-10. Sync: `bd sync`
-11. Append learnings to `scripts/ralph/progress.txt`
-12. Check for more work: `bd ready --json`
+### Phase 1: Setup
+1. Get next task: `bd ready --json | head -1`
+2. **Run pre-task hook:** `./scripts/hooks/pre-task.sh <ticket-id>`
+3. **READ all documentation** listed in the hook output
+4. Check `scripts/ralph/progress.txt` for codebase patterns
+5. If anything is unclear, add questions to the ticket
+
+### Phase 2: Implement
+6. Mark in progress: `bd update <ticket-id> --status in_progress`
+7. Implement the task following the documentation
+8. Run quality checks
+
+### Phase 3: Verify & Document
+9. **Run post-task hook:** `./scripts/hooks/post-task.sh <ticket-id>`
+10. Verify implementation matches acceptance criteria
+11. **Update documentation** if you found gaps or errors
+12. **Create followup tickets** if you discovered new work
+13. **Add learnings** to `scripts/ralph/progress.txt`
+
+### Phase 4: Complete
+14. Commit: `git commit -m "feat: <ticket-id> - <title>"`
+15. Close: `bd close <ticket-id> --reason "Implemented per docs"`
+16. Sync: `bd sync`
+
+---
+
+## Definition of Done
+
+A task is DONE when:
+
+### Implementation
+- [ ] Code matches the game design in the milestone doc
+- [ ] All acceptance criteria are met
+- [ ] Code follows conventions in `documentation/quick-reference/code-conventions.md`
+- [ ] No hardcoded magic numbers (use `data/*.json`)
+
+### Documentation
+- [ ] Patterns discovered are added to `progress.txt`
+- [ ] Any doc errors/gaps are fixed in the doc files
+- [ ] Learnings are recorded with context
+
+### Followup
+- [ ] New work discovered → create tickets
+- [ ] Questions asked → add comments to tickets
+- [ ] Design gaps → document and create tickets
 
 ---
 
 ## Quality Checks
-
-Before closing a task, ensure:
 
 ```bash
 # If Godot project exists:
@@ -49,7 +98,7 @@ Before closing a task, ensure:
 
 ### All Done
 
-If `bd ready --json` returns empty array `[]`, output exactly:
+If `bd ready --json` returns empty:
 
 ```
 <promise>COMPLETE</promise>
@@ -59,10 +108,10 @@ If `bd ready --json` returns empty array `[]`, output exactly:
 
 If a task fails 3+ times:
 
-1. Add comment: `bd comment bd-xxx "Blocked: <reason>"`
-2. Mark blocked: `bd update bd-xxx --status blocked`
+1. Add comment: `bd comments add <id> "Blocked: <reason>"`
+2. Mark blocked: `bd update <id> --status blocked`
 3. Try next ready task
-4. If ALL remaining tasks are blocked, output:
+4. If ALL remaining tasks are blocked:
 
 ```
 <ralph>STUCK</ralph>
@@ -74,17 +123,30 @@ If a task fails 3+ times:
 
 After completing a task, append to `scripts/ralph/progress.txt`:
 
-```
+```markdown
 ## Iteration [N] - [Date]
-Task: bd-xxx - [Title]
+Task: <ticket-id> - [Title]
+
+Docs Consulted:
+- documentation/architecture/milestones/milestone-X.md
+- documentation/game-design/<relevant>.md
+
 Status: PASSED / FAILED
+
 Changes:
 - [file1]: [what changed]
 - [file2]: [what changed]
+
 Learnings:
 - [anything future iterations should know]
-Blockers:
-- [if failed, why]
+- [patterns discovered]
+- [how unclear things were resolved]
+
+Followup Tickets Created:
+- <new-ticket-id>: [title if any]
+
+Doc Updates Made:
+- [doc file]: [what was added/fixed]
 ```
 
 ---
@@ -93,35 +155,27 @@ Blockers:
 
 If you discover a reusable pattern, add it to **## Codebase Patterns** at TOP of `progress.txt`:
 
-```
+```markdown
 ## Codebase Patterns
 - Use Vector3i for grid positions (x, y = horizontal, z = floor)
 - Blocks emit signals, systems connect to them
 - Load balance numbers from data/balance.json, not hardcoded
 - Sprites go in assets/sprites/blocks/{category}/
+- [NEW PATTERN YOU DISCOVERED]
 ```
-
----
-
-## Important Reminders
-
-- **One task per iteration** - Don't try to do multiple
-- **Use bd commands** - Not manual JSON editing
-- **Small commits** - Each task = one commit with bd-id
-- **Data-driven** - Put numbers in JSON, not code
-- **Signals > polling** - Use Godot signals for updates
-- **Sync before done** - Always `bd sync` after closing tasks
 
 ---
 
 ## If Stuck
 
-1. Check dependencies: `bd show bd-xxx --json` - is something blocking?
-2. Check patterns in progress.txt
-3. Check [../../architecture/](../../architecture/) for implementation guidance
-4. Simplify: implement the minimal version that passes
-5. Create sub-task: `bd create "Smaller piece" --discovered-from bd-xxx`
-6. Document the blocker for next iteration
+1. **Re-read the docs** - Answer is probably there
+2. Search: `grep -r "<keyword>" documentation/`
+3. Check `documentation/INDEX.md` for the concept
+4. Check `documentation/quick-reference/formulas.md` for calculations
+5. Check existing patterns in `progress.txt`
+6. Simplify: implement the minimal version
+7. Create sub-task: `bd create "Smaller piece" --type task`
+8. Document the blocker clearly
 
 ---
 
@@ -130,3 +184,4 @@ If you discover a reusable pattern, add it to **## Codebase Patterns** at TOP of
 - [beads.md](./beads.md) - Beads command reference
 - [kickstart.md](./kickstart.md) - Bootstrap prompts
 - [../../quick-reference/code-conventions.md](../../quick-reference/code-conventions.md) - Code style
+- [../../architecture/patterns.md](../../architecture/patterns.md) - Architecture patterns
