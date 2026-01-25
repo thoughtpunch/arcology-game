@@ -3,20 +3,30 @@
 You are an autonomous coding agent building the Arcology game in Godot 4.
 Use `bd` (Beads) for task tracking instead of prd.json.
 
+## Knowledge Base
+
+**All project documentation is in `documentation/`:**
+- `documentation/README.md` - Entry point
+- `documentation/INDEX.md` - Searchable A-Z index
+- `documentation/architecture/` - Build milestones
+- `documentation/quick-reference/` - Formulas, conventions, isometric math
+- `documentation/game-design/` - Blocks, environment, agents, economy
+
 ## Your Task (One Iteration)
 
 1. Run `bd ready --json` to get unblocked tasks
 2. Read `scripts/ralph/progress.txt` for codebase patterns (check **Codebase Patterns** section first)
-3. Check you're on the correct branch. If not, check it out or create from `main`
-4. Pick the **highest priority** ready task (lowest P number = highest priority)
-5. Update task: `bd update <id> --status in_progress`
-6. Implement that **single** task
-7. Run quality checks (see below)
-8. If checks pass, commit ALL changes with message: `feat: <bd-id> - <title>`
-9. Close task: `bd close <id> --reason "Implemented"`
-10. Sync: `bd sync`
-11. Append learnings to `scripts/ralph/progress.txt`
-12. Check for more work: `bd ready --json`
+3. **Consult `documentation/` for implementation details**
+4. Check you're on the correct branch. If not, check it out or create from `main`
+5. Pick the **highest priority** ready task (lowest P number = highest priority)
+6. Update task: `bd update <id> --status in_progress`
+7. Implement that **single** task
+8. Run quality checks (see below)
+9. If checks pass, commit ALL changes with message: `feat: <bd-id> - <title>`
+10. Close task: `bd close <id> --reason "Implemented"`
+11. Sync: `bd sync`
+12. Append learnings to `scripts/ralph/progress.txt`
+13. Check for more work: `bd ready --json`
 
 ## Beads Commands Reference
 
@@ -66,7 +76,10 @@ A 3D isometric city-builder in Godot 4 where players build vertical megastructur
 
 **Key Files:**
 - `CLAUDE.md` - Quick project context
-- `ARCHITECTURE.md` - Build milestones and patterns
+- `documentation/` - Full wiki-style knowledge base
+- `documentation/architecture/` - Build milestones and patterns
+- `documentation/quick-reference/` - Formulas, conventions, isometric math
+- `documentation/INDEX.md` - Searchable A-Z index
 - `scripts/ralph/progress.txt` - Learnings from previous iterations
 
 **Tech Stack:**
@@ -191,7 +204,8 @@ If you discover a reusable pattern, add it to **## Codebase Patterns** at TOP of
 
 1. Check dependencies: `bd show bd-xxx --json` - is something blocking?
 2. Check patterns in progress.txt
-3. Check ARCHITECTURE.md for implementation guidance
-4. Simplify: implement the minimal version that passes
-5. Create sub-task: `bd create "Smaller piece" --discovered-from bd-xxx`
-6. Document the blocker for next iteration
+3. Check `documentation/architecture/` for implementation guidance
+4. Check `documentation/quick-reference/` for formulas and conventions
+5. Simplify: implement the minimal version that passes
+6. Create sub-task: `bd create "Smaller piece" --discovered-from bd-xxx`
+7. Document the blocker for next iteration

@@ -2,30 +2,62 @@
 
 You are an autonomous coding agent building the Arcology game in Godot 4.
 
+## ⚠️ MANDATORY: Documentation First
+
+**BEFORE starting ANY task, you MUST:**
+1. Run `./scripts/hooks/pre-task.sh <ticket-id>` to get required reading
+2. READ all documentation files listed in the ticket comments
+3. CHECK the milestone doc for acceptance criteria
+
+**AFTER completing ANY task, you MUST:**
+1. Run `./scripts/hooks/post-task.sh <ticket-id>` to verify implementation
+2. VERIFY your implementation matches the acceptance criteria
+3. ADD any new patterns to progress.txt
+
+## Knowledge Base
+
+**All project documentation is in `documentation/`:**
+- `documentation/README.md` - Entry point
+- `documentation/INDEX.md` - Searchable A-Z index
+- `documentation/architecture/milestones/` - Build milestones with acceptance criteria
+- `documentation/quick-reference/` - Formulas, conventions, isometric math
+- `documentation/game-design/` - Blocks, environment, agents, economy
+
 ## Your Task (One Iteration)
 
-1. Read the PRD at `scripts/ralph/prd.json`
-2. Read the progress log at `scripts/ralph/progress.txt` (check **Codebase Patterns** section first)
-3. Check you're on the correct branch from PRD `branchName`. If not, check it out or create from `main`
-4. Pick the **highest priority** user story where `passes: false`
-5. Implement that **single** user story
-6. Run quality checks (see below)
-7. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
-8. Update `scripts/ralph/prd.json` to set `passes: true` for the completed story
-9. Append learnings to `scripts/ralph/progress.txt`
-10. If ALL stories now have `passes: true`, output: `<promise>COMPLETE</promise>`
+1. Get next task: `bd ready --json | head -1`
+2. **Run pre-task hook:** `./scripts/hooks/pre-task.sh <ticket-id>`
+3. **READ the documentation** listed in the hook output
+4. Read progress log: `scripts/ralph/progress.txt` (check **Codebase Patterns** first)
+5. Mark in progress: `bd update <ticket-id> --status in_progress`
+6. Implement that **single** task following the docs
+7. Run quality checks (see below)
+8. **Run post-task hook:** `./scripts/hooks/post-task.sh <ticket-id>`
+9. If checks pass, commit: `git commit -m "feat: <ticket-id> - <title>"`
+10. Close task: `bd close <ticket-id> --reason "Implemented per docs"`
+11. Sync: `bd sync`
+12. Append learnings to `scripts/ralph/progress.txt`
+
+## Documentation Reference Pattern
+
+Every ticket has a **📚 Required Reading** comment listing:
+- Primary milestone doc (e.g., `milestone-1-grid-blocks.md`)
+- Supporting docs (e.g., `core-concepts.md`, `isometric-math.md`)
+- Specific sections to check (e.g., `#acceptance-criteria`)
+
+**You MUST read these before implementing.**
 
 ## Stop Conditions
 
-**All done?** If ALL user stories have `passes: true`, output exactly:
+**All done?** If `bd ready --json` returns empty:
 ```
 <promise>COMPLETE</promise>
 ```
 
-**Stuck?** If you've failed the same story 3+ times and cannot proceed:
-1. Add `"blocked": true` and `"blockedReason": "..."` to the story in prd.json
-2. Try the next story
-3. If ALL remaining stories are blocked, output:
+**Stuck?** If you've failed the same task 3+ times:
+1. Add comment: `bd comments add <id> "Blocked: <reason>"`
+2. Try next task
+3. If ALL remaining tasks are blocked:
 ```
 <ralph>STUCK</ralph>
 ```
@@ -35,10 +67,11 @@ You are an autonomous coding agent building the Arcology game in Godot 4.
 **What is Arcology?**
 A 3D isometric city-builder in Godot 4 where players build vertical megastructures and cultivate human flourishing. Think SimCity + SimTower + Dwarf Fortress.
 
-**Key Files:**
-- `CLAUDE.md` - Quick project context
-- `ARCHITECTURE.md` - Build milestones and patterns
-- `docs/arcology-prd.md` - Full design spec (reference)
+**Key Documentation:**
+- `documentation/architecture/milestones/` - WHAT to build, acceptance criteria
+- `documentation/game-design/core-concepts.md` - HOW things work
+- `documentation/quick-reference/isometric-math.md` - Coordinate math
+- `documentation/game-design/blocks/` - Block catalog
 
 **Tech Stack:**
 - Godot 4.x
@@ -47,32 +80,36 @@ A 3D isometric city-builder in Godot 4 where players build vertical megastructur
 
 ## Quality Checks
 
-Before committing, ensure:
+Before closing a task:
 
 ```bash
-# If Godot project exists:
-# 1. Project opens without errors
-# 2. Main scene runs without crashes
-# 3. No GDScript errors (check Output panel)
+# 1. Run post-task hook to verify against docs
+./scripts/hooks/post-task.sh <ticket-id>
 
-# For any code:
-# - No syntax errors
-# - Functions have type hints where reasonable
-# - Classes have class_name declarations
+# 2. If Godot project exists:
+#    - Project opens without errors
+#    - Main scene runs without crashes
+#    - No GDScript errors
+
+# 3. Code quality:
+#    - No syntax errors
+#    - Functions have type hints
+#    - Classes have class_name declarations
 ```
 
 ## Codebase Conventions
+
+See `documentation/quick-reference/code-conventions.md`
 
 ```gdscript
 # Classes: PascalCase
 class_name BlockRegistry
 
-# Functions/variables: snake_case  
+# Functions/variables: snake_case
 func get_block_at(pos: Vector3i) -> Block:
 
 # Signals: past tense
 signal block_placed(block)
-signal resident_moved_in(resident)
 
 # Constants: UPPER_SNAKE
 const TILE_WIDTH = 64
@@ -82,82 +119,55 @@ const TILE_WIDTH = 64
 
 ```
 arcology/
+├── documentation/         # 📚 READ THIS FIRST
+│   ├── architecture/      # Milestones, patterns
+│   ├── game-design/       # Blocks, systems
+│   └── quick-reference/   # Formulas, conventions
 ├── project.godot
 ├── src/
-│   ├── core/           # Grid, blocks, game clock
-│   ├── blocks/         # Block type implementations
-│   ├── environment/    # Light, air, noise, safety
-│   ├── agents/         # Residents, needs, relationships
-│   ├── transit/        # Pathfinding, elevators
-│   ├── economy/        # Budget, rent
-│   └── ui/             # HUD, overlays, menus
+│   ├── core/              # Grid, blocks, game clock
+│   ├── blocks/            # Block type implementations
+│   ├── environment/       # Light, air, noise, safety
+│   └── ui/                # HUD, overlays, menus
 ├── scenes/
-├── assets/
-│   └── sprites/blocks/ # Isometric block sprites
+├── assets/sprites/blocks/ # Isometric block sprites
 ├── data/
-│   ├── blocks.json     # Block definitions
-│   └── balance.json    # Tuning numbers
-└── scripts/ralph/
-    ├── prd.json        # Current user stories
-    └── progress.txt    # Learnings log
-```
-
-## Isometric Math Reference
-
-```gdscript
-const TILE_WIDTH = 64
-const TILE_HEIGHT = 32
-const FLOOR_HEIGHT = 24
-
-func grid_to_screen(grid_pos: Vector3i) -> Vector2:
-    var x = (grid_pos.x - grid_pos.y) * (TILE_WIDTH / 2)
-    var y = (grid_pos.x + grid_pos.y) * (TILE_HEIGHT / 2)
-    y -= grid_pos.z * FLOOR_HEIGHT
-    return Vector2(x, y)
+│   ├── blocks.json        # Block definitions
+│   └── balance.json       # Tuning numbers
+└── scripts/
+    ├── hooks/             # pre-task.sh, post-task.sh
+    └── ralph/             # Agent files
 ```
 
 ## Progress Log Format
 
-After completing a story, append to `scripts/ralph/progress.txt`:
+After completing a task, append to `scripts/ralph/progress.txt`:
 
 ```
 ## Iteration [N] - [Date]
-Story: [Story ID] - [Title]
+Task: <ticket-id> - [Title]
+Docs Read: [list of docs consulted]
 Status: PASSED / FAILED
 Changes:
 - [file1]: [what changed]
-- [file2]: [what changed]
 Learnings:
 - [anything future iterations should know]
-Blockers:
-- [if failed, why]
-```
-
-## Codebase Patterns Section
-
-If you discover a reusable pattern, add it to the **## Codebase Patterns** section at the TOP of `progress.txt`:
-
-```
-## Codebase Patterns
-- Use Vector3i for grid positions (x, y = horizontal, z = floor)
-- Blocks emit signals, systems connect to them
-- Load balance numbers from data/balance.json, not hardcoded
-- Sprites go in assets/sprites/blocks/{category}/
 ```
 
 ## Important Reminders
 
-- **One story per iteration** - Don't try to do multiple
-- **Small commits** - Each story = one commit
+- **DOCS FIRST** - Read documentation before writing code
+- **One task per iteration** - Don't try to do multiple
+- **Small commits** - Each task = one commit
+- **Verify against docs** - Run post-task hook before closing
 - **Data-driven** - Put numbers in JSON, not code
 - **Signals > polling** - Use Godot signals for updates
-- **Check ARCHITECTURE.md** for the current milestone scope
-- If a story is too big, note it in progress.txt and mark as blocked
 
 ## If Stuck
 
-1. Check if the story depends on unfinished work → mark blocked
-2. Check ARCHITECTURE.md for implementation guidance
-3. Check existing code patterns in progress.txt
-4. Simplify: implement the minimal version that passes
-5. Document the blocker clearly for the next iteration
+1. **Re-read the docs** - Answer is probably there
+2. Check `documentation/INDEX.md` for the concept
+3. Check `documentation/quick-reference/formulas.md` for calculations
+4. Check existing code patterns in `progress.txt`
+5. Simplify: implement the minimal version
+6. Document the blocker clearly for the next iteration

@@ -38,7 +38,7 @@
       "priority": 1,
       "acceptanceCriteria": [
         "project.godot exists and is valid Godot 4 format",
-        "Folder structure matches ARCHITECTURE.md (src/, scenes/, assets/, data/)",
+        "Folder structure matches documentation/architecture/ (src/, scenes/, assets/, data/)",
         "Main scene exists at scenes/main.tscn",
         "Project opens in Godot without errors"
       ],
