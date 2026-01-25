@@ -3,10 +3,40 @@
 ## Constants
 
 ```gdscript
-const TILE_WIDTH: int = 64   # Horizontal tile size
-const TILE_HEIGHT: int = 32  # Vertical tile size (2:1 ratio)
-const FLOOR_HEIGHT: int = 24 # Visual height per Z level
+const TILE_WIDTH: int = 64    # Hexagon width / diamond width
+const TILE_DEPTH: int = 32    # Diamond height (top face only)
+const WALL_HEIGHT: int = 32   # Height of side faces
+const FLOOR_HEIGHT: int = 32  # Visual offset per Z level (= WALL_HEIGHT)
 ```
+
+## Sprite Geometry
+
+Blocks are 3D cubes rendered as **isometric cutaways** (front faces removed).
+
+**Perimeter shape: HEXAGON**
+
+```
+Single 1x1x1 block sprite (64w × 64h):
+
+          ____32____
+         /          \
+        /    TOP     \      ← Diamond floor (64w × 32h)
+       / (floor face) \
+      /________________\
+      \       |       /
+       \  L   |   R  /      ← Two visible walls (32h each)
+        \     |     /
+         \____|____/
+
+      |____64____|
+```
+
+**3 visible faces:**
+1. **TOP** = floor diamond (what you walk on)
+2. **LEFT** = back-left wall
+3. **RIGHT** = back-right wall
+
+**Cutaway style** = front walls and ceiling removed to see inside room.
 
 ## Grid to Screen Conversion
 
@@ -15,14 +45,14 @@ Convert a 3D grid position to 2D screen coordinates:
 ```gdscript
 func grid_to_screen(grid_pos: Vector3i) -> Vector2:
     var x = (grid_pos.x - grid_pos.y) * (TILE_WIDTH / 2)
-    var y = (grid_pos.x + grid_pos.y) * (TILE_HEIGHT / 2)
+    var y = (grid_pos.x + grid_pos.y) * (TILE_DEPTH / 2)
     y -= grid_pos.z * FLOOR_HEIGHT  # Higher Z = higher on screen
     return Vector2(x, y)
 ```
 
 **Explanation:**
 - `x` component: Difference of grid x/y determines horizontal position
-- `y` component: Sum of grid x/y determines depth, minus floor offset
+- `y` component: Sum of grid x/y determines depth (using TILE_DEPTH), minus floor offset
 
 ## Screen to Grid Conversion
 
@@ -33,8 +63,8 @@ func screen_to_grid(screen_pos: Vector2, z_level: int) -> Vector3i:
     # Adjust for current Z level
     var adjusted_y = screen_pos.y + z_level * FLOOR_HEIGHT
 
-    var grid_x = (screen_pos.x / (TILE_WIDTH / 2) + adjusted_y / (TILE_HEIGHT / 2)) / 2
-    var grid_y = (adjusted_y / (TILE_HEIGHT / 2) - screen_pos.x / (TILE_WIDTH / 2)) / 2
+    var grid_x = (screen_pos.x / (TILE_WIDTH / 2) + adjusted_y / (TILE_DEPTH / 2)) / 2
+    var grid_y = (adjusted_y / (TILE_DEPTH / 2) - screen_pos.x / (TILE_WIDTH / 2)) / 2
 
     return Vector3i(int(grid_x), int(grid_y), z_level)
 ```
@@ -99,13 +129,15 @@ Grid position (5, 3, 0) appears:
 
 ```
 Z=2  ╔═══╗
-     ║   ║ ← 48 pixels above Z=0
+     ║   ║ ← 64 pixels above Z=0 (2 × FLOOR_HEIGHT)
 Z=1  ╔═══╗
-     ║   ║ ← 24 pixels above Z=0
+     ║   ║ ← 32 pixels above Z=0 (1 × FLOOR_HEIGHT)
 Z=0  ╔═══╗
      ║   ║ ← Ground level
      ╚═══╝
 ```
+
+Each floor is offset by FLOOR_HEIGHT (32px) vertically.
 
 ## Common Operations
 

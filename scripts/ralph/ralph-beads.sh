@@ -15,6 +15,15 @@ MAX_ITERATIONS=${1:-20}
 ITERATION=0
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_PROMPT="$SCRIPT_DIR/CLAUDE-beads.md"
+LOG_FILE="$SCRIPT_DIR/ralph.log"
+TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
+
+# Start logging
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo ""
+echo "=========================================="
+echo "Ralph session started: $TIMESTAMP"
+echo "=========================================="
 
 echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║  RALPH + BEADS - Autonomous Agent Loop ║${NC}"
@@ -62,8 +71,8 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
     echo -e "${BLUE}  Iteration $ITERATION / $MAX_ITERATIONS${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
-    # Check ready tasks
-    READY_TASKS=$(bd ready --json 2>/dev/null || echo "[]")
+    # Check ready tasks (filter for tasks only, not epics)
+    READY_TASKS=$(bd ready --json 2>/dev/null | jq '[.[] | select(.issue_type == "task")]' || echo "[]")
     READY_COUNT=$(echo "$READY_TASKS" | jq 'length')
     
     if [ "$READY_COUNT" -eq 0 ]; then
@@ -92,8 +101,18 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
     echo ""
     
     # Run Claude with the prompt
-    echo -e "${BLUE}Running Claude...${NC}"
+    echo -e "${BLUE}Running Claude on task: $TASK_ID${NC}"
+    echo "[$(date +%H:%M:%S)] Starting Claude for $TASK_ID - $TASK_TITLE"
     OUTPUT=$(claude --dangerously-skip-permissions --print < "$CLAUDE_PROMPT" 2>&1) || true
+    echo "[$(date +%H:%M:%S)] Claude finished for $TASK_ID"
+
+    # Log a summary of the output (first 500 chars and last 500 chars)
+    echo "--- Output summary ---"
+    echo "$OUTPUT" | head -c 1000
+    echo ""
+    echo "..."
+    echo "$OUTPUT" | tail -c 500
+    echo "--- End summary ---"
     
     # Check for completion signal
     if echo "$OUTPUT" | grep -q "<promise>COMPLETE</promise>"; then

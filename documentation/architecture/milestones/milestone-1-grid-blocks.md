@@ -124,10 +124,13 @@ func _init(type: String, pos: Vector3i):
 ## Isometric Constants
 
 ```gdscript
-const TILE_WIDTH: int = 64
-const TILE_HEIGHT: int = 32
-const FLOOR_HEIGHT: int = 24
+const TILE_WIDTH: int = 64    # Hexagon width / diamond width
+const TILE_DEPTH: int = 32    # Diamond height (top face only)
+const WALL_HEIGHT: int = 32   # Height of side faces
+const FLOOR_HEIGHT: int = 32  # Visual offset per Z level
 ```
+
+**Sprite size for 1x1x1 block: 64w × 64h** (hexagonal perimeter, cutaway style)
 
 See [isometric-math.md](../../quick-reference/isometric-math.md) for full conversion formulas.
 
