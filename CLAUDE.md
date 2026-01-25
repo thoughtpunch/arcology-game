@@ -6,8 +6,12 @@
 
 **Read these in order:**
 1. **This file** - High-level context (you're here)
-2. **ARCHITECTURE.md** - How to build this iteratively, milestone by milestone
-3. **arcology-prd.md** - Full design doc (reference, not required reading)
+2. **[documentation/](./documentation/README.md)** - Full wiki-style knowledge base
+3. **[documentation/architecture/](./documentation/architecture/)** - Build milestones
+
+**Quick lookups:**
+- [documentation/INDEX.md](./documentation/INDEX.md) - Searchable A-Z index
+- [documentation/quick-reference/](./documentation/quick-reference/) - Formulas, conventions, math
 
 ## What Is Arcology?
 
@@ -63,18 +67,25 @@ Lower needs must be met before higher ones matter.
 
 ```
 arcology/
-├── CLAUDE.md          ← You are here (context)
-├── ARCHITECTURE.md    ← How to build (milestones, patterns)
-├── arcology-prd.md    ← Full design (reference)
-├── src/               ← Game code
-├── scenes/            ← Godot scenes
-├── assets/            ← Sprites, audio
-└── data/              ← JSON configs (blocks, balance)
+├── CLAUDE.md              ← You are here (context)
+├── documentation/         ← Wiki-style knowledge base
+│   ├── README.md          ← Documentation entry point
+│   ├── INDEX.md           ← Searchable A-Z index
+│   ├── quick-reference/   ← Formulas, conventions, math
+│   ├── architecture/      ← Build milestones (0-10+)
+│   ├── game-design/       ← Blocks, environment, agents, economy
+│   ├── technical/         ← Data model, simulation tick
+│   ├── ui/                ← Views, overlays, narrative
+│   └── agents/            ← AI agent instructions (Ralph)
+├── src/                   ← Game code
+├── scenes/                ← Godot scenes
+├── assets/                ← Sprites, audio
+└── data/                  ← JSON configs (blocks, balance)
 ```
 
 ## Current Development Phase
 
-**Check ARCHITECTURE.md for current milestone.**
+**Check [documentation/architecture/](./documentation/architecture/) for current milestone.**
 
 Milestones 1-10 = Core game loop
 Milestones 11-22 = Depth features
@@ -133,10 +144,10 @@ var falloff = balance.light_falloff_per_floor
 
 ## When You're Stuck
 
-1. Check ARCHITECTURE.md for the current milestone scope
+1. Check [documentation/architecture/](./documentation/architecture/) for the current milestone scope
 2. Simplify—cut the feature in half
 3. Hardcode first, data-drive later
-4. Check the PRD Appendix B for formulas
+4. Check [documentation/quick-reference/formulas.md](./documentation/quick-reference/formulas.md) for formulas
 5. Ask: "Does this need to exist in Milestone N?"
 
 ## Key Formulas (Quick Reference)
@@ -162,4 +173,4 @@ AEI = individual(40%) + community(25%) + sustainability(20%) + resilience(15%)
 
 ---
 
-**Now go read ARCHITECTURE.md for the build plan.**
+**Now explore [documentation/](./documentation/README.md) for the full knowledge base.**
