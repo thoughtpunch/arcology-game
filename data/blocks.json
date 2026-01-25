@@ -1,0 +1,65 @@
+{
+  "corridor": {
+    "name": "Corridor",
+    "category": "transit",
+    "traversability": "public",
+    "size": [1, 1, 1],
+    "cost": 50,
+    "sprite": "res://assets/sprites/blocks/corridor.png",
+    "connects_horizontal": true,
+    "connects_vertical": false
+  },
+  "entrance": {
+    "name": "Entrance",
+    "category": "transit",
+    "traversability": "public",
+    "size": [1, 1, 1],
+    "cost": 500,
+    "sprite": "res://assets/sprites/blocks/entrance.png",
+    "connects_horizontal": true,
+    "connects_vertical": false,
+    "ground_only": true
+  },
+  "stairs": {
+    "name": "Stairs",
+    "category": "transit",
+    "traversability": "public",
+    "size": [1, 1, 1],
+    "cost": 200,
+    "sprite": "res://assets/sprites/blocks/stairs.png",
+    "connects_horizontal": true,
+    "connects_vertical": true
+  },
+  "elevator_shaft": {
+    "name": "Elevator Shaft",
+    "category": "transit",
+    "traversability": "public",
+    "size": [1, 1, 1],
+    "cost": 500,
+    "sprite": "res://assets/sprites/blocks/elevator.png",
+    "connects_horizontal": false,
+    "connects_vertical": true
+  },
+  "residential_basic": {
+    "name": "Basic Apartment",
+    "category": "residential",
+    "traversability": "private",
+    "size": [1, 1, 1],
+    "cost": 500,
+    "sprite": "res://assets/sprites/blocks/residential.png",
+    "connects_horizontal": false,
+    "connects_vertical": false,
+    "capacity": 4
+  },
+  "commercial_basic": {
+    "name": "Small Shop",
+    "category": "commercial",
+    "traversability": "private",
+    "size": [1, 1, 1],
+    "cost": 800,
+    "sprite": "res://assets/sprites/blocks/commercial.png",
+    "connects_horizontal": false,
+    "connects_vertical": false,
+    "jobs": 2
+  }
+}
