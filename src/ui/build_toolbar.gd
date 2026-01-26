@@ -399,6 +399,22 @@ func _format_cost(cost: int) -> String:
 	return str(cost)
 
 
+func _input(event: InputEvent) -> void:
+	# Close flyout when clicking outside of it
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if _flyout_visible:
+			var mouse_event := event as InputEventMouseButton
+			var mouse_pos: Vector2 = mouse_event.position
+			var flyout_rect: Rect2 = _flyout_panel.get_global_rect()
+			var toolbar_rect: Rect2 = _category_container.get_global_rect()
+
+			# Check if click is outside both flyout and category buttons
+			if not flyout_rect.has_point(mouse_pos) and not toolbar_rect.has_point(mouse_pos):
+				print("[BuildToolbar] Click outside flyout, closing")
+				_close_flyout()
+				# Don't consume the event - let it pass through to game
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not event is InputEventKey:
 		return
