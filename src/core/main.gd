@@ -17,6 +17,7 @@ var input_handler: InputHandler
 var block_picker: BlockPicker
 var floor_selector: FloorSelector
 var terrain: Terrain
+var hud: HUD
 
 
 func _ready() -> void:
@@ -24,6 +25,7 @@ func _ready() -> void:
 	_setup_terrain()
 	_setup_grid()
 	_setup_input_handler()
+	_setup_hud()
 	_setup_block_picker()
 	_setup_floor_selector()
 	_place_test_blocks()
@@ -101,8 +103,32 @@ func _on_block_removal_attempted(pos: Vector3i, success: bool) -> void:
 		print("No block to remove at %s" % pos)
 
 
+func _setup_hud() -> void:
+	# Create main HUD layout
+	hud = HUD.new()
+	ui_layer.add_child(hud)
+
+	# Connect floor changes to HUD
+	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
+	if game_state:
+		game_state.floor_changed.connect(_on_hud_floor_changed)
+		# Initialize with current floor
+		hud.update_floor_display(game_state.current_floor)
+
+	# Set initial resources (placeholder values)
+	hud.update_resources(100000, 0, 0)
+	hud.update_datetime(1, 1, 1)
+
+	print("HUD ready.")
+
+
+func _on_hud_floor_changed(new_floor: int) -> void:
+	hud.update_floor_display(new_floor)
+
+
 func _setup_block_picker() -> void:
-	# Create block picker UI
+	# Create block picker UI (legacy - now part of HUD bottom bar)
+	# Keep for now as functional block selector with keyboard shortcuts
 	block_picker = BlockPicker.new()
 	ui_layer.add_child(block_picker)
 
