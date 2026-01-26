@@ -19,6 +19,7 @@ Environment systems calculate quality-of-life values for every block. These affe
 | [Noise](./noise-system.md) | 0-100 | Sleep, concentration, stress |
 | [Safety](./safety-system.md) | 0-100 | Security needs, rent |
 | [Vibes](./vibes-system.md) | 0-100 | Composite desirability |
+| [Terrain](./terrain.md) | N/A | Base map layer (decorative) |
 
 ---
 

@@ -133,6 +133,7 @@
 
 ### T
 - **Tech Levels** - Progression, see [scenarios.md](./game-design/scenarios.md#tech-levels)
+- **Terrain** - Base map layer, see [environment/terrain.md](./game-design/environment/terrain.md)
 - **Tech Stack** - Tools used, see [tech-stack.md](./quick-reference/tech-stack.md)
 - **Transit Blocks** - Corridors, elevators, see [transit/README.md](./game-design/transit/)
 - **Traversability** - Public vs private, see [core-concepts.md](./game-design/core-concepts.md)
