@@ -163,7 +163,7 @@ func _setup_hud() -> void:
 
 	# Set initial resources (placeholder values)
 	hud.update_resources(100000, 0, 0)
-	hud.update_datetime(1, 1, 1)
+	# Time display is now handled by TimeControls connected to GameState
 
 	# Setup info panel manager
 	_setup_info_panel_manager()

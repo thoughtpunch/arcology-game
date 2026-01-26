@@ -277,13 +277,18 @@ func test_datetime_update() -> void:
 	var hud := HUD.new()
 	hud._setup_layout()
 
-	# Update datetime
+	# Check TimeControls exists (replaces old DateTimeLabel)
+	var time_controls: TimeControls = hud.top_bar.get_node_or_null("HBoxContainer/TimeControls")
+	assert_not_null(time_controls, "TimeControls should exist")
+
+	# In tests without scene tree, _ready() doesn't fire, so call _setup_ui manually
+	time_controls._setup_ui()
+
+	# Update datetime via HUD method (delegates to TimeControls)
 	hud.update_datetime(5, 3, 12)
 
-	# Check datetime label
-	var datetime_label: Label = hud.top_bar.get_node_or_null("HBoxContainer/DateTimeLabel")
-	assert_not_null(datetime_label, "DateTime label should exist")
-	assert_eq(datetime_label.text, "Y5 M3 D12", "DateTime should format correctly")
+	# Verify via TimeControls accessor
+	assert_eq(time_controls.get_date_text(), "Y5 M3 D12", "DateTime should format correctly")
 
 	hud.free()
 

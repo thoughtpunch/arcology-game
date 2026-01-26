@@ -131,56 +131,10 @@ func _create_top_bar() -> Control:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hbox.add_child(spacer)
 
-	# Date/time display
-	var datetime := Label.new()
-	datetime.text = "Y1 M1 D1"
-	datetime.name = "DateTimeLabel"
-	datetime.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	datetime.custom_minimum_size = Vector2(120, 0)
-	hbox.add_child(datetime)
-
-	# Spacer
-	var spacer2 := Control.new()
-	spacer2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hbox.add_child(spacer2)
-
-	# Speed controls
-	var speed_box := HBoxContainer.new()
-	speed_box.add_theme_constant_override("separation", 4)
-	hbox.add_child(speed_box)
-
-	var pause_btn := Button.new()
-	pause_btn.text = "⏸"
-	pause_btn.tooltip_text = "Pause (Space)"
-	pause_btn.toggle_mode = true
-	pause_btn.custom_minimum_size = Vector2(32, 32)
-	pause_btn.name = "PauseButton"
-	speed_box.add_child(pause_btn)
-
-	var speed1_btn := Button.new()
-	speed1_btn.text = "▶"
-	speed1_btn.tooltip_text = "Normal speed (1)"
-	speed1_btn.toggle_mode = true
-	speed1_btn.button_pressed = true
-	speed1_btn.custom_minimum_size = Vector2(32, 32)
-	speed1_btn.name = "Speed1Button"
-	speed_box.add_child(speed1_btn)
-
-	var speed2_btn := Button.new()
-	speed2_btn.text = "▶▶"
-	speed2_btn.tooltip_text = "Fast (2)"
-	speed2_btn.toggle_mode = true
-	speed2_btn.custom_minimum_size = Vector2(40, 32)
-	speed2_btn.name = "Speed2Button"
-	speed_box.add_child(speed2_btn)
-
-	var speed3_btn := Button.new()
-	speed3_btn.text = "▶▶▶"
-	speed3_btn.tooltip_text = "Very fast (3)"
-	speed3_btn.toggle_mode = true
-	speed3_btn.custom_minimum_size = Vector2(48, 32)
-	speed3_btn.name = "Speed3Button"
-	speed_box.add_child(speed3_btn)
+	# Time controls (date/time display + speed controls)
+	var time_controls := TimeControls.new()
+	time_controls.name = "TimeControls"
+	hbox.add_child(time_controls)
 
 	# Notification badge
 	var notif_btn := Button.new()
@@ -547,10 +501,10 @@ func update_resources(money: int, population: int, aei: int) -> void:
 
 
 ## Update date/time display
-func update_datetime(year: int, month: int, day: int) -> void:
-	var datetime_label: Label = top_bar.get_node_or_null("HBoxContainer/DateTimeLabel")
-	if datetime_label:
-		datetime_label.text = "Y%d M%d D%d" % [year, month, day]
+func update_datetime(year: int, month: int, day: int, hour: int = 8) -> void:
+	var time_controls: TimeControls = top_bar.get_node_or_null("HBoxContainer/TimeControls")
+	if time_controls:
+		time_controls.update_display(year, month, day, hour)
 
 
 ## Format large numbers with commas
