@@ -5,6 +5,7 @@
     "traversability": "public",
     "size": [1, 1, 1],
     "cost": 50,
+    "construction_time_hours": 1,
     "sprite": "res://assets/sprites/blocks/corridor.png",
     "connects_horizontal": true,
     "connects_vertical": false
@@ -15,6 +16,7 @@
     "traversability": "public",
     "size": [1, 1, 1],
     "cost": 500,
+    "construction_time_hours": 4,
     "sprite": "res://assets/sprites/blocks/entrance.png",
     "connects_horizontal": true,
     "connects_vertical": false,
@@ -26,6 +28,7 @@
     "traversability": "public",
     "size": [1, 1, 1],
     "cost": 200,
+    "construction_time_hours": 2,
     "sprite": "res://assets/sprites/blocks/stairs.png",
     "connects_horizontal": true,
     "connects_vertical": true
@@ -36,6 +39,7 @@
     "traversability": "public",
     "size": [1, 1, 1],
     "cost": 500,
+    "construction_time_hours": 6,
     "sprite": "res://assets/sprites/blocks/elevator.png",
     "connects_horizontal": false,
     "connects_vertical": true
@@ -46,6 +50,7 @@
     "traversability": "private",
     "size": [1, 1, 1],
     "cost": 500,
+    "construction_time_hours": 8,
     "sprite": "res://assets/sprites/blocks/residential.png",
     "connects_horizontal": false,
     "connects_vertical": false,
@@ -57,6 +62,7 @@
     "traversability": "private",
     "size": [1, 1, 1],
     "cost": 800,
+    "construction_time_hours": 12,
     "sprite": "res://assets/sprites/blocks/commercial.png",
     "connects_horizontal": false,
     "connects_vertical": false,
