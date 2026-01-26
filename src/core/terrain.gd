@@ -54,7 +54,8 @@ var world_seed: int = 0:
 
 # Internal nodes
 var _base_plane: ColorRect
-var _background: ColorRect
+var _background_color: ColorRect  # Fallback solid color
+var _background_texture: TextureRect  # Sprite-based background
 var _decorations_container: Node2D
 
 # Decoration tracking
@@ -131,13 +132,23 @@ func _get_background_color(theme_name: String) -> Color:
 
 ## Setup the base plane ColorRect
 func _setup_base_plane() -> void:
-	# Background layer (sky/starfield)
-	_background = ColorRect.new()
-	_background.z_index = Z_INDEX_BACKGROUND - Z_INDEX_BASE_PLANE  # Relative to parent
-	_background.size = plane_size * 2
-	_background.position = -plane_size
-	_background.color = _get_background_color("earth")
-	add_child(_background)
+	# Background layer - color fallback
+	_background_color = ColorRect.new()
+	_background_color.z_index = Z_INDEX_BACKGROUND - Z_INDEX_BASE_PLANE  # Relative to parent
+	_background_color.size = plane_size * 2
+	_background_color.position = -plane_size
+	_background_color.color = _get_background_color("earth")
+	add_child(_background_color)
+
+	# Background layer - texture (added after color so it renders on top when visible)
+	_background_texture = TextureRect.new()
+	_background_texture.z_index = Z_INDEX_BACKGROUND - Z_INDEX_BASE_PLANE + 1  # Just above color
+	_background_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_background_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_background_texture.size = plane_size * 2
+	_background_texture.position = -plane_size
+	_background_texture.visible = false  # Hidden until texture loaded
+	add_child(_background_texture)
 
 	# Base terrain plane
 	_base_plane = ColorRect.new()
@@ -166,10 +177,37 @@ func _update_theme() -> void:
 	if _base_plane:
 		_base_plane.color = _get_base_color(theme)
 
-	# Update background
-	if _background:
-		_background.color = _get_background_color(theme)
-		_background.visible = true
+	# Update background - try texture first, fallback to color
+	_update_background()
+
+
+## Update background layer (texture or color fallback)
+func _update_background() -> void:
+	var sprite_path := get_background_sprite()
+	var texture_loaded := false
+
+	# Try to load texture
+	if not sprite_path.is_empty() and ResourceLoader.exists(sprite_path):
+		var texture := load(sprite_path) as Texture2D
+		if texture and _background_texture:
+			_background_texture.texture = texture
+			_background_texture.visible = true
+			texture_loaded = true
+
+	# Show/hide appropriate background layer
+	if _background_texture:
+		_background_texture.visible = texture_loaded
+
+	if _background_color:
+		# Color always updates (serves as fallback and provides tint for space theme)
+		_background_color.color = _get_background_color(theme)
+		# Color visible when no texture, or always visible for blending
+		_background_color.visible = not texture_loaded
+
+
+## Check if background texture is loaded
+func has_background_texture() -> bool:
+	return _background_texture and _background_texture.texture != null and _background_texture.visible
 
 
 ## Get the current theme color (base plane)
@@ -196,9 +234,12 @@ func set_plane_size(size: Vector2) -> void:
 	if _base_plane:
 		_base_plane.size = plane_size
 		_base_plane.position = -plane_size / 2
-	if _background:
-		_background.size = plane_size * 2
-		_background.position = -plane_size
+	if _background_color:
+		_background_color.size = plane_size * 2
+		_background_color.position = -plane_size
+	if _background_texture:
+		_background_texture.size = plane_size * 2
+		_background_texture.position = -plane_size
 
 
 ## Get theme data for decorations (for use by decoration system)

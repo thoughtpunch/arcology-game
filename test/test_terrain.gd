@@ -214,6 +214,90 @@ func _init() -> void:
 		print("  FAIL: Earth background sprite path is '%s'" % bg_path)
 		tests_failed += 1
 
+	# Test 20: Mars background sprite path
+	print("\nTest 20: Mars background sprite path")
+	terrain4.theme = "mars"
+	bg_path = terrain4.get_background_sprite()
+	if bg_path == "res://assets/sprites/terrain/backgrounds/mars_sky.png":
+		print("  PASS: Mars background sprite path is correct")
+		tests_passed += 1
+	else:
+		print("  FAIL: Mars background sprite path is '%s'" % bg_path)
+		tests_failed += 1
+
+	# Test 21: Space background sprite path
+	print("\nTest 21: Space background sprite path")
+	terrain4.theme = "space"
+	bg_path = terrain4.get_background_sprite()
+	if bg_path == "res://assets/sprites/terrain/backgrounds/space_stars.png":
+		print("  PASS: Space background sprite path is correct")
+		tests_passed += 1
+	else:
+		print("  FAIL: Space background sprite path is '%s'" % bg_path)
+		tests_failed += 1
+
+	# Test 22: Background sprite files exist
+	print("\nTest 22: Background sprite files exist")
+	var earth_exists := ResourceLoader.exists("res://assets/sprites/terrain/backgrounds/earth_sky.png")
+	var mars_exists := ResourceLoader.exists("res://assets/sprites/terrain/backgrounds/mars_sky.png")
+	var space_exists := ResourceLoader.exists("res://assets/sprites/terrain/backgrounds/space_stars.png")
+	if earth_exists and mars_exists and space_exists:
+		print("  PASS: All background sprite files exist")
+		tests_passed += 1
+	else:
+		print("  FAIL: Missing sprites - earth:%s, mars:%s, space:%s" % [earth_exists, mars_exists, space_exists])
+		tests_failed += 1
+
+	# Test 23: Background textures can be loaded
+	print("\nTest 23: Background textures can be loaded")
+	var earth_tex := load("res://assets/sprites/terrain/backgrounds/earth_sky.png") as Texture2D
+	var mars_tex := load("res://assets/sprites/terrain/backgrounds/mars_sky.png") as Texture2D
+	var space_tex := load("res://assets/sprites/terrain/backgrounds/space_stars.png") as Texture2D
+	if earth_tex and mars_tex and space_tex:
+		print("  PASS: All background textures load successfully")
+		tests_passed += 1
+	else:
+		print("  FAIL: Failed to load textures - earth:%s, mars:%s, space:%s" % [earth_tex != null, mars_tex != null, space_tex != null])
+		tests_failed += 1
+
+	# Test 24: Background texture dimensions are correct
+	print("\nTest 24: Background texture dimensions")
+	if earth_tex and earth_tex.get_width() == 2048 and earth_tex.get_height() == 1536:
+		print("  PASS: Earth sky texture is 2048x1536")
+		tests_passed += 1
+	else:
+		var w := earth_tex.get_width() if earth_tex else 0
+		var h := earth_tex.get_height() if earth_tex else 0
+		print("  FAIL: Earth sky texture is %dx%d, expected 2048x1536" % [w, h])
+		tests_failed += 1
+
+	# Test 25: has_background_texture returns false before scene tree (no nodes created)
+	print("\nTest 25: has_background_texture() before _ready is false")
+	var terrain5 := Terrain.new()
+	if not terrain5.has_background_texture():
+		print("  PASS: has_background_texture() is false before _ready")
+		tests_passed += 1
+	else:
+		print("  FAIL: has_background_texture() should be false before _ready")
+		tests_failed += 1
+
+	# Test 26: Negative test - non-existent theme background returns empty path
+	print("\nTest 26: Non-existent background returns empty path")
+	var terrain6 := Terrain.new()
+	# Force internal state without triggering fallback
+	terrain6._terrain_data = {"themes": {"empty_theme": {}}}
+	var empty_path := terrain6.get_background_sprite()
+	# Should return empty string because theme property is still "earth"
+	# and earth has a background defined. Let's test with actual missing background.
+	terrain6._terrain_data = {"themes": {"earth": {"base_color": "#4a7c4e"}}}  # No background key
+	empty_path = terrain6.get_background_sprite()
+	if empty_path == "":
+		print("  PASS: Missing background key returns empty path")
+		tests_passed += 1
+	else:
+		print("  FAIL: Missing background key returned '%s'" % empty_path)
+		tests_failed += 1
+
 	# Summary
 	print("\n=== Results ===")
 	print("Passed: %d" % tests_passed)
