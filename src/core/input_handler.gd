@@ -18,6 +18,7 @@ var ghost_container: Node2D  # Parent node for ghost sprite
 var selected_block_type: String = "corridor"
 var _ghost_sprite: Sprite2D
 var _floor_label: Label  # Shows Z level near ghost
+var _cost_label: Label   # Shows cost near ghost
 var _texture_cache: Dictionary = {}
 
 # Mode
@@ -28,13 +29,19 @@ var current_mode := Mode.BUILD
 const VALID_COLOR := Color(1.0, 1.0, 1.0, 0.6)    # Semi-transparent white
 const INVALID_COLOR := Color(1.0, 0.3, 0.3, 0.6)  # Semi-transparent red
 
-# Floor label styling
+# Placement cooldown to prevent rapid-fire and make placements feel weighty
+const PLACEMENT_COOLDOWN := 0.15  # seconds
+var _last_placement_time := 0.0
+
+# Label styling
 const FLOOR_LABEL_OFFSET := Vector2(40, -20)  # Offset from ghost sprite
+const COST_LABEL_OFFSET := Vector2(40, 0)     # Below floor label
 
 
 func _ready() -> void:
 	_create_ghost_sprite()
 	_create_floor_label()
+	_create_cost_label()
 
 
 ## Initialize with required references
@@ -55,6 +62,13 @@ func setup(p_grid: Grid, p_camera: Camera2D, p_ghost_container: Node2D) -> void:
 		if _floor_label.get_parent():
 			_floor_label.get_parent().remove_child(_floor_label)
 		ghost_container.add_child(_floor_label)
+
+	if _cost_label and ghost_container:
+		# Reparent cost label to container
+		if _cost_label.get_parent():
+			_cost_label.get_parent().remove_child(_cost_label)
+		ghost_container.add_child(_cost_label)
+		_update_cost_label()
 
 
 func _create_ghost_sprite() -> void:
@@ -77,7 +91,21 @@ func _create_floor_label() -> void:
 	add_child(_floor_label)  # Temporary parent until setup() called
 
 
+func _create_cost_label() -> void:
+	_cost_label = Label.new()
+	_cost_label.text = "$0"
+	_cost_label.z_index = 1001  # Above ghost
+	_cost_label.visible = false
+	_cost_label.add_theme_color_override("font_shadow_color", Color.BLACK)
+	_cost_label.add_theme_constant_override("shadow_offset_x", 1)
+	_cost_label.add_theme_constant_override("shadow_offset_y", 1)
+	add_child(_cost_label)  # Temporary parent until setup() called
+
+
 var _ready_logged := false
+
+
+
 
 func _process(_delta: float) -> void:
 	if not _is_ready():
@@ -91,14 +119,12 @@ func _process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# This handles input when NO full-screen HUD is present
+	# With full HUD, clicks come through handle_viewport_click() instead
 	if not _is_ready():
-		if event is InputEventMouseButton and event.pressed:
-			print("InputHandler not ready! grid=%s camera=%s ghost=%s" % [grid != null, camera != null, ghost_container != null])
 		return
 
 	if event is InputEventMouseButton:
-		if event.pressed:
-			print("Mouse click received at: ", event.position)
 		_handle_mouse_button(event)
 
 
@@ -107,14 +133,20 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 		return
 
 	var grid_pos := _get_grid_pos_at_mouse()
-	print("Grid position under mouse: %s (mode=%s)" % [grid_pos, Mode.keys()[current_mode]])
 
 	if event.button_index == MOUSE_BUTTON_LEFT:
 		match current_mode:
 			Mode.BUILD:
-				# Shift+click: auto-stack on top of existing blocks
-				if event.shift_pressed:
-					grid_pos = _get_auto_stack_position(grid_pos)
+				# Only auto-stack if position is occupied AND we're in "show all floors" mode
+				# Otherwise, reject placement on occupied positions (build on current floor only)
+				if grid.has_block(grid_pos):
+					# Check if BlockRenderer is in show_all_floors mode
+					if block_renderer and block_renderer.show_all_floors:
+						grid_pos = _get_auto_stack_position(grid_pos)
+					else:
+						# In cutaway mode, don't allow building on occupied positions
+						block_placement_attempted.emit(grid_pos, selected_block_type, false)
+						return
 				_try_place_block(grid_pos)
 			Mode.SELECT:
 				_try_select_block(grid_pos)
@@ -124,29 +156,60 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 		_try_remove_block(grid_pos)
 
 
+var block_renderer = null  # Set by main.gd during setup
+var construction_queue = null  # Set by main.gd during setup
+
+
+func set_block_renderer(renderer) -> void:
+	block_renderer = renderer
+
+
+func set_construction_queue(queue) -> void:
+	construction_queue = queue
+
+
 ## Attempt to place a block at the given grid position
 func _try_place_block(pos: Vector3i) -> void:
-	print("Trying to place %s at %s" % [selected_block_type, pos])
+	# Check cooldown to prevent rapid-fire placement
+	var current_time := Time.get_ticks_msec() / 1000.0
+	if current_time - _last_placement_time < PLACEMENT_COOLDOWN:
+		return  # Still in cooldown, ignore
 
-	# Validate placement
+	# Validate placement - check for existing block
 	if grid.has_block(pos):
-		print("  -> FAILED: Position already occupied")
+		block_placement_attempted.emit(pos, selected_block_type, false)
+		return
+
+	# Validate placement - check for active construction
+	if construction_queue and construction_queue.has_construction(pos):
 		block_placement_attempted.emit(pos, selected_block_type, false)
 		return
 
 	# Check ground_only constraint for entrance blocks
 	var block_data := _get_block_data(selected_block_type)
 	if block_data.get("ground_only", false) and pos.z != 0:
-		print("  -> FAILED: Block requires ground level (Z=0)")
 		block_placement_attempted.emit(pos, selected_block_type, false)
 		return
 
-	# Create and place block
-	var block := Block.new(selected_block_type, pos)
-	grid.set_block(pos, block)
-	print("  -> SUCCESS: Block placed!")
+	# TODO: Check and deduct cost from player funds
+	# var cost: int = block_data.get("cost", 0)
+	# if not GameState.can_afford(cost):
+	#     block_placement_attempted.emit(pos, selected_block_type, false)
+	#     return
+	# GameState.spend(cost)
 
-	block_placement_attempted.emit(pos, selected_block_type, true)
+	# Start construction (or place instantly if no queue or instant mode)
+	var success := false
+	if construction_queue:
+		success = construction_queue.start_construction(pos, selected_block_type)
+	else:
+		# Fallback: instant placement (for testing or if no queue)
+		var block := Block.new(selected_block_type, pos)
+		grid.set_block(pos, block)
+		success = true
+
+	_last_placement_time = current_time
+	block_placement_attempted.emit(pos, selected_block_type, success)
 
 
 ## Attempt to remove a block at the given grid position
@@ -191,7 +254,11 @@ func _update_ghost_position() -> void:
 		_floor_label.text += " (auto)"
 	_floor_label.visible = true
 
-	# Update color based on validity
+	# Update cost label position
+	_cost_label.position = _ghost_sprite.position + COST_LABEL_OFFSET
+	_cost_label.visible = true
+
+	# Update color based on validity (includes affordability check)
 	var is_valid := _is_placement_valid(display_pos)
 	_ghost_sprite.modulate = VALID_COLOR if is_valid else INVALID_COLOR
 
@@ -200,6 +267,10 @@ func _update_ghost_position() -> void:
 func _is_placement_valid(pos: Vector3i) -> bool:
 	# Can't place on occupied cell
 	if grid.has_block(pos):
+		return false
+
+	# Can't place where construction is active
+	if construction_queue and construction_queue.has_construction(pos):
 		return false
 
 	# Check ground_only constraint
@@ -264,6 +335,7 @@ func set_selected_block_type(type: String) -> void:
 	if selected_block_type != type:
 		selected_block_type = type
 		_update_ghost_texture()
+		_update_cost_label()
 		selection_changed.emit(type)
 
 
@@ -275,6 +347,36 @@ func _update_ghost_texture() -> void:
 	var texture := _get_block_texture(selected_block_type)
 	if texture:
 		_ghost_sprite.texture = texture
+
+
+## Update cost label to show selected block's cost
+func _update_cost_label() -> void:
+	if _cost_label == null:
+		return
+
+	var block_data := _get_block_data(selected_block_type)
+	var cost: int = block_data.get("cost", 0)
+
+	# Format cost
+	_cost_label.text = _format_cost(cost)
+
+	# Color based on affordability (green if affordable, red if not)
+	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
+	var can_afford := true
+	if game_state and game_state.has_method("can_afford"):
+		can_afford = game_state.can_afford(cost)
+
+	if can_afford:
+		_cost_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))  # Green
+	else:
+		_cost_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.5))  # Red
+
+
+## Format cost for display
+func _format_cost(cost: int) -> String:
+	if cost >= 1000:
+		return "$%.1fK" % (cost / 1000.0)
+	return "$%d" % cost
 
 
 ## Get texture for a block type, with caching
@@ -302,6 +404,13 @@ func _get_block_data(block_type: String) -> Dictionary:
 	return registry.get_block_data(block_type)
 
 
+## Handle a click forwarded from the HUD viewport area
+func handle_viewport_click(event: InputEventMouseButton) -> void:
+	if not _is_ready():
+		return
+	_handle_mouse_button(event)
+
+
 ## Set input mode
 func set_mode(mode: Mode) -> void:
 	current_mode = mode
@@ -310,6 +419,8 @@ func set_mode(mode: Mode) -> void:
 		_ghost_sprite.visible = (mode == Mode.BUILD)
 	if _floor_label:
 		_floor_label.visible = (mode == Mode.BUILD)
+	if _cost_label:
+		_cost_label.visible = (mode == Mode.BUILD)
 
 
 ## Get current mode

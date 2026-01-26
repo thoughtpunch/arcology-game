@@ -155,6 +155,8 @@ func _setup_input_handler() -> void:
 func _connect_input_handler_to_renderer() -> void:
 	if input_handler and block_renderer:
 		input_handler.set_block_renderer(block_renderer)
+	if input_handler and construction_queue:
+		input_handler.set_construction_queue(construction_queue)
 
 
 func _on_block_placed(pos: Vector3i, type: String, success: bool) -> void:
