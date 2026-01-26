@@ -5,8 +5,7 @@ extends Control
 
 signal floor_change_requested(new_floor: int)
 
-# UI components
-var _panel: PanelContainer
+# UI components (minimal - visual UI now handled by HUD)
 var _floor_label: Label
 var _up_button: Button
 var _down_button: Button
@@ -19,46 +18,24 @@ func _ready() -> void:
 
 
 func _setup_ui() -> void:
-	# Position at top-left corner
-	anchor_left = 0.0
-	anchor_top = 0.0
-	offset_left = 10
-	offset_top = 10
-	custom_minimum_size = Vector2(180, 40)
+	# Legacy UI - hidden since HUD now provides visual floor navigation
+	# Keep this Control active for keyboard shortcut handling (PageUp/PageDown)
+	visible = false
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	# Create panel
-	_panel = PanelContainer.new()
-	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(_panel)
-
-	# Create horizontal container for layout
-	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 8)
-	_panel.add_child(hbox)
-
-	# Floor label
+	# Still need internal references for programmatic access
 	_floor_label = Label.new()
 	_floor_label.text = "Floor: 0"
-	_floor_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_floor_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_floor_label.custom_minimum_size = Vector2(80, 0)
-	hbox.add_child(_floor_label)
+	add_child(_floor_label)
 
-	# Up button
+	# Placeholder buttons (hidden but needed for code that references them)
 	_up_button = Button.new()
-	_up_button.text = "^"
-	_up_button.tooltip_text = "Go up (PageUp)"
-	_up_button.custom_minimum_size = Vector2(30, 30)
-	_up_button.pressed.connect(_on_up_pressed)
-	hbox.add_child(_up_button)
+	_up_button.visible = false
+	add_child(_up_button)
 
-	# Down button
 	_down_button = Button.new()
-	_down_button.text = "v"
-	_down_button.tooltip_text = "Go down (PageDown)"
-	_down_button.custom_minimum_size = Vector2(30, 30)
-	_down_button.pressed.connect(_on_down_pressed)
-	hbox.add_child(_down_button)
+	_down_button.visible = false
+	add_child(_down_button)
 
 
 func _connect_to_game_state() -> void:

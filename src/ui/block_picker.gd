@@ -28,24 +28,14 @@ func _ready() -> void:
 
 
 func _setup_ui() -> void:
-	# Set up as bottom panel
-	anchor_left = 0.0
-	anchor_right = 1.0
-	anchor_top = 1.0
-	anchor_bottom = 1.0
-	offset_top = -60
-	offset_bottom = 0
+	# Legacy UI - hidden since HUD now provides visual block selection
+	# Keep this Control active for keyboard shortcut handling (1-6 keys)
+	visible = false
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	# Create background panel
-	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(panel)
-
-	# Create horizontal container for buttons
+	# Still create button container for internal state tracking
 	_button_container = HBoxContainer.new()
-	_button_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	_button_container.add_theme_constant_override("separation", 10)
-	panel.add_child(_button_container)
+	add_child(_button_container)
 
 
 func _populate_buttons() -> void:

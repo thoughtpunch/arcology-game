@@ -34,9 +34,39 @@ You are an autonomous coding agent building the Arcology game in Godot 4.
 7. Run quality checks (see below)
 8. **Run post-task hook:** `./scripts/hooks/post-task.sh <ticket-id>`
 9. If checks pass, commit: `git commit -m "feat: <ticket-id> - <title>"`
-10. Close task: `bd close <ticket-id> --reason "Implemented per docs"`
-11. Sync: `bd sync`
-12. Append learnings to `scripts/ralph/progress.txt`
+10. **⚠️ MANDATORY: Add completion comment** (see Completion Comment Format below)
+11. Close task: `bd close <ticket-id> --reason "Implemented per docs"`
+12. Sync: `bd sync`
+13. Append learnings to `scripts/ralph/progress.txt`
+
+## Completion Comment Format
+
+**Before closing a ticket**, add a detailed completion comment with cycle time:
+
+```bash
+bd comments add <ticket-id> "$(cat <<'EOF'
+## Completion Summary
+
+**Completed:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+### What Was Done
+- <Specific change 1>
+- <Specific change 2>
+- Files modified: <list them>
+
+### What Was Left Undone / Deferred
+- <Any scope cut, edge cases not handled, or "None - full scope implemented">
+
+### Gotchas / Notes for Future Work
+- <Anything surprising, patterns to document, assumptions made>
+
+### Test Coverage
+- <Tests added, manual testing done>
+EOF
+)"
+```
+
+This is **MANDATORY** for every ticket closure.
 
 ## Documentation Reference Pattern
 
@@ -157,6 +187,7 @@ Learnings:
 ## Important Reminders
 
 - **DOCS FIRST** - Read documentation before writing code
+- **COMPLETION COMMENT MANDATORY** - Add `bd comments add` before closing ANY ticket
 - **One task per iteration** - Don't try to do multiple
 - **Small commits** - Each task = one commit
 - **Verify against docs** - Run post-task hook before closing

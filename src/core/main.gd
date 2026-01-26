@@ -19,6 +19,7 @@ var floor_selector: FloorSelector
 var terrain: Terrain
 var hud: HUD
 var build_toolbar: BuildToolbar
+var overlay_sidebar: OverlaySidebar
 
 
 func _ready() -> void:
@@ -28,6 +29,7 @@ func _ready() -> void:
 	_setup_input_handler()
 	_setup_hud()
 	_setup_build_toolbar()
+	_setup_overlay_sidebar()
 	_setup_block_picker()
 	_setup_floor_selector()
 	_place_test_blocks()
@@ -149,6 +151,40 @@ func _setup_build_toolbar() -> void:
 func _on_build_toolbar_block_selected(block_type: String) -> void:
 	input_handler.set_selected_block_type(block_type)
 	print("Build toolbar selected: %s" % block_type)
+
+
+func _setup_overlay_sidebar() -> void:
+	# Create overlay sidebar on right side of screen
+	overlay_sidebar = OverlaySidebar.new()
+	overlay_sidebar.name = "OverlaySidebar"
+
+	# Anchor to right side, below top bar and above bottom bar
+	overlay_sidebar.anchor_left = 1.0
+	overlay_sidebar.anchor_right = 1.0
+	overlay_sidebar.anchor_top = 0.0
+	overlay_sidebar.anchor_bottom = 1.0
+
+	# Position to right edge with margins for top/bottom bars
+	overlay_sidebar.offset_left = -64  # Start at collapsed width
+	overlay_sidebar.offset_right = 0
+	overlay_sidebar.offset_top = 56  # Below top bar (48px + 8px margin)
+	overlay_sidebar.offset_bottom = -88  # Above bottom bar (80px + 8px margin)
+
+	# Grow left when expanding
+	overlay_sidebar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+
+	ui_layer.add_child(overlay_sidebar)
+
+	# Connect overlay change signal
+	overlay_sidebar.overlay_changed.connect(_on_overlay_changed)
+
+	print("Overlay sidebar ready. F2-F9 for overlays, ` for None.")
+
+
+func _on_overlay_changed(overlay_type: int) -> void:
+	var overlay_name := OverlaySidebar.get_overlay_name(overlay_type)
+	print("Overlay changed to: %s" % overlay_name)
+	# Future: trigger actual overlay rendering system
 
 
 func _setup_block_picker() -> void:
