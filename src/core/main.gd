@@ -18,6 +18,7 @@ var block_picker: BlockPicker
 var floor_selector: FloorSelector
 var terrain: Terrain
 var hud: HUD
+var build_toolbar: BuildToolbar
 
 
 func _ready() -> void:
@@ -26,6 +27,7 @@ func _ready() -> void:
 	_setup_grid()
 	_setup_input_handler()
 	_setup_hud()
+	_setup_build_toolbar()
 	_setup_block_picker()
 	_setup_floor_selector()
 	_place_test_blocks()
@@ -124,6 +126,29 @@ func _setup_hud() -> void:
 
 func _on_hud_floor_changed(new_floor: int) -> void:
 	hud.update_floor_display(new_floor)
+
+
+func _setup_build_toolbar() -> void:
+	# Create build toolbar for block category selection
+	build_toolbar = BuildToolbar.new()
+	build_toolbar.name = "BuildToolbar"
+
+	# Position above bottom bar (anchored to bottom of screen)
+	build_toolbar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	build_toolbar.offset_top = -180  # Space for toolbar + flyout
+	build_toolbar.offset_bottom = -90  # Above bottom bar
+
+	ui_layer.add_child(build_toolbar)
+
+	# Connect block selection to input handler
+	build_toolbar.block_selected.connect(_on_build_toolbar_block_selected)
+
+	print("Build toolbar ready. Keys 1-7 for categories.")
+
+
+func _on_build_toolbar_block_selected(block_type: String) -> void:
+	input_handler.set_selected_block_type(block_type)
+	print("Build toolbar selected: %s" % block_type)
 
 
 func _setup_block_picker() -> void:
