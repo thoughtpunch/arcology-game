@@ -147,3 +147,192 @@ Learnings:
 - call_deferred("_populate_buttons") to wait for BlockRegistry autoload
 - Connect block_type_selected signal to InputHandler.set_selected_block_type()
 
+## Iteration 11 - 2026-01-25
+Task: arcology-y6e.1 - Add floor selector UI
+Docs Consulted:
+- documentation/architecture/milestones/milestone-2-floor-navigation.md (Floor system spec)
+Status: PASSED
+Changes:
+- src/core/game_state.gd: GameState autoload with floor state and signals
+- src/ui/floor_selector.gd: FloorSelector UI with label and up/down buttons
+- src/core/input_handler.gd: Now reads current_floor from GameState
+- src/core/main.gd: Integrated FloorSelector with UI layer
+- project.godot: Added GameState to autoloads
+- test/test_game_state.gd: Unit tests for GameState
+- test/test_floor_selector.gd: Unit tests for FloorSelector
+Learnings:
+- GameState autoload centralizes floor state for all systems
+- FloorSelector handles PageUp/PageDown in _unhandled_input
+- InputHandler gets current_floor via _get_current_floor() helper
+- KEY_PAGEUP and KEY_PAGEDOWN are the keycode constants
+- get_tree().get_root().get_node_or_null() for safe autoload access
+Followup:
+- Floor visibility (hiding floors above, fading floors below) is a separate task (y6e.2)
+
+## Iteration 12 - 2026-01-25
+Task: arcology-y6e.2 - Implement floor visibility system
+Docs Consulted:
+- documentation/architecture/milestones/milestone-2-floor-navigation.md (Visibility code sample)
+- documentation/game-design/core-concepts.md (Z-level meaning)
+Status: PASSED
+Changes:
+- src/core/block_renderer.gd: Added update_visibility() with cutaway view logic
+- src/core/main.gd: Connected GameState.floor_changed to update visibility
+- test/test_floor_visibility.gd: 8 unit tests (positive and negative assertions)
+Learnings:
+- Floor visibility constants: FLOORS_BELOW_VISIBLE=2, OPACITY_FALLOFF=0.3
+- Opacity formula: 1.0 - (depth * 0.3) gives 100%, 70%, 40% for floors 0, -1, -2
+- Connect to GameState.floor_changed signal for reactive updates
+- Apply visibility to newly added blocks in _on_block_added handler
+- Use get_node_or_null() for safe autoload access in methods called during initialization
+Followup:
+- Block placement on any floor (y6e.3) is next task in M2
+
+## Iteration 13 - 2026-01-25
+Task: arcology-y6e.3 - Enable block placement on any floor
+Docs Consulted:
+- documentation/architecture/milestones/milestone-2-floor-navigation.md (Placement on current floor)
+- documentation/quick-reference/isometric-math.md (screen_to_grid with Z)
+Status: PASSED
+Changes:
+- test/test_input_handler.gd: Fixed _test_floor_change to reflect GameState architecture
+- test/test_multifloor_placement.gd: New integration test (8 tests) for multi-floor placement
+Learnings:
+- Feature was already implemented in InputHandler._get_current_floor() from y6e.1
+- InputHandler reads current_floor from GameState autoload, not from own property
+- Tests should use autoload integration tests for full coverage
+- Test file test_multifloor_placement.gd covers: tower building, z-index ordering, entrance constraints
+Followup:
+- M2 Floor Navigation is now complete
+- Next: M3 Connectivity tasks (adjacency detection, entrance block type)
+
+## Iteration 14 - 2026-01-25
+Task: arcology-itx.1 - Implement adjacency detection
+Docs Consulted:
+- documentation/architecture/milestones/milestone-3-connectivity.md (Neighbor finding, connection rules)
+- data/blocks.json (traversability, connects_horizontal/vertical properties)
+Status: PASSED
+Changes:
+- src/core/grid.gd: Added adjacency methods
+  - get_occupied_neighbors(): Returns neighbors with blocks
+  - get_occupied_horizontal_neighbors(): Same floor only
+  - can_connect(): Check walkability between blocks
+  - get_walkable_neighbors(): Get reachable neighbors
+- test/test_adjacency.gd: 12 unit tests
+Learnings:
+- Horizontal connection rule: at least one block must be public (traversable)
+- Vertical connection rule: both blocks must have connects_vertical=true
+- Private blocks are destinations, not through-routes (can reach, not traverse)
+- Use explicit type annotations (: bool, : int) when calling registry methods to avoid type inference errors
+- Registry methods return dynamic types, use explicit types not :=
+Followup:
+- Next M3 task: arcology-itx.3 (Add entrance block type)
+
+## Iteration 15 - 2026-01-25
+Task: arcology-itx.3 - Add entrance block type
+Docs Consulted:
+- documentation/architecture/milestones/milestone-3-connectivity.md (Entrance as flood-fill seed)
+- data/blocks.json (entrance definition already existed)
+Status: PASSED
+Changes:
+- src/core/grid.gd: Added entrance tracking
+  - _entrance_positions array tracks all entrance blocks
+  - entrances_changed signal for connectivity recalculation
+  - get_entrance_positions(), has_entrance() accessors
+  - _track_entrance/_untrack_entrance on block add/remove
+- test/test_entrance.gd: 10 unit tests
+Learnings:
+- Entrance block was already defined in blocks.json from iteration 4
+- Ground_only enforcement was already in InputHandler
+- Need to handle both Block objects and Dictionaries in tracking (for test compatibility)
+- Use "block is Object and 'block_type' in block" pattern for safe property access
+Followup:
+- M3 flood-fill connectivity (itx.2) depends on this entrance tracking
+- Next: Check remaining M3 tasks or continue with available tasks
+
+## Iteration 16 - 2026-01-25
+Task: arcology-itx.2 - Implement connectivity flood-fill
+Docs Consulted:
+- documentation/architecture/milestones/milestone-3-connectivity.md (BFS algorithm, traversability rules)
+- documentation/game-design/core-concepts.md (public vs private blocks)
+- data/blocks.json (block type definitions)
+Status: PASSED
+Changes:
+- src/core/grid.gd: Added BFS flood-fill connectivity algorithm
+  - calculate_connectivity() performs BFS from all entrance positions
+  - _is_block_public() checks traversability via registry or dict field
+  - _set_block_connected() handles both Block objects and dictionaries
+  - connectivity_changed signal for reactive updates
+  - block_registry property for direct injection (testing)
+  - Auto-recalculates on block add/remove via call_deferred
+- test/test_connectivity.gd: 33 unit tests for BFS algorithm
+- test/test_connectivity_integration.gd: 15 integration tests with BlockRegistry
+Learnings:
+- Traversability rules: PUBLIC blocks expand neighbors in BFS; PRIVATE blocks are destinations only
+- Engine.get_main_loop() returns null inside SceneTree test scripts during _init
+- For integration tests, set grid.block_registry directly rather than relying on autoload lookup
+- When registry unavailable, check for explicit "traversability" field in Dictionary blocks
+- Use call_deferred("calculate_connectivity") to ensure signals fire before recalc
+Followup:
+- M3 remaining tasks: visual feedback for unconnected blocks (warning icon, overlay)
+- Elevator shaft connectivity needs stairs/elevator blocks tested thoroughly
+
+## Iteration 17 - 2026-01-25
+Task: arcology-itx.4 - Show connectivity warning on disconnected blocks
+Docs Consulted:
+- documentation/architecture/milestones/milestone-3-connectivity.md (visual feedback section)
+Status: PASSED
+Changes:
+- src/core/block_renderer.gd: Added connectivity visual feedback
+  - DISCONNECTED_TINT (red) and CONNECTED_TINT (white) constants
+  - _on_connectivity_changed() connects to Grid signal
+  - _update_connectivity_visual() applies tint based on block.connected
+  - _update_sprite_visibility() preserves connectivity tint when updating alpha
+- test/test_connectivity_visuals.gd: 10 unit tests for visual feedback
+Learnings:
+- Color modulate combines RGB tint with alpha for floor visibility
+- Connect to Grid.connectivity_changed signal for reactive updates
+- Type annotations required for inferred types like `var x := something.property`
+Followup:
+- Optional: Add 'C' key toggle for full connectivity overlay mode
+- M3 complete: stairs and elevator already implemented in earlier iterations
+
+## Iteration 18 - 2026-01-25
+Task: arcology-itx.5 and arcology-itx.6 - Stairs and Elevator block types
+Status: ALREADY IMPLEMENTED
+Notes:
+- Both block types already exist in data/blocks.json from iteration 4
+- Sprites exist in assets/sprites/blocks/
+- Vertical connectivity tested in test_connectivity_integration.gd
+- Closed both tasks as already complete
+
+M3 Connectivity & Paths COMPLETE:
+- itx.1: Adjacency detection ✓
+- itx.2: Connectivity flood-fill ✓
+- itx.3: Entrance block type ✓
+- itx.4: Connectivity visual warning ✓
+- itx.5: Stairs block type ✓
+- itx.6: Elevator shaft block type ✓
+
+## Iteration 19 - 2026-01-25
+Task: arcology-ak9.1 - Implement Terrain class with base plane rendering
+Docs Consulted:
+- documentation/game-design/environment/terrain.md (theme colors, z-index layers)
+- documentation/quick-reference/isometric-math.md (sprite dimensions)
+Status: PASSED
+Changes:
+- src/core/terrain.gd: New Terrain class extending Node2D
+  - theme property with setter (earth, mars, space)
+  - THEME_COLORS constant with Color values
+  - Z_INDEX constants (background=-2000, base=-1000)
+  - Base plane ColorRect at z_index -1000
+  - Background ColorRect at z_index -2000
+  - get_theme_color(), is_valid_theme(), get_available_themes()
+  - set_plane_size() for map customization
+- test/test_terrain.gd: 12 unit tests (positive and negative)
+Learnings:
+- ColorRect z_index is relative to parent when child
+- Use setter with validation for theme property
+- Space theme needs transparent Color(0,0,0,0) for base plane
+- push_warning() for invalid theme input (not error)
+

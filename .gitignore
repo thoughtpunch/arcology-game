@@ -3,3 +3,6 @@
 .godot/
 *.uid
 scripts/ralph/ralph.log
+
+# bv (beads viewer) local config and caches
+.bv/
