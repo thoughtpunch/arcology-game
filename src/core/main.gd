@@ -20,6 +20,7 @@ var terrain: Terrain
 var hud: HUD
 var build_toolbar: BuildToolbar
 var overlay_sidebar: OverlaySidebar
+var info_panel_manager: InfoPanelManager
 
 
 func _ready() -> void:
@@ -89,6 +90,7 @@ func _setup_input_handler() -> void:
 	# Connect signals for feedback
 	input_handler.block_placement_attempted.connect(_on_block_placement_attempted)
 	input_handler.block_removal_attempted.connect(_on_block_removal_attempted)
+	input_handler.block_selected.connect(_on_block_selected)
 
 	print("Input handler ready. Left-click to place, right-click to remove.")
 
@@ -107,6 +109,46 @@ func _on_block_removal_attempted(pos: Vector3i, success: bool) -> void:
 		print("No block to remove at %s" % pos)
 
 
+func _on_info_panel_block_action(action: String, block_pos: Vector3i) -> void:
+	match action:
+		"demolish":
+			if grid.has_block(block_pos):
+				grid.remove_block(block_pos)
+				print("Demolished block at %s" % block_pos)
+				info_panel_manager.close_current_panel()
+		"upgrade":
+			print("Upgrade requested for block at %s" % block_pos)
+		"details":
+			print("Details requested for block at %s" % block_pos)
+
+
+func _on_block_selected(pos: Vector3i, block_type: String) -> void:
+	print("Block selected: %s at %s" % [block_type, pos])
+
+	# Get block data from grid
+	var block = grid.get_block_at(pos)
+	var block_data := {}
+
+	if block:
+		# Build block_data dictionary with available information
+		block_data["status"] = "Vacant"  # Default, would come from simulation
+		block_data["environment"] = {
+			"light": 75.0,
+			"air": 80.0,
+			"noise": 30.0,
+			"safety": 70.0,
+			"vibes": 60.0
+		}
+		block_data["economics"] = {
+			"rent": 100,
+			"desirability": 0.72,
+			"maintenance": 15
+		}
+
+	# Show the info panel
+	info_panel_manager.show_block_info(pos, block_type, block_data)
+
+
 func _setup_hud() -> void:
 	# Create main HUD layout
 	hud = HUD.new()
@@ -123,7 +165,21 @@ func _setup_hud() -> void:
 	hud.update_resources(100000, 0, 0)
 	hud.update_datetime(1, 1, 1)
 
+	# Setup info panel manager
+	_setup_info_panel_manager()
+
 	print("HUD ready.")
+
+
+func _setup_info_panel_manager() -> void:
+	info_panel_manager = InfoPanelManager.new()
+	add_child(info_panel_manager)
+	info_panel_manager.setup(hud)
+
+	# Connect to block actions
+	info_panel_manager.block_action.connect(_on_info_panel_block_action)
+
+	print("Info panel manager ready.")
 
 
 func _on_hud_floor_changed(new_floor: int) -> void:
