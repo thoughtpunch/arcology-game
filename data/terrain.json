@@ -1,0 +1,43 @@
+{
+  "themes": {
+    "earth": {
+      "base_color": "#4a7c4e",
+      "base_texture": "grass_noise",
+      "background_color": "#87ceeb",
+      "background": "earth_sky.png",
+      "decorations": [
+        {"type": "tree_oak", "weight": 0.3, "size": [1, 1]},
+        {"type": "tree_pine", "weight": 0.2, "size": [1, 1]},
+        {"type": "rock_small", "weight": 0.2, "size": [1, 1]},
+        {"type": "rock_large", "weight": 0.1, "size": [2, 2]},
+        {"type": "bush", "weight": 0.15, "size": [1, 1]},
+        {"type": "flowers", "weight": 0.05, "size": [1, 1]}
+      ],
+      "decoration_density": 0.08,
+      "has_river": true
+    },
+    "mars": {
+      "base_color": "#8b4513",
+      "base_texture": "rocky_dust",
+      "background_color": "#d4856a",
+      "background": "mars_sky.png",
+      "decorations": [
+        {"type": "rock_small", "weight": 0.4, "size": [1, 1]},
+        {"type": "rock_medium", "weight": 0.3, "size": [1, 1]},
+        {"type": "rock_large", "weight": 0.2, "size": [2, 2]},
+        {"type": "crater_small", "weight": 0.1, "size": [1, 1]}
+      ],
+      "decoration_density": 0.12,
+      "has_river": false
+    },
+    "space": {
+      "base_color": null,
+      "base_texture": null,
+      "background_color": "#0a0a1a",
+      "background": "space_stars.png",
+      "decorations": [],
+      "decoration_density": 0,
+      "has_river": false
+    }
+  }
+}

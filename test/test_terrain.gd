@@ -83,9 +83,10 @@ func _init() -> void:
 		print("  FAIL: is_valid_theme returned wrong values")
 		tests_failed += 1
 
-	# Test 8: get_available_themes returns all themes
+	# Test 8: get_available_themes returns all themes (instance method)
 	print("\nTest 8: get_available_themes() returns all themes")
-	var themes := Terrain.get_available_themes()
+	var terrain_for_themes := Terrain.new()
+	var themes := terrain_for_themes.get_available_themes()
 	if themes.size() == 3 and "earth" in themes and "mars" in themes and "space" in themes:
 		print("  PASS: get_available_themes returns [earth, mars, space]")
 		tests_passed += 1
@@ -133,6 +134,84 @@ func _init() -> void:
 		tests_passed += 1
 	else:
 		print("  FAIL: 'Earth' was accepted as '%s'" % terrain3.theme)
+		tests_failed += 1
+
+	# --- JSON DATA LOADING TESTS ---
+
+	# Test 13: Decoration density for earth
+	print("\nTest 13: Earth decoration density is 0.08")
+	var terrain4 := Terrain.new()
+	terrain4.theme = "earth"
+	var density := terrain4.get_decoration_density()
+	if is_equal_approx(density, 0.08):
+		print("  PASS: Earth decoration density is 0.08")
+		tests_passed += 1
+	else:
+		print("  FAIL: Earth decoration density is %f, expected 0.08" % density)
+		tests_failed += 1
+
+	# Test 14: Mars decoration density
+	print("\nTest 14: Mars decoration density is 0.12")
+	terrain4.theme = "mars"
+	density = terrain4.get_decoration_density()
+	if is_equal_approx(density, 0.12):
+		print("  PASS: Mars decoration density is 0.12")
+		tests_passed += 1
+	else:
+		print("  FAIL: Mars decoration density is %f, expected 0.12" % density)
+		tests_failed += 1
+
+	# Test 15: Space has no decorations
+	print("\nTest 15: Space decoration density is 0")
+	terrain4.theme = "space"
+	density = terrain4.get_decoration_density()
+	if is_equal_approx(density, 0.0):
+		print("  PASS: Space decoration density is 0")
+		tests_passed += 1
+	else:
+		print("  FAIL: Space decoration density is %f, expected 0" % density)
+		tests_failed += 1
+
+	# Test 16: Earth has river
+	print("\nTest 16: Earth has river")
+	terrain4.theme = "earth"
+	if terrain4.has_river():
+		print("  PASS: Earth has river")
+		tests_passed += 1
+	else:
+		print("  FAIL: Earth should have river")
+		tests_failed += 1
+
+	# Test 17: Mars has no river
+	print("\nTest 17: Mars has no river")
+	terrain4.theme = "mars"
+	if not terrain4.has_river():
+		print("  PASS: Mars has no river")
+		tests_passed += 1
+	else:
+		print("  FAIL: Mars should not have river")
+		tests_failed += 1
+
+	# Test 18: Earth decorations array has expected count
+	print("\nTest 18: Earth has 6 decoration types")
+	terrain4.theme = "earth"
+	var decorations := terrain4.get_decorations_config()
+	if decorations.size() == 6:
+		print("  PASS: Earth has 6 decoration types")
+		tests_passed += 1
+	else:
+		print("  FAIL: Earth has %d decoration types, expected 6" % decorations.size())
+		tests_failed += 1
+
+	# Test 19: Background sprite path for earth
+	print("\nTest 19: Earth background sprite path")
+	terrain4.theme = "earth"
+	var bg_path := terrain4.get_background_sprite()
+	if bg_path == "res://assets/sprites/terrain/backgrounds/earth_sky.png":
+		print("  PASS: Earth background sprite path is correct")
+		tests_passed += 1
+	else:
+		print("  FAIL: Earth background sprite path is '%s'" % bg_path)
 		tests_failed += 1
 
 	# Summary
