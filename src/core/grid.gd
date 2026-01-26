@@ -44,6 +44,11 @@ func get_block(pos: Vector3i):
 	return _blocks.get(pos)
 
 
+## Alias for get_block (more descriptive name)
+func get_block_at(pos: Vector3i):
+	return get_block(pos)
+
+
 ## Remove block at position
 func remove_block(pos: Vector3i) -> void:
 	if _blocks.has(pos):

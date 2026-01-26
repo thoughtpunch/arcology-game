@@ -136,13 +136,10 @@ func _create_top_bar() -> Control:
 	time_controls.name = "TimeControls"
 	hbox.add_child(time_controls)
 
-	# Notification badge
-	var notif_btn := Button.new()
-	notif_btn.text = "🔔"
-	notif_btn.tooltip_text = "Notifications"
-	notif_btn.custom_minimum_size = Vector2(40, 32)
-	notif_btn.name = "NotificationButton"
-	hbox.add_child(notif_btn)
+	# Notification tray
+	var notif_tray := NotificationTray.new()
+	notif_tray.name = "NotificationTray"
+	hbox.add_child(notif_tray)
 
 	return bar
 
@@ -213,26 +210,8 @@ func _create_bottom_bar() -> Control:
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	bar.add_child(hbox)
 
-	# Build categories
-	var build_box := HBoxContainer.new()
-	build_box.add_theme_constant_override("separation", 4)
-	build_box.name = "BuildCategories"
-	hbox.add_child(build_box)
-
-	var categories := ["Res", "Com", "Ind", "Tra", "Grn", "Civ", "Inf"]
-	var tooltips := ["Residential", "Commercial", "Industrial", "Transit", "Green", "Civic", "Infrastructure"]
-	for i in range(categories.size()):
-		var btn := Button.new()
-		btn.text = categories[i]
-		btn.tooltip_text = tooltips[i]
-		btn.toggle_mode = true
-		btn.custom_minimum_size = Vector2(50, 50)
-		build_box.add_child(btn)
-
-	# Separator
-	var sep := VSeparator.new()
-	sep.custom_minimum_size = Vector2(2, 60)
-	hbox.add_child(sep)
+	# Note: Build categories are handled by BuildToolbar (added in main.gd)
+	# This avoids duplicate buttons
 
 	# Floor navigator (using FloorNavigator component)
 	var floor_navigator := FloorNavigator.new()

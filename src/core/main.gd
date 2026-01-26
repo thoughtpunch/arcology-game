@@ -21,6 +21,7 @@ var hud: HUD
 var build_toolbar: BuildToolbar
 var overlay_sidebar: OverlaySidebar
 var info_panel_manager: InfoPanelManager
+var toast_notification: ToastNotification
 
 
 func _ready() -> void:
@@ -28,12 +29,91 @@ func _ready() -> void:
 	_setup_terrain()
 	_setup_grid()
 	_setup_input_handler()
-	_setup_hud()
-	_setup_build_toolbar()
-	_setup_overlay_sidebar()
-	_setup_block_picker()
-	_setup_floor_selector()
+	_setup_simple_ui()  # Minimal UI like reference video
 	_place_test_blocks()
+
+
+func _setup_simple_ui() -> void:
+	# Create a minimal block picker at bottom of screen (like reference video)
+	var block_bar := HBoxContainer.new()
+	block_bar.name = "BlockBar"
+	block_bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	block_bar.offset_top = -80
+	block_bar.offset_bottom = -16
+	block_bar.add_theme_constant_override("separation", 12)
+	ui_layer.add_child(block_bar)
+
+	# Get block types from registry
+	var registry = get_tree().get_root().get_node_or_null("/root/BlockRegistry")
+	if not registry:
+		push_warning("BlockRegistry not found")
+		return
+
+	# Create icon buttons for each block type
+	var block_types := ["corridor", "entrance", "stairs", "residential_basic", "commercial_basic"]
+	for i in range(block_types.size()):
+		var block_type: String = block_types[i]
+		var block_data: Dictionary = registry.get_block_data(block_type)
+
+		var btn := Button.new()
+		btn.name = block_type
+		btn.custom_minimum_size = Vector2(64, 64)
+		btn.toggle_mode = true
+		btn.button_pressed = (i == 0)  # Select first by default
+
+		# Try to load sprite as button icon
+		var sprite_path: String = block_data.get("sprite", "")
+		if sprite_path != "" and ResourceLoader.exists(sprite_path):
+			var texture := load(sprite_path) as Texture2D
+			if texture:
+				btn.icon = texture
+				btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				btn.expand_icon = true
+		else:
+			# Fallback to text
+			btn.text = str(i + 1)
+
+		# Style the button
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.1, 0.1, 0.1, 0.6)
+		style.corner_radius_top_left = 8
+		style.corner_radius_top_right = 8
+		style.corner_radius_bottom_left = 8
+		style.corner_radius_bottom_right = 8
+		btn.add_theme_stylebox_override("normal", style)
+
+		var style_pressed := StyleBoxFlat.new()
+		style_pressed.bg_color = Color(0.2, 0.4, 0.6, 0.8)
+		style_pressed.border_color = Color.WHITE
+		style_pressed.border_width_left = 2
+		style_pressed.border_width_right = 2
+		style_pressed.border_width_top = 2
+		style_pressed.border_width_bottom = 2
+		style_pressed.corner_radius_top_left = 8
+		style_pressed.corner_radius_top_right = 8
+		style_pressed.corner_radius_bottom_left = 8
+		style_pressed.corner_radius_bottom_right = 8
+		btn.add_theme_stylebox_override("pressed", style_pressed)
+
+		btn.pressed.connect(_on_simple_block_selected.bind(block_type, block_bar))
+		block_bar.add_child(btn)
+
+	# Select first block by default
+	if block_types.size() > 0:
+		input_handler.set_selected_block_type(block_types[0])
+
+	print("Simple UI ready. Click blocks at bottom, then click to place.")
+
+
+func _on_simple_block_selected(block_type: String, bar: HBoxContainer) -> void:
+	# Deselect all buttons
+	for child in bar.get_children():
+		if child is Button:
+			child.button_pressed = (child.name == block_type)
+
+	# Set the selected block type
+	input_handler.set_selected_block_type(block_type)
+	print("Selected: %s" % block_type)
 
 
 func _setup_terrain() -> void:
@@ -46,16 +126,10 @@ func _setup_terrain() -> void:
 	# Set default theme from terrain.json (earth)
 	terrain.theme = "earth"
 
-	# Grid area roughly -20 to +20 in each direction
-	var scatter_area := Rect2i(-20, -20, 40, 40)
-
-	# Generate river first (so decorations don't spawn on river)
-	terrain.generate_river(scatter_area)
-
-	# Scatter decorations across visible area
-	terrain.scatter_decorations(scatter_area)
-
-	print("Terrain ready with %d decorations, %d river tiles" % [terrain.get_decoration_count(), terrain.get_river_tile_count()])
+	# For now, just use a simple green background without decorations or river
+	# This keeps the game clean and focused on core gameplay
+	# Decorations and river can be enabled later once the core is solid
+	print("Terrain ready (simple green background)")
 
 
 func _setup_grid() -> void:
@@ -165,10 +239,62 @@ func _setup_hud() -> void:
 	hud.update_resources(100000, 0, 0)
 	# Time display is now handled by TimeControls connected to GameState
 
+	# Connect tool sidebar signals
+	_connect_tool_sidebar()
+
 	# Setup info panel manager
 	_setup_info_panel_manager()
 
+	# Setup toast notifications
+	_setup_toast_notifications()
+
 	print("HUD ready.")
+
+
+func _connect_tool_sidebar() -> void:
+	# Get the ToolSidebar from HUD
+	if not hud or not hud.left_sidebar:
+		push_warning("ToolSidebar not found in HUD")
+		return
+
+	var tool_sidebar: ToolSidebar = hud.left_sidebar as ToolSidebar
+	if tool_sidebar:
+		tool_sidebar.tool_selected.connect(_on_tool_selected)
+		tool_sidebar.quick_build_selected.connect(_on_quick_build_selected)
+		tool_sidebar.favorite_selected.connect(_on_favorite_selected)
+		print("Tool sidebar connected.")
+
+
+func _on_tool_selected(tool: int) -> void:
+	# Map ToolSidebar.Tool enum to InputHandler.Mode
+	match tool:
+		ToolSidebar.Tool.SELECT:
+			input_handler.set_mode(InputHandler.Mode.SELECT)
+			print("Mode: SELECT")
+		ToolSidebar.Tool.BUILD:
+			input_handler.set_mode(InputHandler.Mode.BUILD)
+			print("Mode: BUILD")
+		ToolSidebar.Tool.DEMOLISH:
+			input_handler.set_mode(InputHandler.Mode.DEMOLISH)
+			print("Mode: DEMOLISH")
+		ToolSidebar.Tool.INFO:
+			input_handler.set_mode(InputHandler.Mode.SELECT)
+			print("Mode: INFO (using SELECT mode)")
+		ToolSidebar.Tool.UPGRADE:
+			input_handler.set_mode(InputHandler.Mode.SELECT)
+			print("Mode: UPGRADE (using SELECT mode)")
+
+
+func _on_quick_build_selected(block_type: String) -> void:
+	input_handler.set_selected_block_type(block_type)
+	input_handler.set_mode(InputHandler.Mode.BUILD)
+	print("Quick build: %s" % block_type)
+
+
+func _on_favorite_selected(block_type: String) -> void:
+	input_handler.set_selected_block_type(block_type)
+	input_handler.set_mode(InputHandler.Mode.BUILD)
+	print("Favorite: %s" % block_type)
 
 
 func _setup_info_panel_manager() -> void:
@@ -180,6 +306,28 @@ func _setup_info_panel_manager() -> void:
 	info_panel_manager.block_action.connect(_on_info_panel_block_action)
 
 	print("Info panel manager ready.")
+
+
+func _setup_toast_notifications() -> void:
+	# Create toast notification container
+	toast_notification = ToastNotification.new()
+	toast_notification.name = "ToastNotification"
+
+	# Position in top-right corner
+	toast_notification.anchor_left = 1.0
+	toast_notification.anchor_right = 1.0
+	toast_notification.anchor_top = 0.0
+	toast_notification.anchor_bottom = 0.0
+
+	# Offset from edge (below top bar)
+	toast_notification.offset_left = -320  # Toast width
+	toast_notification.offset_right = -16  # Right margin
+	toast_notification.offset_top = 56  # Below top bar
+	toast_notification.offset_bottom = 500  # Room for toasts
+
+	ui_layer.add_child(toast_notification)
+
+	print("Toast notifications ready.")
 
 
 func _on_hud_floor_changed(new_floor: int) -> void:
@@ -297,38 +445,11 @@ func _on_grid_block_removed(pos: Vector3i) -> void:
 
 
 func _place_test_blocks() -> void:
-	# Place some test blocks to verify rendering
-	# Row of corridors at ground level
-	for x in range(-2, 3):
-		var block := Block.new("corridor", Vector3i(x, 0, 0))
-		grid.set_block(block.grid_position, block)
-
-	# Some vertical corridors
-	for y in range(1, 3):
-		var block := Block.new("corridor", Vector3i(0, y, 0))
-		grid.set_block(block.grid_position, block)
-
-	# Entrance at origin
-	var entrance := Block.new("entrance", Vector3i(0, -1, 0))
+	# Start with an empty canvas - player places blocks
+	# Just place one entrance to start
+	var entrance := Block.new("entrance", Vector3i(0, 0, 0))
 	grid.set_block(entrance.grid_position, entrance)
-
-	# Stack some blocks on Z=1 to test floor stacking
-	var upper1 := Block.new("residential_basic", Vector3i(1, 0, 1))
-	grid.set_block(upper1.grid_position, upper1)
-
-	var upper2 := Block.new("commercial_basic", Vector3i(2, 0, 1))
-	grid.set_block(upper2.grid_position, upper2)
-
-	# Stairs to connect floors
-	var stairs := Block.new("stairs", Vector3i(0, 0, 1))
-	grid.set_block(stairs.grid_position, stairs)
-
-	print("Placed %d test blocks" % grid.get_block_count())
-
-	# Apply initial visibility based on starting floor
-	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
-	if game_state:
-		block_renderer.update_visibility(game_state.current_floor)
+	print("Starting block placed. Click to build!")
 
 
 func _process(delta: float) -> void:
