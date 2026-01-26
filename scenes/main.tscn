@@ -17,4 +17,5 @@ offset_left = 10.0
 offset_top = 10.0
 offset_right = 300.0
 offset_bottom = 40.0
+mouse_filter = 2
 text = "Arcology - Press WASD to pan, scroll to zoom"
