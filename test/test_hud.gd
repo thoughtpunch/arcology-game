@@ -100,13 +100,18 @@ func test_left_sidebar_structure() -> void:
 	hud._setup_layout()
 
 	assert_not_null(hud.left_sidebar, "Left sidebar should exist")
-	assert_true(hud.left_sidebar is PanelContainer, "Left sidebar should be PanelContainer")
-	assert_eq(int(hud.left_sidebar.custom_minimum_size.x), HUD.LEFT_SIDEBAR_COLLAPSED, "Left sidebar should start collapsed")
+	# Left sidebar is now ToolSidebar (which extends PanelContainer)
+	assert_true(hud.left_sidebar is ToolSidebar, "Left sidebar should be ToolSidebar")
 
-	# Check toggle button exists
-	var toggle_btn := hud.left_sidebar.get_node_or_null("VBoxContainer/ToggleButton")
-	assert_not_null(toggle_btn, "Toggle button should exist")
-	assert_true(toggle_btn is Button, "Toggle should be Button")
+	# In tests without scene tree, _ready doesn't fire, so call _setup_ui manually
+	(hud.left_sidebar as ToolSidebar)._setup_ui()
+
+	assert_eq(int(hud.left_sidebar.custom_minimum_size.x), ToolSidebar.COLLAPSED_WIDTH, "Left sidebar should start collapsed")
+
+	# Check menu button exists (ToolSidebar has menu button instead of toggle)
+	var menu_btn := hud.left_sidebar.get_node_or_null("VBoxContainer/Header/MenuButton")
+	assert_not_null(menu_btn, "Menu button should exist")
+	assert_true(menu_btn is Button, "Menu button should be Button")
 
 	hud.free()
 
@@ -178,15 +183,28 @@ func test_sidebar_toggle_state() -> void:
 	var hud := HUD.new()
 	hud._setup_layout()
 
+	# In tests, manually setup ToolSidebar
+	if hud.left_sidebar is ToolSidebar:
+		(hud.left_sidebar as ToolSidebar)._setup_ui()
+
 	# Check initial state
 	assert_false(hud.is_left_sidebar_expanded(), "Sidebar should start collapsed")
 
-	# Toggle and check state changes
-	hud._left_expanded = true
-	assert_true(hud.is_left_sidebar_expanded(), "Sidebar should report expanded state")
+	# Toggle via ToolSidebar (now uses is_expanded() method)
+	if hud.left_sidebar is ToolSidebar:
+		var tool_sidebar := hud.left_sidebar as ToolSidebar
+		tool_sidebar.expand()
+		assert_true(hud.is_left_sidebar_expanded(), "Sidebar should report expanded state")
 
-	hud._left_expanded = false
-	assert_false(hud.is_left_sidebar_expanded(), "Sidebar should report collapsed state")
+		tool_sidebar.collapse()
+		assert_false(hud.is_left_sidebar_expanded(), "Sidebar should report collapsed state")
+	else:
+		# Legacy path
+		hud._left_expanded = true
+		assert_true(hud.is_left_sidebar_expanded(), "Sidebar should report expanded state")
+
+		hud._left_expanded = false
+		assert_false(hud.is_left_sidebar_expanded(), "Sidebar should report collapsed state")
 
 	hud.free()
 

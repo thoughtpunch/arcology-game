@@ -148,82 +148,9 @@ func _create_top_bar() -> Control:
 
 
 func _create_left_sidebar() -> Control:
-	var sidebar := PanelContainer.new()
-	sidebar.custom_minimum_size = Vector2(LEFT_SIDEBAR_COLLAPSED, 0)
+	# Use ToolSidebar component with full functionality
+	var sidebar := ToolSidebar.new()
 	sidebar.name = "LeftSidebar"
-
-	var vbox := VBoxContainer.new()
-	vbox.name = "VBoxContainer"
-	vbox.add_theme_constant_override("separation", 8)
-	sidebar.add_child(vbox)
-
-	# Collapse/expand button
-	var toggle_btn := Button.new()
-	toggle_btn.text = "◀"
-	toggle_btn.tooltip_text = "Expand sidebar"
-	toggle_btn.custom_minimum_size = Vector2(48, 32)
-	toggle_btn.name = "ToggleButton"
-	toggle_btn.pressed.connect(_on_sidebar_toggle)
-	vbox.add_child(toggle_btn)
-
-	# Tool buttons (vertical)
-	var tools := VBoxContainer.new()
-	tools.add_theme_constant_override("separation", 4)
-	vbox.add_child(tools)
-
-	var select_btn := Button.new()
-	select_btn.text = "🔍"
-	select_btn.tooltip_text = "Select (S)"
-	select_btn.toggle_mode = true
-	select_btn.button_pressed = true
-	select_btn.custom_minimum_size = Vector2(48, 48)
-	select_btn.name = "SelectTool"
-	tools.add_child(select_btn)
-
-	var build_btn := Button.new()
-	build_btn.text = "🔨"
-	build_btn.tooltip_text = "Build (B)"
-	build_btn.toggle_mode = true
-	build_btn.custom_minimum_size = Vector2(48, 48)
-	build_btn.name = "BuildTool"
-	tools.add_child(build_btn)
-
-	var demolish_btn := Button.new()
-	demolish_btn.text = "💥"
-	demolish_btn.tooltip_text = "Demolish (X)"
-	demolish_btn.toggle_mode = true
-	demolish_btn.custom_minimum_size = Vector2(48, 48)
-	demolish_btn.name = "DemolishTool"
-	tools.add_child(demolish_btn)
-
-	var info_btn := Button.new()
-	info_btn.text = "ℹ"
-	info_btn.tooltip_text = "Info (I)"
-	info_btn.toggle_mode = true
-	info_btn.custom_minimum_size = Vector2(48, 48)
-	info_btn.name = "InfoTool"
-	tools.add_child(info_btn)
-
-	var upgrade_btn := Button.new()
-	upgrade_btn.text = "⬆"
-	upgrade_btn.tooltip_text = "Upgrade (U)"
-	upgrade_btn.toggle_mode = true
-	upgrade_btn.custom_minimum_size = Vector2(48, 48)
-	upgrade_btn.name = "UpgradeTool"
-	tools.add_child(upgrade_btn)
-
-	# Spacer to push favorites down
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(spacer)
-
-	# Quick build section (hidden when collapsed)
-	var quick_label := Label.new()
-	quick_label.text = "Quick Build"
-	quick_label.name = "QuickBuildLabel"
-	quick_label.visible = false  # Only visible when expanded
-	vbox.add_child(quick_label)
-
 	return sidebar
 
 
@@ -382,23 +309,16 @@ func _style_panel(panel: Control, bg_color: Color, border_color: Color = Color.T
 
 
 func _on_sidebar_toggle() -> void:
-	_left_expanded = not _left_expanded
-
-	# Animate width change
-	var target_width := LEFT_SIDEBAR_EXPANDED if _left_expanded else LEFT_SIDEBAR_COLLAPSED
-	var tween := create_tween()
-	tween.tween_property(left_sidebar, "custom_minimum_size:x", target_width, PANEL_ANIM_DURATION)
-
-	# Update toggle button
-	var toggle_btn: Button = left_sidebar.get_node("VBoxContainer/ToggleButton")
-	if toggle_btn:
-		toggle_btn.text = "▶" if _left_expanded else "◀"
-		toggle_btn.tooltip_text = "Collapse sidebar" if _left_expanded else "Expand sidebar"
-
-	# Show/hide quick build label
-	var quick_label: Label = left_sidebar.get_node_or_null("VBoxContainer/QuickBuildLabel")
-	if quick_label:
-		quick_label.visible = _left_expanded
+	# ToolSidebar handles its own expand/collapse
+	if left_sidebar is ToolSidebar:
+		var tool_sidebar: ToolSidebar = left_sidebar
+		if tool_sidebar.is_expanded():
+			tool_sidebar.collapse()
+		else:
+			tool_sidebar.expand()
+		_left_expanded = tool_sidebar.is_expanded()
+	else:
+		_left_expanded = not _left_expanded
 
 	left_sidebar_toggled.emit(_left_expanded)
 
@@ -448,6 +368,8 @@ func is_right_panel_visible() -> bool:
 
 ## Check if left sidebar is expanded
 func is_left_sidebar_expanded() -> bool:
+	if left_sidebar is ToolSidebar:
+		return (left_sidebar as ToolSidebar).is_expanded()
 	return _left_expanded
 
 
