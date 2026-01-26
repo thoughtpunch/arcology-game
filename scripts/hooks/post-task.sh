@@ -102,9 +102,41 @@ echo "- Missing: Add the missing section"
 echo "- Unclear: Add clarifying notes"
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║  Once ALL checks pass:                                           ║"
-echo "║                                                                  ║"
-echo "║  git add -A && git commit -m \"feat: $TICKET_ID - <title>\"       ║"
-echo "║  bd close $TICKET_ID --reason \"Implemented per docs\"            ║"
-echo "║  bd sync                                                         ║"
+echo "║  MANDATORY: Commit before closing ticket                         ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
+echo ""
+
+# ENFORCE: Check for uncommitted changes related to this work
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "⚠️  WARNING: You have uncommitted changes!"
+    echo ""
+    git status --short
+    echo ""
+    echo "You MUST commit your work before closing this ticket."
+    echo "Run:"
+    echo "  git add <files>"
+    echo "  git commit -m \"feat: $TICKET_ID - <title>\""
+    echo ""
+fi
+
+# ENFORCE: Check that a commit exists for this ticket
+TICKET_COMMITS=$(git log --oneline --all | grep -c "$TICKET_ID" || echo "0")
+if [ "$TICKET_COMMITS" -eq 0 ]; then
+    echo "❌ ERROR: No commits found referencing $TICKET_ID"
+    echo ""
+    echo "You MUST create at least one commit with the ticket ID in the message."
+    echo "Format: feat: $TICKET_ID - <description>"
+    echo ""
+    exit 1
+fi
+
+echo "✅ Found $TICKET_COMMITS commit(s) referencing $TICKET_ID"
+echo ""
+
+echo "┌─────────────────────────────────────────────────────────────────┐"
+echo "│ ✅ READY TO CLOSE                                               │"
+echo "└─────────────────────────────────────────────────────────────────┘"
+echo ""
+echo "Run:"
+echo "  bd close $TICKET_ID --reason \"Implemented\""
+echo "  bd sync"
