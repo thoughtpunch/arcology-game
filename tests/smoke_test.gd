@@ -37,7 +37,7 @@ func _init() -> void:
 
 	# Wait one frame to trigger _ready() methods
 	print("Running one frame...")
-	await get_tree().process_frame
+	await process_frame
 	print("✓ First frame completed")
 
 	# Check for expected nodes

@@ -27,10 +27,10 @@ func _init() -> void:
 
 	# Wait several frames to ensure everything is rendered
 	for i in range(10):
-		await get_tree().process_frame
+		await process_frame
 
 	# Additional wait for any async loading
-	await get_tree().create_timer(0.5).timeout
+	await create_timer(0.5).timeout
 
 	print("✓ Render complete")
 
