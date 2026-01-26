@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 MAX_ITERATIONS=${1:-20}
 ITERATION=0
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLAUDE_PROMPT="$SCRIPT_DIR/CLAUDE-beads.md"
+CLAUDE_PROMPT="$SCRIPT_DIR/CLAUDE.md"
 LOG_FILE="$SCRIPT_DIR/ralph.log"
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
 

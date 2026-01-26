@@ -1,50 +1,42 @@
-# Arcology - Ralph Agent Instructions
+# Arcology - Ralph Agent Instructions (Beads Edition)
 
 You are an autonomous coding agent building the Arcology game in Godot 4.
-
-## ⚠️ MANDATORY: Documentation First
-
-**BEFORE starting ANY task, you MUST:**
-1. Run `./scripts/hooks/pre-task.sh <ticket-id>` to get required reading
-2. READ all documentation files listed in the ticket comments
-3. CHECK the milestone doc for acceptance criteria
-
-**AFTER completing ANY task, you MUST:**
-1. Run `./scripts/hooks/post-task.sh <ticket-id>` to verify implementation
-2. VERIFY your implementation matches the acceptance criteria
-3. ADD any new patterns to progress.txt
+Use `bd` (Beads) for task tracking instead of prd.json.
 
 ## Knowledge Base
 
 **All project documentation is in `documentation/`:**
 - `documentation/README.md` - Entry point
 - `documentation/INDEX.md` - Searchable A-Z index
-- `documentation/architecture/milestones/` - Build milestones with acceptance criteria
+- `documentation/architecture/` - Build milestones
 - `documentation/quick-reference/` - Formulas, conventions, isometric math
 - `documentation/game-design/` - Blocks, environment, agents, economy
 
 ## Your Task (One Iteration)
 
-1. Get next task: `bd ready --json | head -1`
-2. **Run pre-task hook:** `./scripts/hooks/pre-task.sh <ticket-id>`
-3. **READ the documentation** listed in the hook output
-4. Read progress log: `scripts/ralph/progress.txt` (check **Codebase Patterns** first)
-5. Mark in progress: `bd update <ticket-id> --status in_progress`
-6. Implement that **single** task following the docs
-7. Run quality checks (see below)
-8. **Run post-task hook:** `./scripts/hooks/post-task.sh <ticket-id>`
-9. If checks pass, commit: `git commit -m "feat: <ticket-id> - <title>"`
-10. **⚠️ MANDATORY: Add completion comment** (see Completion Comment Format below)
-11. Close task: `bd close <ticket-id> --reason "Implemented per docs"`
-12. Sync: `bd sync`
-13. Append learnings to `scripts/ralph/progress.txt`
+1. Run `bd ready --json` to get unblocked tasks
+2. Read `scripts/ralph/progress.txt` for codebase patterns (check **Codebase Patterns** section first)
+3. **Consult `documentation/` for implementation details**
+4. Check you're on the correct branch. If not, check it out or create from `main`
+5. Pick the **highest priority** ready task (lowest P number = highest priority)
+6. Update task: `bd update <id> --status in_progress`
+7. Implement that **single** task
+8. **Write tests** (positive AND negative assertions)
+9. Run quality checks (see below)
+10. **⚠️ MANDATORY: Commit with ticket ID:** `git commit -m "feat: arcology-x0d.1 - Title"`
+11. Run post-task hook: `./scripts/hooks/post-task.sh <id>` (blocks if no commit!)
+12. **⚠️ MANDATORY: Add completion comment** (see Completion Comment Format below)
+13. Close task: `bd close <id> --reason "Implemented"`
+14. Sync: `bd sync`
+15. Append learnings to `scripts/ralph/progress.txt`
+16. Check for more work: `bd ready --json`
 
 ## Completion Comment Format
 
-**Before closing a ticket**, add a detailed completion comment with cycle time:
+**Before closing a ticket**, add a detailed completion comment:
 
 ```bash
-bd comments add <ticket-id> "$(cat <<'EOF'
+bd comment <ticket-id> "$(cat <<'EOF'
 ## Completion Summary
 
 **Completed:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -66,28 +58,45 @@ EOF
 )"
 ```
 
-This is **MANDATORY** for every ticket closure.
+This is MANDATORY for every ticket closure.
 
-## Documentation Reference Pattern
+## Beads Commands Reference
 
-Every ticket has a **📚 Required Reading** comment listing:
-- Primary milestone doc (e.g., `milestone-1-grid-blocks.md`)
-- Supporting docs (e.g., `core-concepts.md`, `isometric-math.md`)
-- Specific sections to check (e.g., `#acceptance-criteria`)
+```bash
+# Get ready (unblocked) tasks as JSON
+bd ready --json
 
-**You MUST read these before implementing.**
+# Get task details
+bd show bd-abc123 --json
+
+# Update status
+bd update bd-abc123 --status in_progress
+
+# Close completed task
+bd close bd-abc123 --reason "Implemented and tested"
+
+# Create new discovered task
+bd create "Fix bug found during implementation" --priority 1 --discovered-from bd-abc123
+
+# Add dependency (A blocked by B)
+bd dep add bd-A bd-B
+
+# Sync to git (export JSONL)
+bd sync
+```
 
 ## Stop Conditions
 
-**All done?** If `bd ready --json` returns empty:
+**All done?** If `bd ready --json` returns empty array `[]`, output exactly:
 ```
 <promise>COMPLETE</promise>
 ```
 
-**Stuck?** If you've failed the same task 3+ times:
-1. Add comment: `bd comments add <id> "Blocked: <reason>"`
-2. Try next task
-3. If ALL remaining tasks are blocked:
+**Stuck?** If a task fails 3+ times:
+1. Add comment: `bd comment bd-xxx "Blocked: <reason>"`
+2. Mark blocked: `bd update bd-xxx --status blocked`
+3. Try next ready task
+4. If ALL remaining tasks are blocked, output:
 ```
 <ralph>STUCK</ralph>
 ```
@@ -97,49 +106,96 @@ Every ticket has a **📚 Required Reading** comment listing:
 **What is Arcology?**
 A 3D isometric city-builder in Godot 4 where players build vertical megastructures and cultivate human flourishing. Think SimCity + SimTower + Dwarf Fortress.
 
-**Key Documentation:**
-- `documentation/architecture/milestones/` - WHAT to build, acceptance criteria
-- `documentation/game-design/core-concepts.md` - HOW things work
-- `documentation/quick-reference/isometric-math.md` - Coordinate math
-- `documentation/game-design/blocks/` - Block catalog
+**Key Files:**
+- `CLAUDE.md` - Quick project context
+- `documentation/` - Full wiki-style knowledge base
+- `documentation/architecture/` - Build milestones and patterns
+- `documentation/quick-reference/` - Formulas, conventions, isometric math
+- `documentation/INDEX.md` - Searchable A-Z index
+- `scripts/ralph/progress.txt` - Learnings from previous iterations
 
 **Tech Stack:**
 - Godot 4.x
 - GDScript (primary)
 - 16-bit isometric pixel art
 
-## Quality Checks
+## ⚠️ MANDATORY: Commits Before Closing
 
-Before closing a task:
+**YOU MUST commit your work BEFORE closing any ticket.**
 
+This is non-negotiable. The post-task hook will BLOCK ticket closure if no commits reference the ticket ID.
+
+**Commit format:** `feat: <ticket-id> - <short description>`
+
+Examples:
 ```bash
-# 1. Run post-task hook to verify against docs
-./scripts/hooks/post-task.sh <ticket-id>
-
-# 2. If Godot project exists:
-#    - Project opens without errors
-#    - Main scene runs without crashes
-#    - No GDScript errors
-
-# 3. Code quality:
-#    - No syntax errors
-#    - Functions have type hints
-#    - Classes have class_name declarations
+git add src/core/grid.gd test/test_grid.gd
+git commit -m "feat: arcology-x0d.1 - Implement Grid class with isometric conversion"
 ```
 
-## Codebase Conventions
+Every commit MUST include the ticket ID (e.g., `arcology-x0d.1`) so work is traceable, just like Jira or GitHub issues.
 
-See `documentation/quick-reference/code-conventions.md`
+## Quality Checks
+
+Before closing a task, ensure:
+
+### 1. Tests Required
+**Every implementation MUST have tests:**
+
+```gdscript
+# test/test_<feature>.gd
+extends SceneTree
+
+func _init():
+    # POSITIVE assertions - verify correct behavior
+    assert(grid.get_block_at(pos) == expected_block, "Should return placed block")
+    assert(grid.is_empty(empty_pos), "Empty position should return true")
+
+    # NEGATIVE assertions - verify error handling
+    assert(grid.get_block_at(invalid_pos) == null, "Invalid position should return null")
+    assert(not grid.place_block(occupied_pos, block), "Should reject duplicate placement")
+
+    quit()
+```
+
+**Test coverage requirements:**
+- Positive assertions (happy path works)
+- Negative assertions (edge cases handled)
+- Unit tests for individual functions
+- Integration tests for system interactions
+
+### 2. Code Quality
+```bash
+# If Godot project exists:
+# 1. Project opens without errors
+# 2. Main scene runs without crashes
+# 3. Tests pass: godot --headless -s test/test_<feature>.gd
+
+# For any code:
+# - No syntax errors
+# - Functions have type hints where reasonable
+# - Classes have class_name declarations
+```
+
+### 3. Post-Task Hook
+**ALWAYS run before closing:**
+```bash
+./scripts/hooks/post-task.sh <ticket-id>
+```
+This will ERROR if no commits reference the ticket.
+
+## Codebase Conventions
 
 ```gdscript
 # Classes: PascalCase
 class_name BlockRegistry
 
-# Functions/variables: snake_case
+# Functions/variables: snake_case  
 func get_block_at(pos: Vector3i) -> Block:
 
 # Signals: past tense
 signal block_placed(block)
+signal resident_moved_in(resident)
 
 # Constants: UPPER_SNAKE
 const TILE_WIDTH = 64
@@ -149,25 +205,48 @@ const TILE_WIDTH = 64
 
 ```
 arcology/
-├── documentation/         # 📚 READ THIS FIRST
-│   ├── architecture/      # Milestones, patterns
-│   ├── game-design/       # Blocks, systems
-│   └── quick-reference/   # Formulas, conventions
 ├── project.godot
+├── .beads/              # Beads database
+│   ├── beads.db         # SQLite (local)
+│   └── issues.jsonl     # Git-synced
 ├── src/
-│   ├── core/              # Grid, blocks, game clock
-│   ├── blocks/            # Block type implementations
-│   ├── environment/       # Light, air, noise, safety
-│   └── ui/                # HUD, overlays, menus
+│   ├── core/            # Grid, blocks, game clock
+│   ├── blocks/          # Block type implementations
+│   ├── environment/     # Light, air, noise, safety
+│   ├── agents/          # Residents, needs, relationships
+│   ├── transit/         # Pathfinding, elevators
+│   ├── economy/         # Budget, rent
+│   └── ui/              # HUD, overlays, menus
 ├── scenes/
-├── assets/sprites/blocks/ # Isometric block sprites
+├── assets/
+│   └── sprites/blocks/  # Isometric block sprites
 ├── data/
-│   ├── blocks.json        # Block definitions
-│   └── balance.json       # Tuning numbers
-└── scripts/
-    ├── hooks/             # pre-task.sh, post-task.sh
-    └── ralph/             # Agent files
+│   ├── blocks.json      # Block definitions
+│   └── balance.json     # Tuning numbers
+└── scripts/ralph/
+    ├── ralph-beads.sh   # The bash loop
+    ├── CLAUDE.md        # This file
+    └── progress.txt     # Learnings log
 ```
+
+## Isometric Math Reference
+
+Blocks are 3D cutaway cubes (top face + 2 walls) creating a hexagonal perimeter:
+
+```gdscript
+const TILE_WIDTH: int = 64    # Hexagon width / diamond width
+const TILE_DEPTH: int = 32    # Diamond height (top face only)
+const WALL_HEIGHT: int = 32   # Height of side faces
+const FLOOR_HEIGHT: int = 32  # Visual offset per Z level (TILE_DEPTH + WALL_HEIGHT - overlap)
+
+func grid_to_screen(grid_pos: Vector3i) -> Vector2:
+    var x = (grid_pos.x - grid_pos.y) * (TILE_WIDTH / 2)
+    var y = (grid_pos.x + grid_pos.y) * (TILE_DEPTH / 2)
+    y -= grid_pos.z * FLOOR_HEIGHT
+    return Vector2(x, y)
+```
+
+**Sprite dimensions:** 64x64 pixels (hexagonal with top diamond + left/right walls)
 
 ## Progress Log Format
 
@@ -175,30 +254,45 @@ After completing a task, append to `scripts/ralph/progress.txt`:
 
 ```
 ## Iteration [N] - [Date]
-Task: <ticket-id> - [Title]
-Docs Read: [list of docs consulted]
+Task: bd-xxx - [Title]
 Status: PASSED / FAILED
 Changes:
 - [file1]: [what changed]
+- [file2]: [what changed]
 Learnings:
 - [anything future iterations should know]
+Blockers:
+- [if failed, why]
+```
+
+## Codebase Patterns Section
+
+If you discover a reusable pattern, add it to **## Codebase Patterns** at TOP of `progress.txt`:
+
+```
+## Codebase Patterns
+- Use Vector3i for grid positions (x, y = horizontal, z = floor)
+- Blocks emit signals, systems connect to them
+- Load balance numbers from data/balance.json, not hardcoded
+- Sprites go in assets/sprites/blocks/{category}/
 ```
 
 ## Important Reminders
 
-- **DOCS FIRST** - Read documentation before writing code
-- **COMPLETION COMMENT MANDATORY** - Add `bd comments add` before closing ANY ticket
+- **COMMIT BEFORE CLOSING** - You CANNOT close a ticket without committing. Format: `feat: arcology-x0d.1 - Title`
+- **TESTS REQUIRED** - Every feature needs positive AND negative assertion tests
 - **One task per iteration** - Don't try to do multiple
-- **Small commits** - Each task = one commit
-- **Verify against docs** - Run post-task hook before closing
+- **Use bd commands** - Not manual JSON editing
 - **Data-driven** - Put numbers in JSON, not code
 - **Signals > polling** - Use Godot signals for updates
+- **Sync before done** - Always `bd sync` after closing tasks
 
 ## If Stuck
 
-1. **Re-read the docs** - Answer is probably there
-2. Check `documentation/INDEX.md` for the concept
-3. Check `documentation/quick-reference/formulas.md` for calculations
-4. Check existing code patterns in `progress.txt`
-5. Simplify: implement the minimal version
-6. Document the blocker clearly for the next iteration
+1. Check dependencies: `bd show bd-xxx --json` - is something blocking?
+2. Check patterns in progress.txt
+3. Check `documentation/architecture/` for implementation guidance
+4. Check `documentation/quick-reference/` for formulas and conventions
+5. Simplify: implement the minimal version that passes
+6. Create sub-task: `bd create "Smaller piece" --discovered-from bd-xxx`
+7. Document the blocker for next iteration
