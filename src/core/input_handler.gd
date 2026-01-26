@@ -107,6 +107,7 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 		return
 
 	var grid_pos := _get_grid_pos_at_mouse()
+	print("Grid position under mouse: %s (mode=%s)" % [grid_pos, Mode.keys()[current_mode]])
 
 	if event.button_index == MOUSE_BUTTON_LEFT:
 		match current_mode:
