@@ -307,32 +307,10 @@ func _create_bottom_bar() -> Control:
 	sep.custom_minimum_size = Vector2(2, 60)
 	hbox.add_child(sep)
 
-	# Floor navigator
-	var floor_box := HBoxContainer.new()
-	floor_box.add_theme_constant_override("separation", 8)
-	floor_box.name = "FloorNavigator"
-	hbox.add_child(floor_box)
-
-	var floor_down := Button.new()
-	floor_down.text = "▼"
-	floor_down.tooltip_text = "Down (PageDown)"
-	floor_down.custom_minimum_size = Vector2(40, 40)
-	floor_down.name = "FloorDownButton"
-	floor_box.add_child(floor_down)
-
-	var floor_label := Label.new()
-	floor_label.text = "F0"
-	floor_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	floor_label.custom_minimum_size = Vector2(60, 0)
-	floor_label.name = "FloorLabel"
-	floor_box.add_child(floor_label)
-
-	var floor_up := Button.new()
-	floor_up.text = "▲"
-	floor_up.tooltip_text = "Up (PageUp)"
-	floor_up.custom_minimum_size = Vector2(40, 40)
-	floor_up.name = "FloorUpButton"
-	floor_box.add_child(floor_up)
+	# Floor navigator (using FloorNavigator component)
+	var floor_navigator := FloorNavigator.new()
+	floor_navigator.name = "FloorNavigator"
+	hbox.add_child(floor_navigator)
 
 	# Separator
 	var sep2 := VSeparator.new()
@@ -480,9 +458,9 @@ func get_right_panel_content() -> VBoxContainer:
 
 ## Update the floor display
 func update_floor_display(floor_num: int) -> void:
-	var floor_label: Label = bottom_bar.get_node_or_null("HBoxContainer/FloorNavigator/FloorLabel")
-	if floor_label:
-		floor_label.text = "F%d" % floor_num
+	var floor_navigator: FloorNavigator = bottom_bar.get_node_or_null("HBoxContainer/FloorNavigator")
+	if floor_navigator:
+		floor_navigator.update_display(floor_num)
 
 
 ## Update resources display

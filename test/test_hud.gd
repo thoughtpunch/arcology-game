@@ -229,19 +229,22 @@ func test_floor_display_update() -> void:
 	var hud := HUD.new()
 	hud._setup_layout()
 
-	# Get floor label
-	var floor_label: Label = hud.bottom_bar.get_node_or_null("HBoxContainer/FloorNavigator/FloorLabel")
-	assert_not_null(floor_label, "Floor label should exist")
+	# Get FloorNavigator component (replaces old FloorLabel)
+	var floor_navigator: FloorNavigator = hud.bottom_bar.get_node_or_null("HBoxContainer/FloorNavigator")
+	assert_not_null(floor_navigator, "FloorNavigator should exist")
+
+	# In tests without scene tree, _ready() doesn't fire, so call _setup_ui manually
+	floor_navigator._setup_ui()
 
 	# Initial value
-	assert_eq(floor_label.text, "F0", "Floor label should start at F0")
+	assert_eq(floor_navigator.get_floor_text(), "F0", "Floor text should start at F0")
 
 	# Update floor
 	hud.update_floor_display(5)
-	assert_eq(floor_label.text, "F5", "Floor label should update to F5")
+	assert_eq(floor_navigator.get_floor_text(), "F5", "Floor text should update to F5")
 
 	hud.update_floor_display(-2)
-	assert_eq(floor_label.text, "F-2", "Floor label should show negative floors")
+	assert_eq(floor_navigator.get_floor_text(), "B2", "Floor text should show basement as B2")
 
 	hud.free()
 

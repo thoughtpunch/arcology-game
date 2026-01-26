@@ -75,6 +75,24 @@ func get_block_count() -> int:
 	return _blocks.size()
 
 
+## Get all blocks on a specific floor (Z level)
+func get_blocks_on_floor(z_level: int) -> Array:
+	var result: Array = []
+	for pos: Vector3i in _blocks.keys():
+		if pos.z == z_level:
+			result.append(_blocks[pos])
+	return result
+
+
+## Count blocks on a specific floor
+func get_block_count_on_floor(z_level: int) -> int:
+	var count: int = 0
+	for pos: Vector3i in _blocks.keys():
+		if pos.z == z_level:
+			count += 1
+	return count
+
+
 ## Clear all blocks from the grid
 func clear() -> void:
 	for pos in _blocks.keys():
