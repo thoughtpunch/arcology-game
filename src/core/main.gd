@@ -16,15 +16,35 @@ var block_renderer: BlockRenderer
 var input_handler: InputHandler
 var block_picker: BlockPicker
 var floor_selector: FloorSelector
+var terrain: Terrain
 
 
 func _ready() -> void:
 	print("Arcology initialized")
+	_setup_terrain()
 	_setup_grid()
 	_setup_input_handler()
 	_setup_block_picker()
 	_setup_floor_selector()
 	_place_test_blocks()
+
+
+func _setup_terrain() -> void:
+	# Create terrain as first child of world (renders beneath everything)
+	terrain = Terrain.new()
+	world.add_child(terrain)
+	terrain.move_to_front()  # Actually we want it at back
+	world.move_child(terrain, 0)  # Move to index 0 (first child, renders first)
+
+	# Set default theme from terrain.json (earth)
+	terrain.theme = "earth"
+
+	# Scatter decorations across visible area
+	# Grid area roughly -20 to +20 in each direction
+	var scatter_area := Rect2i(-20, -20, 40, 40)
+	terrain.scatter_decorations(scatter_area)
+
+	print("Terrain ready with %d decorations" % terrain.get_decoration_count())
 
 
 func _setup_grid() -> void:
@@ -36,6 +56,11 @@ func _setup_grid() -> void:
 	block_renderer = BlockRenderer.new()
 	world.add_child(block_renderer)
 	block_renderer.connect_to_grid(grid)
+
+	# Connect grid to terrain for decoration visibility
+	if terrain:
+		grid.block_added.connect(_on_grid_block_added)
+		grid.block_removed.connect(_on_grid_block_removed)
 
 	# Connect floor changes to visibility updates
 	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
@@ -106,6 +131,18 @@ func _on_floor_changed(new_floor: int) -> void:
 func _on_floor_visibility_changed(new_floor: int) -> void:
 	# Update block visibility when floor changes
 	block_renderer.update_visibility(new_floor)
+
+
+func _on_grid_block_added(pos: Vector3i, _block) -> void:
+	# Hide decoration at Z=0 when block placed
+	if pos.z == 0 and terrain:
+		terrain.hide_decoration_at(Vector2i(pos.x, pos.y))
+
+
+func _on_grid_block_removed(pos: Vector3i) -> void:
+	# Show decoration at Z=0 when block removed
+	if pos.z == 0 and terrain:
+		terrain.show_decoration_at(Vector2i(pos.x, pos.y))
 
 
 func _place_test_blocks() -> void:
