@@ -9,16 +9,19 @@ const MAX_ZOOM := 3.0
 
 @onready var camera: Camera2D = $Camera2D
 @onready var world: Node2D = $World
+@onready var ui_layer: CanvasLayer = $UI
 
 var grid: Grid
 var block_renderer: BlockRenderer
 var input_handler: InputHandler
+var block_picker: BlockPicker
 
 
 func _ready() -> void:
 	print("Arcology initialized")
 	_setup_grid()
 	_setup_input_handler()
+	_setup_block_picker()
 	_place_test_blocks()
 
 
@@ -60,6 +63,22 @@ func _on_block_removal_attempted(pos: Vector3i, success: bool) -> void:
 		print("Removed block at %s" % pos)
 	else:
 		print("No block to remove at %s" % pos)
+
+
+func _setup_block_picker() -> void:
+	# Create block picker UI
+	block_picker = BlockPicker.new()
+	ui_layer.add_child(block_picker)
+
+	# Connect to input handler
+	block_picker.block_type_selected.connect(_on_block_type_selected)
+
+	print("Block picker ready. Keys 1-6 to select block type.")
+
+
+func _on_block_type_selected(block_type: String) -> void:
+	input_handler.set_selected_block_type(block_type)
+	print("Selected block type: %s" % block_type)
 
 
 func _place_test_blocks() -> void:

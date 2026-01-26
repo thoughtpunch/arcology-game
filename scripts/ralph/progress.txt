@@ -113,3 +113,20 @@ Learnings:
 - Cache loaded textures to avoid repeated load() calls
 - Block types in code must match blocks.json keys exactly
 
+## Iteration 9 - 2026-01-25
+Task: arcology-x0d.6 - Implement block placement on click
+Docs Consulted:
+- documentation/quick-reference/isometric-math.md (screen_to_grid, mouse picking)
+- documentation/architecture/milestones/milestone-1-grid-blocks.md (input handling)
+Status: PASSED
+Changes:
+- src/core/input_handler.gd: InputHandler class for mouse input
+- src/core/main.gd: Integrated InputHandler with setup
+- test/test_input_handler.gd: Unit tests for placement/removal
+Learnings:
+- Use camera.get_canvas_transform().affine_inverse() * mouse_pos for world coords
+- Ghost sprite needs z_index=1000 to always render on top
+- Ghost modulate with Color(1,1,1,0.6) for valid, Color(1,0.3,0.3,0.6) for invalid
+- _unhandled_input receives mouse events; _process handles ghost position updates
+- Tests can run without scene tree if BlockRegistry lookup gracefully fails
+
