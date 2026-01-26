@@ -12,9 +12,13 @@ const FLOOR_HEIGHT: int = 32  # Visual offset per Z level
 # Signals
 signal block_added(pos: Vector3i, block)
 signal block_removed(pos: Vector3i)
+signal entrances_changed(entrance_positions: Array[Vector3i])
 
 # Sparse 3D storage: Vector3i -> Block
 var _blocks: Dictionary = {}
+
+# Entrance positions (seed points for connectivity flood-fill)
+var _entrance_positions: Array[Vector3i] = []
 
 
 ## Store a block at the given grid position
@@ -22,6 +26,7 @@ func set_block(pos: Vector3i, block) -> void:
 	_blocks[pos] = block
 	block.grid_position = pos
 	block_added.emit(pos, block)
+	_track_entrance(pos, block)
 
 
 ## Get block at position, returns null if empty
@@ -32,8 +37,10 @@ func get_block(pos: Vector3i):
 ## Remove block at position
 func remove_block(pos: Vector3i) -> void:
 	if _blocks.has(pos):
+		var block = _blocks[pos]
 		_blocks.erase(pos)
 		block_removed.emit(pos)
+		_untrack_entrance(pos, block)
 
 
 ## Check if position contains a block
@@ -61,6 +68,9 @@ func clear() -> void:
 	for pos in _blocks.keys():
 		block_removed.emit(pos)
 	_blocks.clear()
+	if _entrance_positions.size() > 0:
+		_entrance_positions.clear()
+		entrances_changed.emit(_entrance_positions)
 
 
 ## Convert grid position to screen coordinates (isometric)
@@ -190,3 +200,46 @@ func _get_block_registry():
 	if tree == null:
 		return null
 	return tree.get_root().get_node_or_null("/root/BlockRegistry")
+
+
+# --- Entrance Tracking ---
+
+## Get all entrance positions (seed points for connectivity)
+func get_entrance_positions() -> Array[Vector3i]:
+	return _entrance_positions
+
+
+## Check if there is at least one entrance
+func has_entrance() -> bool:
+	return _entrance_positions.size() > 0
+
+
+## Track entrance when block is added
+func _track_entrance(pos: Vector3i, block) -> void:
+	# Handle both Block objects and dictionaries (for test compatibility)
+	var block_type: String = ""
+	if block is Object and "block_type" in block:
+		block_type = block.block_type
+	elif block is Dictionary and block.has("block_type"):
+		block_type = block.block_type
+
+	if block_type == "entrance":
+		if pos not in _entrance_positions:
+			_entrance_positions.append(pos)
+			entrances_changed.emit(_entrance_positions)
+
+
+## Untrack entrance when block is removed
+func _untrack_entrance(pos: Vector3i, block) -> void:
+	# Handle both Block objects and dictionaries (for test compatibility)
+	var block_type: String = ""
+	if block is Object and "block_type" in block:
+		block_type = block.block_type
+	elif block is Dictionary and block.has("block_type"):
+		block_type = block.block_type
+
+	if block_type == "entrance":
+		var idx := _entrance_positions.find(pos)
+		if idx >= 0:
+			_entrance_positions.remove_at(idx)
+			entrances_changed.emit(_entrance_positions)
