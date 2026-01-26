@@ -39,20 +39,82 @@ These hooks enforce the Definition of Done.
 
 ### Phase 2: Implement
 6. Mark in progress: `bd update <ticket-id> --status in_progress`
-7. Implement the task following the documentation
-8. Run quality checks
+7. **Record start time:** `export TASK_STARTED=$(date -u +"%Y-%m-%dT%H:%M:%SZ")`
+8. Implement the task following the documentation
+9. Run quality checks
 
 ### Phase 3: Verify & Document
-9. **Run post-task hook:** `./scripts/hooks/post-task.sh <ticket-id>`
-10. Verify implementation matches acceptance criteria
-11. **Update documentation** if you found gaps or errors
-12. **Create followup tickets** if you discovered new work
-13. **Add learnings** to `scripts/ralph/progress.txt`
+10. **Run post-task hook:** `./scripts/hooks/post-task.sh <ticket-id>`
+11. Verify implementation matches acceptance criteria
+12. **Update documentation** if you found gaps or errors
+13. **Create followup tickets** if you discovered new work
+14. **Add learnings** to `scripts/ralph/progress.txt`
 
 ### Phase 4: Complete
-14. Commit: `git commit -m "feat: <ticket-id> - <title>"`
-15. Close: `bd close <ticket-id> --reason "Implemented per docs"`
-16. Sync: `bd sync`
+15. Commit: `git commit -m "feat: <ticket-id> - <title>"`
+16. **Add completion comment** (see Completion Comment Format below)
+17. Close: `bd close <ticket-id> --reason "<one-line summary>"`
+18. Sync: `bd sync`
+
+---
+
+## Completion Comment Format
+
+Before closing a ticket, add a detailed completion comment for cycle time tracking and knowledge capture:
+
+```bash
+bd comment <ticket-id> "$(cat <<'EOF'
+## Completion Summary
+
+**Completed:** <ISO8601 timestamp, e.g., 2026-01-25T19:45:00Z>
+**Duration:** <Xh Ym Zs> (from in_progress to completion)
+
+### Implementation Approach
+<Why this approach was chosen. What alternatives were considered.
+Why this solution fits the codebase architecture.>
+
+### What Was Done
+- <Specific change 1>
+- <Specific change 2>
+- <Files modified: list them>
+
+### What Was Left Undone / Deferred
+- <Any scope that was cut>
+- <Edge cases not handled>
+- <Future improvements identified>
+- <Or "None - full scope implemented">
+
+### Gotchas / Notes for Future Work
+- <Anything surprising discovered>
+- <Patterns that should be documented>
+- <Dependencies or assumptions made>
+
+### Test Coverage
+- <How the implementation was verified>
+- <Manual testing done>
+- <Automated tests added (if any)>
+EOF
+)"
+```
+
+### Calculating Duration
+
+```bash
+# At task start (Phase 2):
+export TASK_STARTED=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+# At task completion (Phase 4):
+TASK_COMPLETED=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+# Calculate duration (macOS):
+START_SEC=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$TASK_STARTED" +%s)
+END_SEC=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$TASK_COMPLETED" +%s)
+DURATION=$((END_SEC - START_SEC))
+HOURS=$((DURATION / 3600))
+MINUTES=$(((DURATION % 3600) / 60))
+SECONDS=$((DURATION % 60))
+echo "Duration: ${HOURS}h ${MINUTES}m ${SECONDS}s"
+```
 
 ---
 
@@ -70,6 +132,12 @@ A task is DONE when:
 - [ ] Patterns discovered are added to `progress.txt`
 - [ ] Any doc errors/gaps are fixed in the doc files
 - [ ] Learnings are recorded with context
+
+### Ticket Closure
+- [ ] **Completion comment added** with full summary (see format above)
+- [ ] Duration tracked (started_at → completed_at)
+- [ ] Implementation rationale documented
+- [ ] Deferred work explicitly noted
 
 ### Followup
 - [ ] New work discovered → create tickets
