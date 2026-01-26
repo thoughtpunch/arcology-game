@@ -65,6 +65,12 @@ var _decorations: Dictionary = {}
 # Area for decoration scatter (grid coordinates)
 var _scatter_area: Rect2i = Rect2i(-20, -20, 40, 40)
 
+# River system
+var _river_container: Node2D
+var _river_positions: Array[Vector2i] = []  # Ordered path of river tiles
+var _river_tiles: Dictionary = {}  # Maps Vector2i -> Sprite2D
+signal river_generated(positions: Array[Vector2i])
+
 
 func _init() -> void:
 	z_index = Z_INDEX_BASE_PLANE
@@ -74,6 +80,7 @@ func _init() -> void:
 func _ready() -> void:
 	_setup_base_plane()
 	_setup_decorations_container()
+	_setup_river_container()
 	_update_theme()
 
 
@@ -308,6 +315,12 @@ func scatter_decorations(area: Rect2i) -> void:
 	# Iterate over area and place decorations based on density
 	for x in range(area.position.x, area.end.x):
 		for y in range(area.position.y, area.end.y):
+			var pos := Vector2i(x, y)
+
+			# Skip positions that are part of river
+			if pos in _river_positions:
+				continue
+
 			# Use position-seeded random for this cell
 			var cell_seed := world_seed + x * 10000 + y
 			rng.seed = cell_seed
@@ -315,7 +328,7 @@ func scatter_decorations(area: Rect2i) -> void:
 			if rng.randf() < density:
 				var deco_type := _pick_weighted_decoration(rng, decorations_config, total_weight)
 				if not deco_type.is_empty():
-					_place_decoration(Vector2i(x, y), deco_type)
+					_place_decoration(pos, deco_type)
 
 
 ## Pick a decoration type based on weights
@@ -443,3 +456,331 @@ func get_decoration_count() -> int:
 func set_scatter_area(area: Rect2i) -> void:
 	if area != _scatter_area:
 		scatter_decorations(area)
+
+
+# =============================================================================
+# RIVER SYSTEM
+# =============================================================================
+
+const Z_INDEX_RIVER := -400  # Between decorations (-500) and blocks (0)
+
+## Setup river container node
+func _setup_river_container() -> void:
+	_river_container = Node2D.new()
+	# River is above decorations but below blocks
+	_river_container.z_index = Z_INDEX_RIVER - Z_INDEX_BASE_PLANE
+	add_child(_river_container)
+
+
+## Generate river for the terrain
+## Call this after scatter_decorations to ensure river doesn't have decorations on it
+func generate_river(area: Rect2i) -> void:
+	_clear_river()
+
+	if not has_river():
+		return
+
+	# Generate river path
+	_river_positions = _generate_river_path(area)
+
+	if _river_positions.is_empty():
+		return
+
+	# Remove any decorations that would be on the river
+	for pos in _river_positions:
+		if _decorations.has(pos):
+			var sprite: Sprite2D = _decorations[pos]
+			if sprite and is_instance_valid(sprite):
+				sprite.queue_free()
+			_decorations.erase(pos)
+
+	# Create river tile sprites
+	_render_river()
+
+	river_generated.emit(_river_positions)
+
+
+## Generate a deterministic river path that crosses the map
+## Returns array of Vector2i positions in order from start to end
+func _generate_river_path(area: Rect2i) -> Array[Vector2i]:
+	var path: Array[Vector2i] = []
+
+	# Use world_seed for deterministic generation
+	var rng := RandomNumberGenerator.new()
+	rng.seed = world_seed + 999999  # Offset from decoration seed
+
+	# Determine which edges to connect (prefer N-S or diagonal paths)
+	# Pick random Y position on left edge as start
+	var start_y := rng.randi_range(area.position.y + 2, area.end.y - 3)
+	var start_pos := Vector2i(area.position.x, start_y)
+
+	# Pick random Y position on right edge as end
+	var end_y := rng.randi_range(area.position.y + 2, area.end.y - 3)
+	var end_pos := Vector2i(area.end.x - 1, end_y)
+
+	# Generate winding path from start to end
+	path = _generate_winding_path(start_pos, end_pos, area, rng)
+
+	return path
+
+
+## Generate a winding path between two points
+func _generate_winding_path(start: Vector2i, end: Vector2i, area: Rect2i, rng: RandomNumberGenerator) -> Array[Vector2i]:
+	var path: Array[Vector2i] = []
+	var current := start
+
+	path.append(current)
+
+	# Move towards end with occasional wandering
+	var max_iterations := (area.size.x + area.size.y) * 3  # Prevent infinite loops
+	var iterations := 0
+
+	while current != end and iterations < max_iterations:
+		iterations += 1
+
+		var direction := end - current
+		var candidates: Array[Vector2i] = []
+
+		# Prefer moving towards end
+		if direction.x > 0:
+			candidates.append(Vector2i(current.x + 1, current.y))  # East
+		elif direction.x < 0:
+			candidates.append(Vector2i(current.x - 1, current.y))  # West
+
+		if direction.y > 0:
+			candidates.append(Vector2i(current.x, current.y + 1))  # South
+		elif direction.y < 0:
+			candidates.append(Vector2i(current.x, current.y - 1))  # North
+
+		# Add some randomness - occasionally move perpendicular
+		if rng.randf() < 0.3:
+			if direction.x != 0:
+				# Add vertical options
+				if current.y > area.position.y + 1:
+					candidates.append(Vector2i(current.x, current.y - 1))
+				if current.y < area.end.y - 2:
+					candidates.append(Vector2i(current.x, current.y + 1))
+
+		# Filter out positions already in path or out of bounds
+		var valid_candidates: Array[Vector2i] = []
+		for pos in candidates:
+			if pos not in path and _is_in_bounds(pos, area):
+				valid_candidates.append(pos)
+
+		if valid_candidates.is_empty():
+			# Stuck - try to find any adjacent valid position
+			for dx in [-1, 0, 1]:
+				for dy in [-1, 0, 1]:
+					if dx == 0 and dy == 0:
+						continue
+					if abs(dx) + abs(dy) != 1:  # Only orthogonal
+						continue
+					var try_pos := Vector2i(current.x + dx, current.y + dy)
+					if try_pos not in path and _is_in_bounds(try_pos, area):
+						valid_candidates.append(try_pos)
+
+		if valid_candidates.is_empty():
+			break  # Truly stuck
+
+		# Pick from valid candidates (weighted towards direction to end)
+		var best_candidate := valid_candidates[0]
+		var best_dist := _manhattan_distance(valid_candidates[0], end)
+
+		for candidate in valid_candidates:
+			var dist := _manhattan_distance(candidate, end)
+			if dist < best_dist or (dist == best_dist and rng.randf() < 0.5):
+				best_dist = dist
+				best_candidate = candidate
+
+		current = best_candidate
+		path.append(current)
+
+	return path
+
+
+## Check if position is within area bounds
+func _is_in_bounds(pos: Vector2i, area: Rect2i) -> bool:
+	return pos.x >= area.position.x and pos.x < area.end.x and pos.y >= area.position.y and pos.y < area.end.y
+
+
+## Manhattan distance between two positions
+func _manhattan_distance(a: Vector2i, b: Vector2i) -> int:
+	return abs(a.x - b.x) + abs(a.y - b.y)
+
+
+## Render river tiles based on generated path
+func _render_river() -> void:
+	if _river_positions.is_empty():
+		return
+
+	if not _river_container:
+		_setup_river_container()
+
+	var river_config: Dictionary = _get_river_config()
+	var sprite_path: String = river_config.get("sprite_path", "res://assets/sprites/terrain/earth/river_tiles/")
+	var tiles: Dictionary = river_config.get("tiles", {})
+
+	for i in range(_river_positions.size()):
+		var pos := _river_positions[i]
+		var tile_name := _get_river_tile_type(i)
+		var tile_file: String = tiles.get(tile_name, "")
+
+		if tile_file.is_empty():
+			tile_file = tile_name + ".png"
+
+		var full_path: String = sprite_path + tile_file
+		if not ResourceLoader.exists(full_path):
+			continue
+
+		var texture := load(full_path) as Texture2D
+		if texture == null:
+			continue
+
+		var sprite := Sprite2D.new()
+		sprite.texture = texture
+		sprite.position = _grid_to_screen(pos)
+		sprite.z_index = pos.x + pos.y  # Y-sorting within river layer
+
+		_river_container.add_child(sprite)
+		_river_tiles[pos] = sprite
+
+
+## Get river configuration from theme data
+func _get_river_config() -> Dictionary:
+	var data := _get_theme_data(theme)
+	return data.get("river", {})
+
+
+## Determine which river tile type to use based on neighbors in path
+func _get_river_tile_type(path_index: int) -> String:
+	if path_index < 0 or path_index >= _river_positions.size():
+		return "end_n"
+
+	var pos := _river_positions[path_index]
+
+	# Get previous and next positions in path
+	var has_prev := path_index > 0
+	var has_next := path_index < _river_positions.size() - 1
+
+	var prev_dir := Vector2i.ZERO
+	var next_dir := Vector2i.ZERO
+
+	if has_prev:
+		prev_dir = pos - _river_positions[path_index - 1]
+	if has_next:
+		next_dir = _river_positions[path_index + 1] - pos
+
+	# Determine tile type based on directions
+	# Direction vectors: (+1, 0) = East, (-1, 0) = West, (0, +1) = South, (0, -1) = North
+
+	# End tiles (only one connection)
+	if not has_prev and has_next:
+		return _get_end_tile(next_dir)
+	if has_prev and not has_next:
+		return _get_end_tile(-prev_dir)  # Face away from incoming
+
+	# Straight or corner (two connections)
+	if has_prev and has_next:
+		# Check if it's straight
+		if prev_dir.x != 0 and next_dir.x != 0 and prev_dir.y == 0 and next_dir.y == 0:
+			return "straight_ew"  # East-West aligned
+		if prev_dir.y != 0 and next_dir.y != 0 and prev_dir.x == 0 and next_dir.x == 0:
+			return "straight_ns"  # North-South aligned
+
+		# It's a corner - determine which one
+		return _get_corner_tile(prev_dir, next_dir)
+
+	return "straight_ns"  # Default
+
+
+## Get end tile based on direction river faces
+func _get_end_tile(dir: Vector2i) -> String:
+	if dir.x > 0:
+		return "end_e"
+	if dir.x < 0:
+		return "end_w"
+	if dir.y > 0:
+		return "end_s"
+	if dir.y < 0:
+		return "end_n"
+	return "end_n"
+
+
+## Get corner tile based on incoming and outgoing directions
+func _get_corner_tile(prev_dir: Vector2i, next_dir: Vector2i) -> String:
+	# prev_dir is direction FROM previous TO current
+	# next_dir is direction FROM current TO next
+
+	# Corner NE: comes from S or W, goes to N or E
+	# Corner NW: comes from S or E, goes to N or W
+	# Corner SE: comes from N or W, goes to S or E
+	# Corner SW: comes from N or E, goes to S or W
+
+	# Determine which quadrant the corner is in
+	# based on the two directions involved
+
+	var from_north := prev_dir.y > 0  # Coming from north means prev_dir.y > 0 (moved south to get here)
+	var from_south := prev_dir.y < 0
+	var from_east := prev_dir.x < 0
+	var from_west := prev_dir.x > 0
+
+	var to_north := next_dir.y < 0
+	var to_south := next_dir.y > 0
+	var to_east := next_dir.x > 0
+	var to_west := next_dir.x < 0
+
+	# NE corner: from south + to east, or from west + to north
+	if (from_south and to_east) or (from_west and to_north):
+		return "corner_ne"
+	# NW corner: from south + to west, or from east + to north
+	if (from_south and to_west) or (from_east and to_north):
+		return "corner_nw"
+	# SE corner: from north + to east, or from west + to south
+	if (from_north and to_east) or (from_west and to_south):
+		return "corner_se"
+	# SW corner: from north + to west, or from east + to south
+	if (from_north and to_west) or (from_east and to_south):
+		return "corner_sw"
+
+	return "straight_ns"  # Fallback
+
+
+## Clear all river tiles
+func _clear_river() -> void:
+	for pos in _river_tiles:
+		var sprite: Sprite2D = _river_tiles[pos]
+		if sprite and is_instance_valid(sprite):
+			sprite.queue_free()
+	_river_tiles.clear()
+	_river_positions.clear()
+
+
+## Get all river positions (for pathfinding/grid integration)
+func get_river_positions() -> Array[Vector2i]:
+	return _river_positions.duplicate()
+
+
+## Check if position is part of river
+func is_river_at(pos: Vector2i) -> bool:
+	return pos in _river_positions
+
+
+## Get river tile count
+func get_river_tile_count() -> int:
+	return _river_tiles.size()
+
+
+## Hide river tile at position (when block placed on top)
+func hide_river_at(grid_pos: Vector2i) -> void:
+	if _river_tiles.has(grid_pos):
+		var sprite: Sprite2D = _river_tiles[grid_pos]
+		if sprite and is_instance_valid(sprite):
+			sprite.visible = false
+
+
+## Show river tile at position (when block removed)
+func show_river_at(grid_pos: Vector2i) -> void:
+	if _river_tiles.has(grid_pos):
+		var sprite: Sprite2D = _river_tiles[grid_pos]
+		if sprite and is_instance_valid(sprite):
+			sprite.visible = true

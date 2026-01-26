@@ -14,7 +14,23 @@
         {"type": "flowers", "weight": 0.05, "size": [1, 1]}
       ],
       "decoration_density": 0.08,
-      "has_river": true
+      "has_river": true,
+      "river": {
+        "width": 1,
+        "sprite_path": "res://assets/sprites/terrain/earth/river_tiles/",
+        "tiles": {
+          "straight_ns": "straight_ns.png",
+          "straight_ew": "straight_ew.png",
+          "corner_ne": "corner_ne.png",
+          "corner_nw": "corner_nw.png",
+          "corner_se": "corner_se.png",
+          "corner_sw": "corner_sw.png",
+          "end_n": "end_n.png",
+          "end_s": "end_s.png",
+          "end_e": "end_e.png",
+          "end_w": "end_w.png"
+        }
+      }
     },
     "mars": {
       "base_color": "#8b4513",

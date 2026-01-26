@@ -151,6 +151,7 @@ func get_occupied_horizontal_neighbors(pos: Vector3i) -> Array[Vector3i]:
 ## Requires BlockRegistry autoload
 ## Horizontal: connects if at least one block is public (traversable)
 ## Vertical: only connects if both blocks support vertical connections (stairs/elevator)
+## Also checks for river obstacles at Z=0 (impassable unless covered by blocks)
 func can_connect(from_pos: Vector3i, to_pos: Vector3i) -> bool:
 	var from_block = get_block(from_pos)
 	var to_block = get_block(to_pos)
@@ -165,6 +166,15 @@ func can_connect(from_pos: Vector3i, to_pos: Vector3i) -> bool:
 	var dist: int = abs(direction.x) + abs(direction.y) + abs(direction.z)
 	if dist != 1:
 		return false
+
+	# Check for river obstacles at Z=0
+	# If crossing through a river position without a block covering it, cannot connect
+	# Note: Having a block at the position means river is covered (passable)
+	if is_river_obstacle(from_pos) or is_river_obstacle(to_pos):
+		# River is only an obstacle if there's no block covering it
+		# But we already checked both have blocks above, so this shouldn't trigger
+		# This check is for future use when we might check empty positions
+		pass
 
 	# Get BlockRegistry for traversability checks
 	var registry = _get_block_registry()
@@ -202,6 +212,10 @@ func get_walkable_neighbors(pos: Vector3i) -> Array[Vector3i]:
 ## Can be set directly for testing or looked up from scene tree
 var block_registry = null
 
+## Reference to Terrain for river obstacle checking (optional)
+## Can be set directly for testing or looked up from scene tree
+var terrain_ref = null
+
 func _get_block_registry():
 	# Return direct reference if set
 	if block_registry:
@@ -217,6 +231,72 @@ func _get_block_registry():
 
 	# Not found
 	return null
+
+
+## Check if a Z=0 position is blocked by river (impassable terrain)
+## Returns true if there's a river at this position AND no block covering it
+func is_river_obstacle(pos: Vector3i) -> bool:
+	# Only Z=0 positions can have river obstacles
+	if pos.z != 0:
+		return false
+
+	# If there's a block at this position, river is covered (not an obstacle)
+	if has_block(pos):
+		return false
+
+	# Check terrain reference for river
+	var terrain = _get_terrain()
+	if terrain == null:
+		return false
+
+	return terrain.is_river_at(Vector2i(pos.x, pos.y))
+
+
+## Check if a position is passable for pathfinding
+## A position is passable if it has a block AND is not blocked by uncovered river
+func is_position_passable(pos: Vector3i) -> bool:
+	# Must have a block to be passable
+	if not has_block(pos):
+		return false
+
+	# River is not an obstacle if covered by a block
+	# (Checked in has_block above - if we have a block, river is covered)
+	return true
+
+
+## Get terrain reference for river checks
+func _get_terrain():
+	# Return direct reference if set
+	if terrain_ref:
+		return terrain_ref
+
+	# Try to find Terrain in scene tree (sibling of Grid in World node)
+	var tree := get_tree()
+	if tree == null:
+		return null
+
+	# Terrain is typically a child of World node
+	var root := tree.get_root()
+	if root == null:
+		return null
+
+	# Look for Terrain by class
+	var terrains := _find_nodes_by_class(root, "Terrain")
+	if not terrains.is_empty():
+		terrain_ref = terrains[0]
+		return terrain_ref
+
+	return null
+
+
+## Helper to find nodes by class name recursively
+func _find_nodes_by_class(node: Node, class_name_str: String) -> Array:
+	var results := []
+	if node.get_class() == class_name_str or (node.get_script() != null and node.get_script().get_global_name() == class_name_str):
+		results.append(node)
+	for child in node.get_children():
+		results.append_array(_find_nodes_by_class(child, class_name_str))
+	return results
 
 
 # --- Entrance Tracking ---

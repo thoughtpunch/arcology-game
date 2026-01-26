@@ -39,12 +39,16 @@ func _setup_terrain() -> void:
 	# Set default theme from terrain.json (earth)
 	terrain.theme = "earth"
 
-	# Scatter decorations across visible area
 	# Grid area roughly -20 to +20 in each direction
 	var scatter_area := Rect2i(-20, -20, 40, 40)
+
+	# Generate river first (so decorations don't spawn on river)
+	terrain.generate_river(scatter_area)
+
+	# Scatter decorations across visible area
 	terrain.scatter_decorations(scatter_area)
 
-	print("Terrain ready with %d decorations" % terrain.get_decoration_count())
+	print("Terrain ready with %d decorations, %d river tiles" % [terrain.get_decoration_count(), terrain.get_river_tile_count()])
 
 
 func _setup_grid() -> void:
@@ -134,15 +138,19 @@ func _on_floor_visibility_changed(new_floor: int) -> void:
 
 
 func _on_grid_block_added(pos: Vector3i, _block) -> void:
-	# Hide decoration at Z=0 when block placed
+	# Hide decoration and river at Z=0 when block placed
 	if pos.z == 0 and terrain:
-		terrain.hide_decoration_at(Vector2i(pos.x, pos.y))
+		var pos_2d := Vector2i(pos.x, pos.y)
+		terrain.hide_decoration_at(pos_2d)
+		terrain.hide_river_at(pos_2d)
 
 
 func _on_grid_block_removed(pos: Vector3i) -> void:
-	# Show decoration at Z=0 when block removed
+	# Show decoration and river at Z=0 when block removed
 	if pos.z == 0 and terrain:
-		terrain.show_decoration_at(Vector2i(pos.x, pos.y))
+		var pos_2d := Vector2i(pos.x, pos.y)
+		terrain.show_decoration_at(pos_2d)
+		terrain.show_river_at(pos_2d)
 
 
 func _place_test_blocks() -> void:
