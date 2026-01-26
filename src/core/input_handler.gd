@@ -7,6 +7,7 @@ extends Node
 signal block_placement_attempted(pos: Vector3i, type: String, success: bool)
 signal block_removal_attempted(pos: Vector3i, success: bool)
 signal selection_changed(block_type: String)
+signal block_selected(pos: Vector3i, block_type: String)
 
 # References (must be set before use)
 var grid: Grid
@@ -18,6 +19,10 @@ var selected_block_type: String = "corridor"
 var _ghost_sprite: Sprite2D
 var _floor_label: Label  # Shows Z level near ghost
 var _texture_cache: Dictionary = {}
+
+# Mode
+enum Mode { BUILD, SELECT, DEMOLISH }
+var current_mode := Mode.BUILD
 
 # Ghost modulation colors
 const VALID_COLOR := Color(1.0, 1.0, 1.0, 0.6)    # Semi-transparent white
@@ -93,10 +98,16 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 	var grid_pos := _get_grid_pos_at_mouse()
 
 	if event.button_index == MOUSE_BUTTON_LEFT:
-		# Shift+click: auto-stack on top of existing blocks
-		if event.shift_pressed:
-			grid_pos = _get_auto_stack_position(grid_pos)
-		_try_place_block(grid_pos)
+		match current_mode:
+			Mode.BUILD:
+				# Shift+click: auto-stack on top of existing blocks
+				if event.shift_pressed:
+					grid_pos = _get_auto_stack_position(grid_pos)
+				_try_place_block(grid_pos)
+			Mode.SELECT:
+				_try_select_block(grid_pos)
+			Mode.DEMOLISH:
+				_try_remove_block(grid_pos)
 	elif event.button_index == MOUSE_BUTTON_RIGHT:
 		_try_remove_block(grid_pos)
 
@@ -129,6 +140,17 @@ func _try_remove_block(pos: Vector3i) -> void:
 
 	grid.remove_block(pos)
 	block_removal_attempted.emit(pos, true)
+
+
+## Attempt to select a block at the given grid position
+func _try_select_block(pos: Vector3i) -> void:
+	if not grid.has_block(pos):
+		return
+
+	var block = grid.get_block_at(pos)
+	if block:
+		var block_type: String = block.block_type if block is Block else block.get("block_type", "unknown")
+		block_selected.emit(pos, block_type)
 
 
 ## Update ghost sprite position to follow mouse
@@ -261,3 +283,18 @@ func _get_block_data(block_type: String) -> Dictionary:
 	if registry == null:
 		return {}
 	return registry.get_block_data(block_type)
+
+
+## Set input mode
+func set_mode(mode: Mode) -> void:
+	current_mode = mode
+	# Update ghost visibility based on mode
+	if _ghost_sprite:
+		_ghost_sprite.visible = (mode == Mode.BUILD)
+	if _floor_label:
+		_floor_label.visible = (mode == Mode.BUILD)
+
+
+## Get current mode
+func get_mode() -> Mode:
+	return current_mode
