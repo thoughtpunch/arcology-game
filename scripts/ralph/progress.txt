@@ -600,3 +600,134 @@ Followup:
 - Legacy BlockPicker still handles 1-6 keys (may conflict with BuildToolbar 1-7)
 - R rotation and V variant cycling not implemented (requires block rotation system)
 
+## Iteration 31 - 2026-01-26
+Task: arcology-d1f.4 - Implement Info Panels
+Docs Consulted:
+- documentation/ui/info-panels.md (full panel specs)
+- documentation/ui/hud-layout.md (color scheme, right panel structure)
+Status: PASSED
+Changes:
+- src/ui/info_panel.gd: Base class with sections, bars, stats, headers, formatting
+- src/ui/block_info_panel.gd: Block info with environment, economics, actions
+- src/ui/resident_info_panel.gd: Notable/statistical residents, needs, relationships
+- src/ui/budget_panel.gd: Income/expenses, trends sparklines, projections
+- src/ui/aei_dashboard.gd: AEI score, components, tier colors, achievements
+- src/ui/info_panel_manager.gd: Panel coordination, HUD integration
+- src/core/input_handler.gd: Added Mode enum (BUILD, SELECT, DEMOLISH), block_selected signal
+- src/core/main.gd: Integrated InfoPanelManager, connected signals for block selection
+- test/test_*.gd: 6 test files with 143 total tests
+Learnings:
+- Dictionary.get() returns Variant - must use explicit type annotations (var x: int = dict.get("key", 0))
+- HUD._ready() not called in tests since nodes aren't in scene tree - call manually for integration tests
+- queue_free() schedules removal at end of frame - test cache state, not child count
+- PanelContainer + StyleBoxFlat for consistent panel styling
+- InfoPanel base class provides reusable create_bar(), create_stat_row(), create_header() helpers
+- Color thresholds: green (>=70), yellow (40-70), red (<40) for progress bars
+- AEI tiers: Bronze (80), Silver (90), Gold (95), Platinum (99)
+Followup:
+- Multi-select panel not implemented (shift+click selection system needed)
+- $ keyboard shortcut for budget needs separate input handling
+- Panel auto-close after inactivity (5s per docs) not implemented
+- Actual data integration when resident/economy systems exist
+
+## Iteration 32 - 2026-01-26
+Task: arcology-d1f.5 - Implement Game Menus
+Docs Consulted:
+- documentation/ui/menus.md (full menu specifications)
+- documentation/ui/hud-layout.md (color scheme, z-order)
+Status: PASSED
+Changes:
+- src/ui/main_menu.gd: Title screen with New Game, Continue, Load, Settings, Credits, Quit
+- src/ui/pause_menu.gd: Overlay with Resume, Save, Load, Settings, Help, Main Menu, Quit (Esc toggle)
+- src/ui/settings_menu.gd: Tabbed interface (Game, Graphics, Audio, Controls, Accessibility)
+- src/ui/new_game_menu.gd: Scenario selection (Fresh Start, Troubled Tower, Crisis Mode) + game settings
+- src/ui/save_load_menu.gd: Save/load dialogs with filtering, sorting, auto-save detection
+- src/ui/confirmation_dialog.gd: Modal dialogs for confirmations, errors, warnings, unsaved changes
+- src/ui/menu_manager.gd: Coordinates menus, game state, navigation, auto-save integration
+- src/core/auto_save.gd: Automatic save system (configurable interval, keeps last 3 auto-saves)
+- test/test_*.gd: 7 test files (main_menu, pause_menu, settings_menu, new_game_menu, save_load_menu, confirmation_dialog, auto_save)
+Learnings:
+- Signal lambdas don't execute properly in SceneTree tests - verify signals via is_connected() instead
+- grab_focus() fails outside scene tree - avoid in headless tests
+- get_tree().process_frame requires scene tree for await - guard with null checks
+- StyleBoxFlat.duplicate() for creating button hover/focus variants
+- CanvasLayer with layer=100 for menus to appear above game
+- JSON save format for game state persistence
+Followup:
+- Credits screen not implemented (placeholder TODO)
+- Key rebinding UI ready but binding logic deferred
+- MenuManager needs wiring into main.gd
+- Help menu content not implemented
+
+## Iteration 33 - 2026-01-26
+Task: arcology-d1f.6 - Implement Time Controls
+Docs Consulted:
+- documentation/ui/sidebars.md (speed controls section)
+- documentation/ui/controls.md (keyboard shortcuts)
+- src/core/game_state.gd (existing state management)
+- src/ui/hud.gd (UI integration patterns)
+Status: PASSED
+Changes:
+- src/core/game_state.gd: Added time management (year/month/day/hour), speed control, pause system
+- src/ui/time_controls.gd: New TimeControls UI component with date display, speed buttons, keyboard shortcuts
+- src/ui/hud.gd: Integrated TimeControls, replaced old inline datetime/speed elements
+- src/core/main.gd: Removed manual update_datetime call (handled by TimeControls)
+- test/test_time_controls.gd: 14 unit tests for time system
+- test/test_hud.gd: Updated for TimeControls integration
+Learnings:
+- GDScript lambda variable capture doesn't work reliably in unit tests - use state verification instead
+- TimeControls._setup_ui() must be called manually in tests when not in scene tree (_ready doesn't fire)
+- SPEED_NORMAL/FAST/FASTEST define seconds per game hour for time progression
+- Use create_tween() with set_loops() for continuous animations (clock pulse)
+- Scale pulse is effective visual feedback for speed indication
+Followup:
+- Hour display could be added to UI if needed (currently only shows Y/M/D)
+- Clock rotation animation could be added for more visual polish
+
+## Iteration 34 - 2026-01-26
+Task: arcology-d1f.7 - Implement Floor Navigator
+Docs Consulted:
+- documentation/ui/sidebars.md (floor navigator section)
+- src/ui/floor_selector.gd (existing legacy component)
+- src/ui/hud.gd (UI integration patterns)
+Status: PASSED
+Changes:
+- src/ui/floor_navigator.gd: New FloorNavigator component with popup floor list
+- src/core/grid.gd: Added get_blocks_on_floor(), get_block_count_on_floor()
+- src/ui/hud.gd: Integrated FloorNavigator, replaced inline floor elements
+- test/test_floor_navigator.gd: 12 unit tests
+- test/test_hud.gd: Updated for FloorNavigator integration
+Learnings:
+- Floor display format: F0 (G) for ground, F1-F10 for upper, B1-B2 for basement
+- Ctrl+PageUp/Down for jump to top/ground floor
+- E/C as alternate floor up/down keys (common in other games)
+- Floor indicators: ● current, ◐ has content, ∅ empty
+- Popup positioning needs screen edge checking (not implemented yet)
+Followup:
+- Floor activity indicators need resident simulation
+- Floor alert indicators need notification system
+- Smooth floor transition animation (visual polish)
+
+## Iteration 35 - 2026-01-26
+Task: arcology-d1f.8 - Implement Tool Sidebar
+Docs Consulted:
+- documentation/ui/sidebars.md (left sidebar section)
+- src/ui/hud.gd (existing inline sidebar code)
+Status: PASSED
+Changes:
+- src/ui/tool_sidebar.gd: New ToolSidebar component with collapse/expand, hover/pin
+- src/ui/hud.gd: Integrated ToolSidebar, replaced inline left sidebar
+- test/test_tool_sidebar.gd: 14 unit tests
+- test/test_hud.gd: Updated for ToolSidebar integration
+Learnings:
+- Hover expand with Timer (300ms delay before expanding)
+- Pin state prevents collapse on mouse exit
+- Tool enum for type-safe tool selection: SELECT, BUILD, DEMOLISH, INFO, UPGRADE
+- Recent blocks (Quick Build) limited to 5 unique entries
+- Favorites limited to 10 entries
+- _format_block_name() converts snake_case to [ABB] Title Case format
+Followup:
+- Tool selection needs connection to InputHandler
+- Quick Build auto-population when blocks placed
+- Favorites persistence needs save/load integration
+

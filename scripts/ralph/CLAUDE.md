@@ -164,12 +164,35 @@ func _init():
 - Unit tests for individual functions
 - Integration tests for system interactions
 
-### 2. Code Quality
+### 2. ⚠️ MANDATORY: Run ALL Tests Before Closing
+
+**You MUST run tests and fix any failures before closing a ticket:**
+
+```bash
+# Run the test for your feature
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --script test/<category>/test_<feature>.gd
+
+# Run related tests that might be affected
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path . --script test/core/test_grid.gd
+
+# If tests fail:
+# 1. Fix the code
+# 2. Re-run tests until they pass
+# 3. If a test cannot be fixed, add a comment to the ticket:
+#    bd comments add <ticket-id> "Test failure: <error message> - needs investigation"
+```
+
+**If tests are broken and cannot be fixed:**
+- Do NOT close the ticket
+- Add a comment with the exact error
+- Mark ticket as blocked: `bd update <ticket-id> --status blocked`
+
+### 3. Code Quality
 ```bash
 # If Godot project exists:
 # 1. Project opens without errors
 # 2. Main scene runs without crashes
-# 3. Tests pass: godot --headless -s test/test_<feature>.gd
+# 3. Tests pass (see above)
 
 # For any code:
 # - No syntax errors
@@ -177,7 +200,7 @@ func _init():
 # - Classes have class_name declarations
 ```
 
-### 3. Post-Task Hook
+### 4. Post-Task Hook
 **ALWAYS run before closing:**
 ```bash
 ./scripts/hooks/post-task.sh <ticket-id>
