@@ -46,13 +46,13 @@ func _ready() -> void:
 
 
 func _setup_layout() -> void:
-	# Full screen
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Full screen - use both anchors AND offsets for proper sizing
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	# Main vertical container
 	var vbox := VBoxContainer.new()
-	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(vbox)
 
