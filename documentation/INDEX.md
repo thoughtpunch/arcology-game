@@ -22,9 +22,11 @@
 - **Belonging** - Human need, see [human-simulation/needs.md](./game-design/human-simulation/needs.md)
 - **Block** - Atomic construction unit, see [game-design/core-concepts.md](./game-design/core-concepts.md)
 - **Block Catalog** - All block types, see [blocks/README.md](./game-design/blocks/)
+- **Block Costs** - Construction pricing, see [economy/block-costs.md](./game-design/economy/block-costs.md)
 - **Budget** - Economy system, see [economy/budget.md](./game-design/economy/budget.md)
 
 ### C
+- **Camera Controls** - Pan, zoom, rotate, view modes, see [ui/camera-controls.md](./ui/camera-controls.md)
 - **Cantilever** - Structural rules, see [core-concepts.md](./game-design/core-concepts.md#structural-rules)
 - **Civic Blocks** - Government, education, healthcare, see [blocks/civic.md](./game-design/blocks/civic.md)
 - **CNC-U** - Carbonic Nano-Cement material, see [core-concepts.md](./game-design/core-concepts.md#structural-rules)

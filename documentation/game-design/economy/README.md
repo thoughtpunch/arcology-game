@@ -14,6 +14,7 @@ The economy is SimCity-style: income from rent/revenue, expenses from maintenanc
 
 | Topic | Description | Link |
 |-------|-------------|------|
+| **Block Costs** | Construction costs and balancing | [block-costs.md](./block-costs.md) |
 | **Budget** | Income/expense management | [budget.md](./budget.md) |
 | **Rent** | Residential and commercial | [rent.md](./rent.md) |
 | **Permits** | Building permissions | [permits.md](./permits.md) |

@@ -24,6 +24,7 @@ The UI provides players with everything they need to understand, monitor, and co
 | Topic | Description | Link |
 |-------|-------------|------|
 | **Build Toolbar** | Block picker, categories, placement | [build-toolbar.md](./build-toolbar.md) |
+| **Camera Controls** | Pan, zoom, rotation, view modes | [camera-controls.md](./camera-controls.md) |
 | **Controls** | Keyboard & mouse reference | [controls.md](./controls.md) |
 
 ### Information Display
