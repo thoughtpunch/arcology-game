@@ -13,7 +13,6 @@ var camera: Camera2D
 var ghost_container: Node2D  # Parent node for ghost sprite
 
 # State
-var current_floor: int = 0
 var selected_block_type: String = "corridor"
 var _ghost_sprite: Sprite2D
 var _texture_cache: Dictionary = {}
@@ -139,8 +138,19 @@ func _get_grid_pos_at_mouse() -> Vector3i:
 	# Convert screen position to world position (accounting for camera transform)
 	var world_pos := camera.get_canvas_transform().affine_inverse() * mouse_pos
 
+	# Get current floor from GameState
+	var current_floor := _get_current_floor()
+
 	# Convert to grid
 	return grid.screen_to_grid(world_pos, current_floor)
+
+
+## Get current floor from GameState autoload
+func _get_current_floor() -> int:
+	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
+	if game_state:
+		return game_state.current_floor
+	return 0
 
 
 ## Check if all required references are set
@@ -154,11 +164,6 @@ func set_selected_block_type(type: String) -> void:
 		selected_block_type = type
 		_update_ghost_texture()
 		selection_changed.emit(type)
-
-
-## Change the current floor for placement
-func set_current_floor(floor_num: int) -> void:
-	current_floor = floor_num
 
 
 ## Update ghost sprite texture to match selected block type

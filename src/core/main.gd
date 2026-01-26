@@ -15,6 +15,7 @@ var grid: Grid
 var block_renderer: BlockRenderer
 var input_handler: InputHandler
 var block_picker: BlockPicker
+var floor_selector: FloorSelector
 
 
 func _ready() -> void:
@@ -22,6 +23,7 @@ func _ready() -> void:
 	_setup_grid()
 	_setup_input_handler()
 	_setup_block_picker()
+	_setup_floor_selector()
 	_place_test_blocks()
 
 
@@ -79,6 +81,21 @@ func _setup_block_picker() -> void:
 func _on_block_type_selected(block_type: String) -> void:
 	input_handler.set_selected_block_type(block_type)
 	print("Selected block type: %s" % block_type)
+
+
+func _setup_floor_selector() -> void:
+	# Create floor selector UI
+	floor_selector = FloorSelector.new()
+	ui_layer.add_child(floor_selector)
+
+	# Connect to floor change events
+	floor_selector.floor_change_requested.connect(_on_floor_changed)
+
+	print("Floor selector ready. PageUp/PageDown to change floors.")
+
+
+func _on_floor_changed(new_floor: int) -> void:
+	print("Current floor: %d" % new_floor)
 
 
 func _place_test_blocks() -> void:

@@ -18,6 +18,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 BlockRegistry="*res://src/core/block_registry.gd"
+GameState="*res://src/core/game_state.gd"
 
 [display]
 
