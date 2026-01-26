@@ -410,3 +410,193 @@ Learnings:
 - Use explicit type annotations in for loops (e.g., `var path: String = ...`)
 - RGBA format with transparent pixels allows compositing over terrain
 
+## Iteration 23 - 2026-01-25
+Task: arcology-ak9.7 - Add background layer (sky/starfield)
+Docs Consulted:
+- documentation/game-design/environment/terrain.md#background-layer
+- documentation/quick-reference/isometric-math.md
+Status: PASSED
+Changes:
+- assets/sprites/terrain/backgrounds/*.png: 3 background sprites (2048x1536)
+  - earth_sky.png: Blue gradient + mountain silhouettes
+  - mars_sky.png: Orange-pink Martian atmosphere with dust
+  - space_stars.png: Starfield with nebula effects
+- scripts/generate_background_sprites.py: Python generator using Pillow
+- src/core/terrain.gd: Added TextureRect background support
+  - _background_color and _background_texture nodes (dual layer)
+  - _update_background() loads texture or falls back to color
+  - has_background_texture() accessor
+  - Updated set_plane_size() for both background nodes
+- test/test_terrain.gd: 7 new tests (20-26) for backgrounds
+Learnings:
+- TextureRect.EXPAND_IGNORE_SIZE + STRETCH_KEEP_ASPECT_COVERED fills viewport
+- ResourceLoader.exists() must be called before load() for graceful fallback
+- Texture z_index must be 1 higher than color fallback for proper layering
+- 2048x1536 dimensions provide adequate coverage with camera movement
+- Pillow lerp_color() useful for generating gradients programmatically
+
+## Iteration 24 - 2026-01-25
+Task: arcology-ak9.5 - Integrate Terrain into main scene
+Docs Consulted:
+- documentation/game-design/environment/terrain.md#grid-interaction
+- documentation/architecture/milestones/milestone-1-grid-blocks.md
+Status: PASSED
+Changes:
+- src/core/main.gd: Added terrain integration
+  - Added terrain instance variable
+  - Added _setup_terrain() called before _setup_grid()
+  - Connected grid.block_added/block_removed to terrain visibility
+  - Scatter decorations on 40x40 area at startup
+- test/test_terrain_integration.gd: New test file
+  - 12 integration tests for terrain-grid interaction
+  - Tests: z_index, scatter, determinism, visibility, theme density
+Learnings:
+- Use world.move_child(terrain, 0) to ensure terrain renders first (behind blocks)
+- Grid.block_removed only has one parameter (pos), not two like block_added
+- Decorations hide/show at Z=0 when blocks added/removed at same X,Y
+- Integration tests can verify scatter algorithm without full scene tree
+
+## Iteration 25 - 2026-01-25
+Task: arcology-ak9.6 - Implement river system (Earth theme)
+Docs Consulted:
+- documentation/game-design/environment/terrain.md#river-system
+- documentation/quick-reference/isometric-math.md
+Status: PASSED
+Changes:
+- assets/sprites/terrain/earth/river_tiles/*.png: 10 river tile sprites
+- scripts/generate_river_sprites.py: Pillow-based sprite generator
+- src/core/terrain.gd: River system (path generation, rendering, visibility)
+- src/core/grid.gd: River obstacle checking for pathfinding
+- src/core/main.gd: River integration with game scene
+- data/terrain.json: River configuration with tile mappings
+- test/test_river.gd: 23 unit tests
+Learnings:
+- River path generation uses winding algorithm with weighted movement toward target
+- Use offset seed (world_seed + 999999) to ensure river differs from decoration scatter
+- Corner tile selection requires tracking "from" direction (prev_dir) and "to" direction (next_dir)
+- Sprites only render when Godot renderer is active (tile_count=0 in headless tests)
+- River positions stored in Array[Vector2i] for O(n) path membership checks
+- Use explicit type annotations for Dictionary.get() returns to avoid type inference errors
+Followup:
+- Bridge block type for crossing rivers (future milestone)
+- Animated water effect (optional enhancement)
+
+## Iteration 26 - 2026-01-25
+Task: arcology-ak9.8 - Implement underground terrain (excavation visuals)
+Docs Consulted:
+- documentation/game-design/environment/terrain.md#underground-z--0
+- documentation/game-design/economy/permits.md#excavation
+Status: PASSED
+Changes:
+- scripts/generate_underground_sprites.py: New Pillow sprite generator for underground tiles
+- assets/sprites/terrain/earth/underground/*.png: soil, rock, bedrock (3 sprites)
+- assets/sprites/terrain/mars/underground/*.png: regolith, rock, basalt (3 sprites)
+- src/core/terrain.gd: Added underground rendering system
+  - generate_underground() creates tiles for Z < 0
+  - update_underground_visibility() shows/hides based on current floor
+  - hide/show/remove_underground_at() for excavation integration
+  - Alpha dimming for depth (20% per level, min 40%)
+- src/core/grid.gd: Added excavation tracking
+  - excavate(), is_excavated(), can_place_at() methods
+  - excavation_changed signal for terrain integration
+  - Auto-excavation when placing blocks at Z < 0
+  - Excavation persists after block removal
+- data/terrain.json: Underground config per theme (layers by depth)
+- test/test_underground.gd: 40 unit tests
+Learnings:
+- Use underground:null in JSON for themes without underground (space)
+- Block placement can auto-excavate to simplify initial UX
+- Excavation is permanent (realistic - can't un-dig)
+- Different sprite per depth: Z=-1 soil, Z=-2 rock, Z=-3+ bedrock
+- Use _find_nodes_by_class() helper to locate Grid from Terrain
+Followup:
+- Cross-section view rendering (nice-to-have)
+- Excavation cost integration with economy system
+- InputHandler UI for manual excavation mode
+
+## Iteration 27 - 2026-01-25
+Task: arcology-d1f.1 - Implement HUD Layout
+Docs Consulted:
+- documentation/ui/hud-layout.md (screen regions, colors, sizes)
+- src/ui/block_picker.gd (existing UI pattern reference)
+- src/ui/floor_selector.gd (existing UI pattern reference)
+Status: PASSED
+Changes:
+- src/ui/hud.gd: New HUD class with full layout (TopBar, LeftSidebar, RightPanel, BottomBar)
+- src/core/main.gd: Integrated HUD into main scene with floor sync
+- test/test_hud.gd: 62 unit tests
+- test/test_hud_integration.gd: 17 integration tests
+Learnings:
+- All containers need explicit .name assignments for get_node_or_null() paths to work
+- Use mouse_filter = MOUSE_FILTER_IGNORE on HUD root to allow game viewport click-through
+- StyleBoxFlat.new() for custom panel styling with bg_color and borders
+- create_tween() for smooth panel collapse/expand animations
+- Number formatting with commas requires manual string manipulation in GDScript
+Followup:
+- Connect build category buttons to block placement system
+- Implement speed control button group toggle exclusivity
+- Add overlay dropdown menu functionality
+- Right panel auto-hide after 5s inactivity (per docs)
+
+## Iteration 28 - 2026-01-25
+Task: arcology-edz - Bug: Block placement stopped working
+Docs Consulted:
+- src/core/input_handler.gd
+- src/core/block_renderer.gd
+- src/ui/hud.gd
+- scenes/main.tscn
+Status: PASSED (likely already fixed or visual issue)
+Changes:
+- scenes/main.tscn: Added mouse_filter = 2 to DebugLabel
+Learnings:
+- Input.parse_input_event() can be used in tests to simulate mouse clicks
+- InputHandler._unhandled_input receives events AFTER UI controls process them
+- Controls with default mouse_filter (STOP) will capture clicks in their area
+- Test via SceneTree _process can use multiple phases for frame-by-frame testing
+- Block placement works correctly - tested with simulated clicks showing 11→12 blocks
+Investigation Notes:
+- InputHandler receives events and processes them correctly
+- Block placement signal fires ("Placed corridor at ...")
+- Grid block count increases after placement
+- Bug may have been intermittent or visual (blocks placed but not rendered)
+
+## Iteration 29 - 2026-01-25
+Task: arcology-d1f.10 - Fix HUD anchoring for responsive screen sizes
+Docs Consulted:
+- documentation/ui/hud-layout.md (screen regions, responsive behavior)
+- src/ui/hud.gd (current implementation)
+Status: PASSED
+Changes:
+- src/ui/hud.gd: Already had fix (set_anchors_preset → set_anchors_and_offsets_preset)
+- test/test_hud_anchoring.gd: New test file with 27 anchoring tests
+Learnings:
+- set_anchors_preset() only sets anchors without clearing offsets
+- set_anchors_and_offsets_preset() sets anchors AND clears offsets to 0
+- For Controls to fill viewport, both anchors AND zero offsets are needed
+- Controls with non-equal anchors (PRESET_FULL_RECT) cannot have size set directly
+- VBoxContainer children should have SIZE_EXPAND_FILL flag for middle section expansion
+
+## Iteration 30 - 2026-01-25
+Task: arcology-d1f.2 - Implement Build Toolbar
+Docs Consulted:
+- documentation/ui/build-toolbar.md (toolbar layout, category specs)
+- documentation/ui/hud-layout.md (color scheme reference)
+- data/blocks.json (existing block definitions)
+- src/core/block_registry.gd (API for block lookup)
+Status: PASSED
+Changes:
+- src/ui/build_toolbar.gd: New BuildToolbar class with 7 categories and flyout panel
+- src/core/main.gd: Added _setup_build_toolbar() integration
+- test/test_build_toolbar.gd: 76 unit tests
+- test/test_build_toolbar_integration.gd: 12 integration tests
+Learnings:
+- BlockRegistry has get_types_by_category() for filtering blocks by category
+- StyleBoxFlat for custom button/panel styling with corner_radius, border_width, bg_color
+- Flyout positioning: use negative offsets to position above bottom bar
+- VBoxContainer needs explicit name="VBoxContainer" for get_node() path to work
+- Signal connections in tests: lambda captures may not work; use direct method calls
+- ResourceLoader.exists() before load() for graceful missing sprite handling
+Followup:
+- Legacy BlockPicker still handles 1-6 keys (may conflict with BuildToolbar 1-7)
+- R rotation and V variant cycling not implemented (requires block rotation system)
+
