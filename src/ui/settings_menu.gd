@@ -320,14 +320,28 @@ func _create_controls_tab() -> void:
 	scroll.add_child(vbox)
 
 	# Keyboard section
-	vbox.add_child(_create_section_header("KEYBOARD"))
+	vbox.add_child(_create_section_header("KEYBOARD - CAMERA"))
 	vbox.add_child(_create_keybind_setting("Pan Up", "W"))
 	vbox.add_child(_create_keybind_setting("Pan Down", "S"))
 	vbox.add_child(_create_keybind_setting("Pan Left", "A"))
 	vbox.add_child(_create_keybind_setting("Pan Right", "D"))
+	vbox.add_child(_create_keybind_setting("Rotate Left", "Q"))
+	vbox.add_child(_create_keybind_setting("Rotate Right", "E"))
+	vbox.add_child(_create_keybind_setting("Zoom In", "+"))
+	vbox.add_child(_create_keybind_setting("Zoom Out", "-"))
+	vbox.add_child(_create_keybind_setting("Reset Zoom", "Home"))
+	vbox.add_child(_create_keybind_setting("Toggle Camera Panel", "H"))
+
+	# Building section
+	vbox.add_child(_create_section_header("KEYBOARD - BUILDING"))
 	vbox.add_child(_create_keybind_setting("Floor Up", "Page Up"))
 	vbox.add_child(_create_keybind_setting("Floor Down", "Page Down"))
-	vbox.add_child(_create_keybind_setting("Pause", "Space"))
+	vbox.add_child(_create_keybind_setting("Toggle All Floors", "V"))
+
+	# Game section
+	vbox.add_child(_create_section_header("KEYBOARD - GAME"))
+	vbox.add_child(_create_keybind_setting("Pause Menu", "Escape"))
+	vbox.add_child(_create_keybind_setting("Pause/Play", "Space"))
 
 	# Mouse section
 	vbox.add_child(_create_section_header("MOUSE"))

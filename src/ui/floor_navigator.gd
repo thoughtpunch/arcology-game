@@ -28,6 +28,7 @@ var _floor_list_popup: Control
 
 # State
 var _popup_visible := false
+var _show_all_floors := false
 
 
 func _ready() -> void:
@@ -286,13 +287,19 @@ func _update_display(floor_num: int) -> void:
 	if not _floor_button:
 		return
 
-	# Format floor display
-	if floor_num < 0:
-		_floor_button.text = "B%d" % abs(floor_num)  # Basement
-	elif floor_num == 0:
-		_floor_button.text = "F0 (G)"  # Ground
+	# Show view mode
+	if _show_all_floors:
+		_floor_button.text = "ALL"
+		_floor_button.tooltip_text = "Viewing all floors (V to toggle)"
 	else:
-		_floor_button.text = "F%d" % floor_num
+		# Format floor display for cutaway mode
+		if floor_num < 0:
+			_floor_button.text = "B%d" % abs(floor_num)  # Basement
+		elif floor_num == 0:
+			_floor_button.text = "F0 (G)"  # Ground
+		else:
+			_floor_button.text = "F%d" % floor_num
+		_floor_button.tooltip_text = "Click for floor list (V for all floors)"
 
 
 func _update_button_states() -> void:
@@ -503,3 +510,16 @@ func get_floor_text() -> String:
 	if _floor_button:
 		return _floor_button.text
 	return ""
+
+
+## Set view mode (all floors vs cutaway)
+func set_view_mode(show_all: bool) -> void:
+	_show_all_floors = show_all
+	# Update display with current floor
+	var tree := get_tree()
+	if tree:
+		var game_state = tree.get_root().get_node_or_null("/root/GameState")
+		if game_state:
+			_update_display(game_state.current_floor)
+			return
+	_update_display(0)

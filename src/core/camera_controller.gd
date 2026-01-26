@@ -295,6 +295,7 @@ func _apply_smooth_movement(delta: float) -> void:
 
 func set_zoom(zoom_level: float) -> void:
 	_target_zoom = clampf(zoom_level, MIN_ZOOM, MAX_ZOOM)
+	camera_zoomed.emit(_target_zoom)
 
 
 func get_zoom() -> float:
