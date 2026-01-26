@@ -12,11 +12,13 @@ const MAX_ZOOM := 3.0
 
 var grid: Grid
 var block_renderer: BlockRenderer
+var input_handler: InputHandler
 
 
 func _ready() -> void:
 	print("Arcology initialized")
 	_setup_grid()
+	_setup_input_handler()
 	_place_test_blocks()
 
 
@@ -29,6 +31,35 @@ func _setup_grid() -> void:
 	block_renderer = BlockRenderer.new()
 	world.add_child(block_renderer)
 	block_renderer.connect_to_grid(grid)
+
+
+func _setup_input_handler() -> void:
+	# Create input handler
+	input_handler = InputHandler.new()
+	add_child(input_handler)
+
+	# Setup with references - ghost sprites render in world space
+	input_handler.setup(grid, camera, world)
+
+	# Connect signals for feedback
+	input_handler.block_placement_attempted.connect(_on_block_placement_attempted)
+	input_handler.block_removal_attempted.connect(_on_block_removal_attempted)
+
+	print("Input handler ready. Left-click to place, right-click to remove.")
+
+
+func _on_block_placement_attempted(pos: Vector3i, type: String, success: bool) -> void:
+	if success:
+		print("Placed %s at %s" % [type, pos])
+	else:
+		print("Cannot place %s at %s (invalid)" % [type, pos])
+
+
+func _on_block_removal_attempted(pos: Vector3i, success: bool) -> void:
+	if success:
+		print("Removed block at %s" % pos)
+	else:
+		print("No block to remove at %s" % pos)
 
 
 func _place_test_blocks() -> void:
