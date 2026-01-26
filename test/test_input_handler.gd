@@ -218,16 +218,16 @@ func _test_block_type_selection():
 	print("    PASSED")
 
 
-## Test: Floor change
+## Test: Floor change (via GameState)
 func _test_floor_change():
 	print("  Test: Floor change...")
 
-	assert(input_handler.current_floor == 0, "Should start at floor 0")
+	# Floor state is managed by GameState autoload, not InputHandler
+	# InputHandler reads from GameState._get_current_floor()
+	# This test verifies InputHandler's method for getting floor works
 
-	input_handler.set_current_floor(3)
-	assert(input_handler.current_floor == 3, "Should change to floor 3")
+	# When GameState is not available (unit test), _get_current_floor returns 0
+	var floor_val := input_handler._get_current_floor()
+	assert(floor_val == 0, "Without GameState, should default to floor 0")
 
-	input_handler.set_current_floor(0)
-	assert(input_handler.current_floor == 0, "Should change back to floor 0")
-
-	print("    PASSED")
+	print("    PASSED (floor state managed by GameState autoload)")
