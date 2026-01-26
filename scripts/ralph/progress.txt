@@ -731,3 +731,29 @@ Followup:
 - Quick Build auto-population when blocks placed
 - Favorites persistence needs save/load integration
 
+## Iteration 36 - 2026-01-26
+Task: arcology-d1f.9 - Implement Notification System
+Docs Consulted:
+- documentation/ui/sidebars.md (notification tray section)
+- src/core/game_state.gd (pause integration)
+- src/ui/time_controls.gd (UI component patterns)
+Status: PASSED
+Changes:
+- src/ui/notification_system.gd: New autoload for notification management
+- src/ui/notification_tray.gd: Badge button + expandable panel UI
+- src/ui/toast_notification.gd: Slide-in toast notifications
+- src/ui/hud.gd: Integrated NotificationTray in top bar
+- src/core/main.gd: Added toast notification setup
+- project.godot: Added NotificationSystem autoload
+- test/ui/*.gd: 3 test files with 109 total tests
+Learnings:
+- Autoloads cannot have class_name (conflicts with singleton name)
+- UI components can mirror autoload constants locally for self-contained behavior
+- create_tween() requires scene tree, so tests may show animation as incomplete
+- Emergency notifications should call GameState.toggle_pause() to auto-pause game
+- Toast auto-dismiss uses get_tree().create_timer() which also requires scene tree
+Followup:
+- View action handler needs wiring (emits signal but no destination)
+- Notification persistence needs save/load integration
+- Panel height calculation could be refined for long lists
+
