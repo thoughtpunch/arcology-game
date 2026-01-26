@@ -70,6 +70,19 @@ var _river_container: Node2D
 var _river_positions: Array[Vector2i] = []  # Ordered path of river tiles
 var _river_tiles: Dictionary = {}  # Maps Vector2i -> Sprite2D
 signal river_generated(positions: Array[Vector2i])
+signal underground_visibility_changed(z_level: int)
+
+# Underground terrain system
+var _underground_container: Node2D
+# Maps Vector3i (x, y, z) -> Sprite2D for underground tiles
+var _underground_tiles: Dictionary = {}
+# Minimum Z level with underground tiles rendered
+var _underground_render_depth: int = -3
+# Current visible floor level (from GameState)
+var _current_floor: int = 0
+
+# Reference to Grid for excavation state (injected or found via scene tree)
+var grid_ref = null
 
 
 func _init() -> void:
@@ -81,6 +94,7 @@ func _ready() -> void:
 	_setup_base_plane()
 	_setup_decorations_container()
 	_setup_river_container()
+	_setup_underground_container()
 	_update_theme()
 
 
@@ -784,3 +798,284 @@ func show_river_at(grid_pos: Vector2i) -> void:
 		var sprite: Sprite2D = _river_tiles[grid_pos]
 		if sprite and is_instance_valid(sprite):
 			sprite.visible = true
+
+
+# =============================================================================
+# UNDERGROUND TERRAIN SYSTEM
+# =============================================================================
+
+const Z_INDEX_UNDERGROUND := -300  # Above river (-400) but below blocks
+
+## Setup underground container node
+func _setup_underground_container() -> void:
+	_underground_container = Node2D.new()
+	# Underground is above river but below blocks
+	_underground_container.z_index = Z_INDEX_UNDERGROUND - Z_INDEX_BASE_PLANE
+	_underground_container.y_sort_enabled = true
+	add_child(_underground_container)
+
+
+## Get underground configuration for current theme
+func _get_underground_config() -> Dictionary:
+	var data := _get_theme_data(theme)
+	var config = data.get("underground", null)
+	if config == null:
+		return {}
+	return config
+
+
+## Check if current theme has underground terrain
+func has_underground() -> bool:
+	var config := _get_underground_config()
+	return not config.is_empty()
+
+
+## Get the sprite filename for a specific depth level
+func _get_underground_sprite_for_depth(z_level: int) -> String:
+	if z_level >= 0:
+		return ""
+
+	var config := _get_underground_config()
+	if config.is_empty():
+		return ""
+
+	var layers: Dictionary = config.get("layers", {})
+	var z_str := str(z_level)
+
+	# Check for specific layer
+	if layers.has(z_str):
+		return layers[z_str]
+
+	# Use default (deepest layer) for depths beyond defined layers
+	return config.get("default_layer", "")
+
+
+## Get full sprite path for underground at depth
+func _get_underground_sprite_path(z_level: int) -> String:
+	var config := _get_underground_config()
+	if config.is_empty():
+		return ""
+
+	var sprite_file := _get_underground_sprite_for_depth(z_level)
+	if sprite_file.is_empty():
+		return ""
+
+	var base_path: String = config.get("sprite_path", "")
+	return base_path + sprite_file
+
+
+## Generate underground terrain tiles for an area
+## Should be called after scatter_decorations and generate_river
+func generate_underground(area: Rect2i, min_z: int = -3) -> void:
+	_clear_underground()
+
+	if not has_underground():
+		return
+
+	_underground_render_depth = min_z
+
+	# Generate tiles for each underground level
+	for z in range(-1, min_z - 1, -1):
+		_generate_underground_layer(area, z)
+
+	# Update visibility based on current floor
+	update_underground_visibility(_current_floor)
+
+
+## Generate underground tiles for a single Z level
+func _generate_underground_layer(area: Rect2i, z_level: int) -> void:
+	var sprite_path := _get_underground_sprite_path(z_level)
+	if sprite_path.is_empty():
+		return
+
+	if not ResourceLoader.exists(sprite_path):
+		push_warning("Terrain: Underground sprite not found: %s" % sprite_path)
+		return
+
+	var texture := load(sprite_path) as Texture2D
+	if texture == null:
+		return
+
+	for x in range(area.position.x, area.end.x):
+		for y in range(area.position.y, area.end.y):
+			var pos := Vector3i(x, y, z_level)
+
+			# Skip if already excavated (has a block)
+			if _is_position_excavated(pos):
+				continue
+
+			_create_underground_tile(pos, texture)
+
+
+## Create an underground tile sprite at position
+func _create_underground_tile(pos: Vector3i, texture: Texture2D) -> void:
+	if not _underground_container:
+		return
+
+	if _underground_tiles.has(pos):
+		return  # Already exists
+
+	var sprite := Sprite2D.new()
+	sprite.texture = texture
+	sprite.position = _grid_to_screen_3d(pos)
+
+	# Z-index for proper sorting: higher x+y = further back, lower z = deeper
+	# Use a formula that accounts for Z level
+	var sort_value := pos.x + pos.y + (pos.z * -100)
+	sprite.z_index = sort_value
+
+	_underground_container.add_child(sprite)
+	_underground_tiles[pos] = sprite
+
+
+## Convert 3D grid position to screen position (for underground tiles)
+func _grid_to_screen_3d(grid_pos: Vector3i) -> Vector2:
+	const TILE_WIDTH := 64
+	const TILE_DEPTH := 32
+	const FLOOR_HEIGHT := 32
+
+	var x := (grid_pos.x - grid_pos.y) * (TILE_WIDTH / 2)
+	var y := (grid_pos.x + grid_pos.y) * (TILE_DEPTH / 2)
+	y -= grid_pos.z * FLOOR_HEIGHT  # Higher Z = higher on screen
+	return Vector2(x, y)
+
+
+## Check if a position has been excavated (has a block placed)
+func _is_position_excavated(pos: Vector3i) -> bool:
+	var grid = _get_grid()
+	if grid == null:
+		return false
+	return grid.is_excavated(pos)
+
+
+## Get Grid reference for excavation checks
+func _get_grid():
+	# Return direct reference if set
+	if grid_ref:
+		return grid_ref
+
+	# Try to find Grid in scene tree
+	var tree := get_tree()
+	if tree == null:
+		return null
+
+	var root := tree.get_root()
+	if root == null:
+		return null
+
+	# Look for Grid by class
+	var grids := _find_nodes_by_class(root, "Grid")
+	if not grids.is_empty():
+		grid_ref = grids[0]
+		return grid_ref
+
+	return null
+
+
+## Helper to find nodes by class name recursively
+func _find_nodes_by_class(node: Node, class_name_str: String) -> Array:
+	var results := []
+	if node.get_class() == class_name_str or (node.get_script() != null and node.get_script().get_global_name() == class_name_str):
+		results.append(node)
+	for child in node.get_children():
+		results.append_array(_find_nodes_by_class(child, class_name_str))
+	return results
+
+
+## Clear all underground tiles
+func _clear_underground() -> void:
+	for pos in _underground_tiles:
+		var sprite: Sprite2D = _underground_tiles[pos]
+		if sprite and is_instance_valid(sprite):
+			sprite.queue_free()
+	_underground_tiles.clear()
+
+
+## Update underground visibility based on current floor level
+## Shows underground tiles at or below current floor, hides tiles above
+func update_underground_visibility(current_floor: int) -> void:
+	_current_floor = current_floor
+
+	# Surface level (Z >= 0) - hide all underground
+	if current_floor >= 0:
+		for pos in _underground_tiles:
+			var sprite: Sprite2D = _underground_tiles[pos]
+			if sprite and is_instance_valid(sprite):
+				sprite.visible = false
+		underground_visibility_changed.emit(current_floor)
+		return
+
+	# Underground - show tiles at or below current floor
+	for pos in _underground_tiles:
+		var tile_pos: Vector3i = pos
+		var sprite: Sprite2D = _underground_tiles[pos]
+		if sprite and is_instance_valid(sprite):
+			# Show tile if it's at or below current floor level
+			sprite.visible = tile_pos.z <= current_floor
+
+			# Apply alpha for depth effect (deeper = dimmer)
+			if sprite.visible:
+				var depth := current_floor - tile_pos.z  # 0 = same level, 1+ = deeper
+				var alpha := 1.0 - (depth * 0.2)  # 20% dimmer per level
+				alpha = maxf(0.4, alpha)  # Minimum 40% opacity
+				sprite.modulate.a = alpha
+			else:
+				sprite.modulate.a = 1.0
+
+	underground_visibility_changed.emit(current_floor)
+
+
+## Hide underground tile at position (when excavated/block placed)
+func hide_underground_at(pos: Vector3i) -> void:
+	if _underground_tiles.has(pos):
+		var sprite: Sprite2D = _underground_tiles[pos]
+		if sprite and is_instance_valid(sprite):
+			sprite.visible = false
+
+
+## Show underground tile at position (when block removed and not excavated)
+## Only shows if the position should be visible based on current floor
+func show_underground_at(pos: Vector3i) -> void:
+	if _underground_tiles.has(pos):
+		var sprite: Sprite2D = _underground_tiles[pos]
+		if sprite and is_instance_valid(sprite):
+			# Only show if current floor is underground and tile is at/below
+			if _current_floor < 0 and pos.z <= _current_floor:
+				sprite.visible = true
+
+
+## Remove underground tile permanently (after excavation)
+func remove_underground_at(pos: Vector3i) -> void:
+	if _underground_tiles.has(pos):
+		var sprite: Sprite2D = _underground_tiles[pos]
+		if sprite and is_instance_valid(sprite):
+			sprite.queue_free()
+		_underground_tiles.erase(pos)
+
+
+## Check if there's an underground tile at position
+func has_underground_at(pos: Vector3i) -> bool:
+	return _underground_tiles.has(pos)
+
+
+## Get all underground tile positions
+func get_underground_positions() -> Array[Vector3i]:
+	var positions: Array[Vector3i] = []
+	for pos in _underground_tiles.keys():
+		positions.append(pos as Vector3i)
+	return positions
+
+
+## Get underground tile count
+func get_underground_tile_count() -> int:
+	return _underground_tiles.size()
+
+
+## Get visible underground tile count
+func get_visible_underground_count() -> int:
+	var count := 0
+	for pos in _underground_tiles:
+		var sprite: Sprite2D = _underground_tiles[pos]
+		if sprite and is_instance_valid(sprite) and sprite.visible:
+			count += 1
+	return count

@@ -13,6 +13,7 @@ const FLOOR_HEIGHT: int = 32  # Visual offset per Z level
 signal block_added(pos: Vector3i, block)
 signal block_removed(pos: Vector3i)
 signal entrances_changed(entrance_positions: Array[Vector3i])
+signal excavation_changed(pos: Vector3i, is_excavated: bool)
 
 # Sparse 3D storage: Vector3i -> Block
 var _blocks: Dictionary = {}
@@ -20,11 +21,18 @@ var _blocks: Dictionary = {}
 # Entrance positions (seed points for connectivity flood-fill)
 var _entrance_positions: Array[Vector3i] = []
 
+# Excavation tracking for underground positions (Z < 0)
+# Stores Vector3i positions that have been excavated
+var _excavated_positions: Dictionary = {}
+
 
 ## Store a block at the given grid position
 func set_block(pos: Vector3i, block) -> void:
 	_blocks[pos] = block
 	block.grid_position = pos
+	# Underground positions are auto-excavated when block is placed
+	if pos.z < 0 and not is_excavated(pos):
+		excavate(pos)
 	block_added.emit(pos, block)
 	_track_entrance(pos, block)
 	# Recalculate connectivity after block is added
@@ -75,6 +83,8 @@ func clear() -> void:
 	if _entrance_positions.size() > 0:
 		_entrance_positions.clear()
 		entrances_changed.emit(_entrance_positions)
+	# Note: We intentionally don't clear excavation state
+	# Excavation is permanent until explicitly reset
 
 
 ## Convert grid position to screen coordinates (isometric)
@@ -297,6 +307,66 @@ func _find_nodes_by_class(node: Node, class_name_str: String) -> Array:
 	for child in node.get_children():
 		results.append_array(_find_nodes_by_class(child, class_name_str))
 	return results
+
+
+# --- Excavation System ---
+
+## Excavate an underground position (Z < 0)
+## Must excavate before placing blocks underground
+func excavate(pos: Vector3i) -> bool:
+	# Only underground positions can be excavated
+	if pos.z >= 0:
+		return false
+
+	# Already excavated
+	if is_excavated(pos):
+		return false
+
+	_excavated_positions[pos] = true
+	excavation_changed.emit(pos, true)
+	return true
+
+
+## Check if an underground position has been excavated
+func is_excavated(pos: Vector3i) -> bool:
+	# Surface and above are always "excavated" (buildable)
+	if pos.z >= 0:
+		return true
+	return _excavated_positions.has(pos)
+
+
+## Check if a position can have a block placed
+## Underground positions must be excavated first
+func can_place_at(pos: Vector3i) -> bool:
+	# Already has a block
+	if has_block(pos):
+		return false
+
+	# Underground must be excavated
+	if pos.z < 0 and not is_excavated(pos):
+		return false
+
+	return true
+
+
+## Get all excavated positions
+func get_excavated_positions() -> Array[Vector3i]:
+	var positions: Array[Vector3i] = []
+	for pos in _excavated_positions.keys():
+		positions.append(pos as Vector3i)
+	return positions
+
+
+## Get count of excavated positions
+func get_excavation_count() -> int:
+	return _excavated_positions.size()
+
+
+## Reset excavation state (for new game)
+func reset_excavation() -> void:
+	for pos in _excavated_positions.keys():
+		excavation_changed.emit(pos, false)
+	_excavated_positions.clear()
 
 
 # --- Entrance Tracking ---

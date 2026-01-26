@@ -30,6 +30,15 @@
           "end_e": "end_e.png",
           "end_w": "end_w.png"
         }
+      },
+      "underground": {
+        "sprite_path": "res://assets/sprites/terrain/earth/underground/",
+        "layers": {
+          "-1": "soil.png",
+          "-2": "rock.png",
+          "-3": "bedrock.png"
+        },
+        "default_layer": "bedrock.png"
       }
     },
     "mars": {
@@ -44,7 +53,16 @@
         {"type": "crater_small", "weight": 0.1, "size": [1, 1]}
       ],
       "decoration_density": 0.12,
-      "has_river": false
+      "has_river": false,
+      "underground": {
+        "sprite_path": "res://assets/sprites/terrain/mars/underground/",
+        "layers": {
+          "-1": "regolith.png",
+          "-2": "rock.png",
+          "-3": "basalt.png"
+        },
+        "default_layer": "basalt.png"
+      }
     },
     "space": {
       "base_color": null,
@@ -53,7 +71,8 @@
       "background": "space_stars.png",
       "decorations": [],
       "decoration_density": 0,
-      "has_river": false
+      "has_river": false,
+      "underground": null
     }
   }
 }
