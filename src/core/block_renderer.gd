@@ -2,6 +2,7 @@ class_name BlockRenderer
 extends Node2D
 ## Renders blocks with isometric positioning and depth sorting
 ## Listens to Grid signals to add/remove block sprites
+## Handles floor-based visibility (cutaway view)
 
 # References
 var grid: Grid
@@ -9,6 +10,10 @@ var _sprites: Dictionary = {}  # Vector3i -> Sprite2D
 
 # Preloaded textures cache
 var _texture_cache: Dictionary = {}
+
+# Floor visibility settings
+const FLOORS_BELOW_VISIBLE: int = 2
+const OPACITY_FALLOFF: float = 0.3  # Opacity reduction per floor below
 
 
 func _ready() -> void:
@@ -120,7 +125,47 @@ func update_sprite_position(pos: Vector3i) -> void:
 # Signal handlers
 func _on_block_added(pos: Vector3i, block) -> void:
 	_create_sprite_for_block(block)
+	# Apply visibility for newly added block
+	_apply_visibility_to_sprite(pos)
 
 
 func _on_block_removed(pos: Vector3i) -> void:
 	_remove_sprite_at(pos)
+
+
+## Update visibility for all blocks based on current floor
+## Call this when floor changes or after initial setup
+func update_visibility(current_floor: int) -> void:
+	for pos in _sprites.keys():
+		_update_sprite_visibility(pos, current_floor)
+
+
+## Update visibility for a single sprite
+func _update_sprite_visibility(pos: Vector3i, current_floor: int) -> void:
+	if not _sprites.has(pos):
+		return
+
+	var sprite: Sprite2D = _sprites[pos]
+
+	if pos.z > current_floor:
+		# Above current floor - hide completely
+		sprite.visible = false
+	elif pos.z == current_floor:
+		# Current floor - full opacity
+		sprite.visible = true
+		sprite.modulate.a = 1.0
+	elif pos.z >= current_floor - FLOORS_BELOW_VISIBLE:
+		# Below but within visible range - fade based on depth
+		sprite.visible = true
+		var depth: int = current_floor - pos.z
+		sprite.modulate.a = 1.0 - (depth * OPACITY_FALLOFF)
+	else:
+		# Too far below - hide completely
+		sprite.visible = false
+
+
+## Apply visibility to a single sprite based on current GameState floor
+func _apply_visibility_to_sprite(pos: Vector3i) -> void:
+	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
+	if game_state:
+		_update_sprite_visibility(pos, game_state.current_floor)

@@ -37,6 +37,11 @@ func _setup_grid() -> void:
 	world.add_child(block_renderer)
 	block_renderer.connect_to_grid(grid)
 
+	# Connect floor changes to visibility updates
+	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
+	if game_state:
+		game_state.floor_changed.connect(_on_floor_visibility_changed)
+
 
 func _setup_input_handler() -> void:
 	# Create input handler
@@ -98,6 +103,11 @@ func _on_floor_changed(new_floor: int) -> void:
 	print("Current floor: %d" % new_floor)
 
 
+func _on_floor_visibility_changed(new_floor: int) -> void:
+	# Update block visibility when floor changes
+	block_renderer.update_visibility(new_floor)
+
+
 func _place_test_blocks() -> void:
 	# Place some test blocks to verify rendering
 	# Row of corridors at ground level
@@ -126,6 +136,11 @@ func _place_test_blocks() -> void:
 	grid.set_block(stairs.grid_position, stairs)
 
 	print("Placed %d test blocks" % grid.get_block_count())
+
+	# Apply initial visibility based on starting floor
+	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
+	if game_state:
+		block_renderer.update_visibility(game_state.current_floor)
 
 
 func _process(delta: float) -> void:
