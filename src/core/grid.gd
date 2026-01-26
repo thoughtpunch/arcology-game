@@ -343,3 +343,14 @@ func _is_block_public(block) -> bool:
 ## Use this to manually trigger recalculation if auto-recalc is disabled
 func recalculate_connectivity() -> void:
 	calculate_connectivity()
+
+
+## Get the highest Z level that has a block at the given X,Y column
+## Returns -1 if no blocks exist at that column
+func get_highest_z_at(x: int, y: int) -> int:
+	var highest_z: int = -1
+	for pos in _blocks.keys():
+		if pos.x == x and pos.y == y:
+			if pos.z > highest_z:
+				highest_z = pos.z
+	return highest_z

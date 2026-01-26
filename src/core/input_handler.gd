@@ -2,6 +2,7 @@ class_name InputHandler
 extends Node
 ## Handles mouse input for block placement and removal
 ## Manages ghost preview and validates placement
+## Supports Shift+click auto-stacking on top of existing blocks
 
 signal block_placement_attempted(pos: Vector3i, type: String, success: bool)
 signal block_removal_attempted(pos: Vector3i, success: bool)
@@ -15,15 +16,20 @@ var ghost_container: Node2D  # Parent node for ghost sprite
 # State
 var selected_block_type: String = "corridor"
 var _ghost_sprite: Sprite2D
+var _floor_label: Label  # Shows Z level near ghost
 var _texture_cache: Dictionary = {}
 
 # Ghost modulation colors
 const VALID_COLOR := Color(1.0, 1.0, 1.0, 0.6)    # Semi-transparent white
 const INVALID_COLOR := Color(1.0, 0.3, 0.3, 0.6)  # Semi-transparent red
 
+# Floor label styling
+const FLOOR_LABEL_OFFSET := Vector2(40, -20)  # Offset from ghost sprite
+
 
 func _ready() -> void:
 	_create_ghost_sprite()
+	_create_floor_label()
 
 
 ## Initialize with required references
@@ -39,6 +45,12 @@ func setup(p_grid: Grid, p_camera: Camera2D, p_ghost_container: Node2D) -> void:
 		ghost_container.add_child(_ghost_sprite)
 		_update_ghost_texture()
 
+	if _floor_label and ghost_container:
+		# Reparent floor label to container
+		if _floor_label.get_parent():
+			_floor_label.get_parent().remove_child(_floor_label)
+		ghost_container.add_child(_floor_label)
+
 
 func _create_ghost_sprite() -> void:
 	_ghost_sprite = Sprite2D.new()
@@ -46,6 +58,18 @@ func _create_ghost_sprite() -> void:
 	_ghost_sprite.z_index = 1000  # Always on top
 	_ghost_sprite.visible = false
 	add_child(_ghost_sprite)  # Temporary parent until setup() called
+
+
+func _create_floor_label() -> void:
+	_floor_label = Label.new()
+	_floor_label.text = "Z: 0"
+	_floor_label.z_index = 1001  # Above ghost
+	_floor_label.visible = false
+	_floor_label.add_theme_color_override("font_color", Color.WHITE)
+	_floor_label.add_theme_color_override("font_shadow_color", Color.BLACK)
+	_floor_label.add_theme_constant_override("shadow_offset_x", 1)
+	_floor_label.add_theme_constant_override("shadow_offset_y", 1)
+	add_child(_floor_label)  # Temporary parent until setup() called
 
 
 func _process(_delta: float) -> void:
@@ -69,6 +93,9 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 	var grid_pos := _get_grid_pos_at_mouse()
 
 	if event.button_index == MOUSE_BUTTON_LEFT:
+		# Shift+click: auto-stack on top of existing blocks
+		if event.shift_pressed:
+			grid_pos = _get_auto_stack_position(grid_pos)
 		_try_place_block(grid_pos)
 	elif event.button_index == MOUSE_BUTTON_RIGHT:
 		_try_remove_block(grid_pos)
@@ -108,12 +135,25 @@ func _try_remove_block(pos: Vector3i) -> void:
 func _update_ghost_position() -> void:
 	var grid_pos := _get_grid_pos_at_mouse()
 
+	# Check for Shift key - show auto-stack position preview
+	var display_pos := grid_pos
+	var is_shift_held := Input.is_key_pressed(KEY_SHIFT)
+	if is_shift_held:
+		display_pos = _get_auto_stack_position(grid_pos)
+
 	# Position ghost at grid cell
-	_ghost_sprite.position = grid.grid_to_screen(grid_pos)
+	_ghost_sprite.position = grid.grid_to_screen(display_pos)
 	_ghost_sprite.visible = true
 
+	# Update floor label position and text
+	_floor_label.position = _ghost_sprite.position + FLOOR_LABEL_OFFSET
+	_floor_label.text = "Z: %d" % display_pos.z
+	if is_shift_held:
+		_floor_label.text += " (auto)"
+	_floor_label.visible = true
+
 	# Update color based on validity
-	var is_valid := _is_placement_valid(grid_pos)
+	var is_valid := _is_placement_valid(display_pos)
 	_ghost_sprite.modulate = VALID_COLOR if is_valid else INVALID_COLOR
 
 
@@ -143,6 +183,28 @@ func _get_grid_pos_at_mouse() -> Vector3i:
 
 	# Convert to grid
 	return grid.screen_to_grid(world_pos, current_floor)
+
+
+## Get the auto-stack position for a given base position
+## Returns position on top of highest block at that X,Y column, or Z=0 if empty
+func _get_auto_stack_position(base_pos: Vector3i) -> Vector3i:
+	var highest_z := grid.get_highest_z_at(base_pos.x, base_pos.y)
+	var target_z: int
+	if highest_z < 0:
+		# No blocks at this column, place at Z=0
+		target_z = 0
+	else:
+		# Place on top of highest block
+		target_z = highest_z + 1
+
+	# Clamp to max floor (if GameState available)
+	var tree := get_tree()
+	if tree:
+		var game_state = tree.get_root().get_node_or_null("/root/GameState")
+		if game_state:
+			target_z = mini(target_z, game_state.MAX_FLOOR)
+
+	return Vector3i(base_pos.x, base_pos.y, target_z)
 
 
 ## Get current floor from GameState autoload
