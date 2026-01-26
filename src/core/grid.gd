@@ -27,6 +27,8 @@ func set_block(pos: Vector3i, block) -> void:
 	block.grid_position = pos
 	block_added.emit(pos, block)
 	_track_entrance(pos, block)
+	# Recalculate connectivity after block is added
+	call_deferred("calculate_connectivity")
 
 
 ## Get block at position, returns null if empty
@@ -41,6 +43,8 @@ func remove_block(pos: Vector3i) -> void:
 		_blocks.erase(pos)
 		block_removed.emit(pos)
 		_untrack_entrance(pos, block)
+		# Recalculate connectivity after block is removed
+		call_deferred("calculate_connectivity")
 
 
 ## Check if position contains a block
@@ -195,11 +199,24 @@ func get_walkable_neighbors(pos: Vector3i) -> Array[Vector3i]:
 
 
 ## Helper to get BlockRegistry autoload
+## Can be set directly for testing or looked up from scene tree
+var block_registry = null
+
 func _get_block_registry():
+	# Return direct reference if set
+	if block_registry:
+		return block_registry
+
+	# Try to find via scene tree
 	var tree := get_tree()
-	if tree == null:
-		return null
-	return tree.get_root().get_node_or_null("/root/BlockRegistry")
+	if tree != null:
+		var registry = tree.get_root().get_node_or_null("/root/BlockRegistry")
+		if registry:
+			block_registry = registry
+			return registry
+
+	# Not found
+	return null
 
 
 # --- Entrance Tracking ---
@@ -243,3 +260,86 @@ func _untrack_entrance(pos: Vector3i, block) -> void:
 		if idx >= 0:
 			_entrance_positions.remove_at(idx)
 			entrances_changed.emit(_entrance_positions)
+
+
+# --- Connectivity Flood-Fill ---
+
+signal connectivity_changed()
+
+## Calculate connectivity from all entrance positions using BFS flood-fill
+## Marks blocks as connected=true if reachable from any entrance
+func calculate_connectivity() -> void:
+	# Reset all blocks to disconnected
+	for block in get_all_blocks():
+		_set_block_connected(block, false)
+
+	# If no entrances, nothing is connected
+	if _entrance_positions.is_empty():
+		connectivity_changed.emit()
+		return
+
+	# BFS flood-fill from all entrance positions
+	var visited: Dictionary = {}
+	var queue: Array[Vector3i] = []
+
+	# Start from all entrances
+	for entrance_pos in _entrance_positions:
+		if has_block(entrance_pos):
+			queue.append(entrance_pos)
+			visited[entrance_pos] = true
+
+	while not queue.is_empty():
+		var current_pos: Vector3i = queue.pop_front()
+		var current_block = get_block(current_pos)
+
+		if current_block:
+			_set_block_connected(current_block, true)
+
+			# Only expand from this block if it's PUBLIC (can route through)
+			# Private blocks are destinations only - they don't contribute neighbors
+			if _is_block_public(current_block):
+				# Add walkable neighbors to queue
+				for neighbor_pos in get_walkable_neighbors(current_pos):
+					if not visited.has(neighbor_pos):
+						visited[neighbor_pos] = true
+						queue.append(neighbor_pos)
+
+	connectivity_changed.emit()
+
+
+## Helper to set connected property on block (handles both Block objects and dictionaries)
+func _set_block_connected(block, value: bool) -> void:
+	if block is Object and "connected" in block:
+		block.connected = value
+	elif block is Dictionary:
+		block["connected"] = value
+
+
+## Helper to check if a block is public (traversable)
+## Public blocks can route through; private blocks are destinations only
+func _is_block_public(block) -> bool:
+	var block_type: String = ""
+	if block is Object and "block_type" in block:
+		block_type = block.block_type
+	elif block is Dictionary and block.has("block_type"):
+		block_type = block.block_type
+		# For dictionary blocks (tests), check explicit traversability field
+		if block.has("traversability"):
+			return block.traversability == "public"
+
+	if block_type.is_empty():
+		return false
+
+	var registry = _get_block_registry()
+	if registry == null:
+		# Without registry and no explicit traversability, assume public
+		# (allows basic unit tests to work without registry)
+		return true
+
+	return registry.is_public(block_type)
+
+
+## Recalculate connectivity (call after block changes)
+## Use this to manually trigger recalculation if auto-recalc is disabled
+func recalculate_connectivity() -> void:
+	calculate_connectivity()
