@@ -361,3 +361,29 @@ Learnings:
 - Label z_index works relative to parent, set to 1001 (above ghost at 1000)
 - add_theme_color_override for font_shadow_color gives readable labels
 
+## Iteration 21 - 2026-01-25
+Task: arcology-ak9.4 - Create terrain.json data file
+Docs Consulted:
+- documentation/game-design/environment/terrain.md (data schema, theme configs)
+- documentation/game-design/scenarios.md (scenario parameters)
+Status: PASSED
+Changes:
+- data/terrain.json: Theme configurations for earth, mars, space
+  - base_color, background_color for each theme
+  - decorations array with type, weight, size
+  - decoration_density, has_river, background sprite path
+- src/core/terrain.gd: Refactored to load from JSON
+  - _load_terrain_data() parses JSON file on _init
+  - _get_theme_data(), _get_base_color(), _get_background_color()
+  - Added getters: get_decorations_config(), get_decoration_density()
+  - Added getters: has_river(), get_background_sprite()
+  - FALLBACK_THEME_COLORS and FALLBACK_BACKGROUND_COLORS if JSON missing
+  - get_available_themes() now instance method (reads from loaded data)
+- test/test_terrain.gd: 19 tests (original 12 + 7 new JSON tests)
+Learnings:
+- JSON.parse() returns error code, use get_data() for actual parsed result
+- FileAccess.file_exists() to check before opening
+- is_equal_approx() for float comparison in tests
+- Keep static is_valid_theme() for convenience but it only checks fallbacks
+- Instance method get_available_themes() can read from loaded JSON data
+
