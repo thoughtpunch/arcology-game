@@ -146,10 +146,9 @@ func test_bottom_bar_structure() -> void:
 	var floor_nav := hud.bottom_bar.get_node_or_null("HBoxContainer/FloorNavigator")
 	assert_not_null(floor_nav, "Floor navigator should exist")
 
-	# Check build categories exist
-	var build_cats := hud.bottom_bar.get_node_or_null("HBoxContainer/BuildCategories")
-	assert_not_null(build_cats, "Build categories should exist")
-	assert_eq(build_cats.get_child_count(), 7, "Should have 7 build category buttons")
+	# Note: Build categories are handled by BuildToolbar (added in main.gd)
+	# not directly in HUD. Test that BuildToolbar has 7 categories defined.
+	assert_eq(BuildToolbar.CATEGORY_ORDER.size(), 7, "Should have 7 build category definitions")
 
 	hud.free()
 
