@@ -4,6 +4,8 @@ extends Node2D
 ## Listens to Grid signals to add/remove block sprites
 ## Handles floor-based visibility (cutaway view)
 
+signal view_mode_changed(show_all_floors: bool)
+
 # References
 var grid: Grid
 var _sprites: Dictionary = {}  # Vector3i -> Sprite2D
@@ -11,14 +13,34 @@ var _sprites: Dictionary = {}  # Vector3i -> Sprite2D
 # Preloaded textures cache
 var _texture_cache: Dictionary = {}
 
+# Audio
+var _place_sound: AudioStreamPlayer
+
 # Floor visibility settings
 const FLOORS_BELOW_VISIBLE: int = 2
 const OPACITY_FALLOFF: float = 0.3  # Opacity reduction per floor below
+
+# Visibility mode
+var show_all_floors: bool = false  # When true, show entire structure
 
 
 func _ready() -> void:
 	# Enable Y-sorting for proper isometric depth
 	y_sort_enabled = true
+
+	# Setup audio player for placement sounds
+	_place_sound = AudioStreamPlayer.new()
+	_place_sound.name = "PlaceSound"
+	_place_sound.volume_db = -6.0  # Slightly quieter than full volume
+	add_child(_place_sound)
+
+	# Try to load placement sound effect
+	var sound_path := "res://assets/audio/sfx/place_block.wav"
+	if ResourceLoader.exists(sound_path):
+		_place_sound.stream = load(sound_path)
+	else:
+		# Generate a simple procedural "chunk" sound as placeholder
+		_place_sound.stream = _generate_place_sound()
 
 
 ## Connect to a grid to render its blocks
@@ -61,9 +83,6 @@ func _create_sprite_for_block(block) -> void:
 	# Z-index for floor stacking (higher Z = in front)
 	# Also factor in X+Y for proper Y-sorting within a floor
 	sprite.z_index = _calculate_z_index(pos)
-
-	# Sprite origin is center by default, which works for our hexagonal sprites
-	# The sprite center aligns with the grid position
 
 	add_child(sprite)
 	_sprites[pos] = sprite
@@ -131,6 +150,8 @@ func _on_block_added(pos: Vector3i, block) -> void:
 	_create_sprite_for_block(block)
 	# Apply visibility for newly added block
 	_apply_visibility_to_sprite(pos)
+	# Play placement animation
+	_animate_block_placement(pos)
 
 
 func _on_block_removed(pos: Vector3i) -> void:
@@ -157,6 +178,13 @@ func _update_sprite_visibility(pos: Vector3i, current_floor: int) -> void:
 	if block and not block.connected:
 		base_color = DISCONNECTED_TINT
 
+	# Show all floors mode - everything visible at full opacity
+	if show_all_floors:
+		sprite.visible = true
+		sprite.modulate = Color(base_color.r, base_color.g, base_color.b, 1.0)
+		return
+
+	# Cutaway mode - hide floors above, fade floors below
 	if pos.z > current_floor:
 		# Above current floor - hide completely
 		sprite.visible = false
@@ -173,6 +201,26 @@ func _update_sprite_visibility(pos: Vector3i, current_floor: int) -> void:
 	else:
 		# Too far below - hide completely
 		sprite.visible = false
+
+
+## Toggle between showing all floors and cutaway view
+func toggle_show_all_floors() -> void:
+	show_all_floors = not show_all_floors
+	# Refresh visibility for all sprites
+	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
+	var current_floor: int = game_state.current_floor if game_state else 0
+	update_visibility(current_floor)
+	view_mode_changed.emit(show_all_floors)
+
+
+## Set show all floors mode
+func set_show_all_floors(enabled: bool) -> void:
+	if show_all_floors != enabled:
+		show_all_floors = enabled
+		var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
+		var current_floor: int = game_state.current_floor if game_state else 0
+		update_visibility(current_floor)
+		view_mode_changed.emit(show_all_floors)
 
 
 ## Apply visibility to a single sprite based on current GameState floor
@@ -195,6 +243,88 @@ func _on_connectivity_changed() -> void:
 		var block = grid.get_block(pos)
 		if block:
 			_update_connectivity_visual(block)
+
+
+## Generate a simple procedural "chunk" sound as placeholder
+func _generate_place_sound() -> AudioStream:
+	# Create a short percussive sound programmatically
+	# This is a placeholder until real audio is added
+	var sample_rate := 22050
+	var duration := 0.15  # 150ms
+	var num_samples := int(sample_rate * duration)
+
+	var audio := AudioStreamWAV.new()
+	audio.format = AudioStreamWAV.FORMAT_8_BITS
+	audio.mix_rate = sample_rate
+	audio.stereo = false
+
+	var data := PackedByteArray()
+	data.resize(num_samples)
+
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		# Quick attack, fast decay noise burst (like a "chunk")
+		var envelope := exp(-t * 30.0)  # Fast decay
+		var noise := randf_range(-1.0, 1.0)
+		var low_freq := sin(t * 150.0 * TAU)  # Low thump
+		var sample := (noise * 0.3 + low_freq * 0.7) * envelope
+		# Convert to 8-bit unsigned (0-255, with 128 as center)
+		data[i] = int(clamp(sample * 127.0 + 128.0, 0, 255))
+
+	audio.data = data
+	return audio
+
+
+## Play the block placement sound
+func _play_place_sound() -> void:
+	if _place_sound and _place_sound.stream:
+		# Slight pitch variation for variety
+		_place_sound.pitch_scale = randf_range(0.9, 1.1)
+		_place_sound.play()
+
+
+## Animate a block being placed with a satisfying heavy "plop"
+## Enhanced for heavy prefab module feel
+func _animate_block_placement(pos: Vector3i) -> void:
+	if not _sprites.has(pos):
+		return
+
+	var sprite: Sprite2D = _sprites[pos]
+	var final_pos: Vector2 = sprite.position
+
+	# Play the "chunk" sound
+	_play_place_sound()
+
+	# Animation constants for heavy feel
+	const DROP_HEIGHT := 35.0  # Pixels to drop (increased for weight)
+	const DROP_DURATION := 0.14  # Seconds for drop phase
+	const BOUNCE_DURATION := 0.14  # Seconds for settle phase
+	const IMPACT_OVERSHOOT := 4.0  # Pixels past final position
+	const INITIAL_ROTATION := 3.0  # Degrees of initial tilt
+	const SQUASH_X := 0.88  # Horizontal squash on impact
+	const SQUASH_Y := 1.12  # Vertical stretch on impact
+
+	# Start above final position, slightly larger, with rotation
+	sprite.position = final_pos + Vector2(0, -DROP_HEIGHT)
+	sprite.scale = Vector2(1.1, 1.1)
+	sprite.modulate.a = 0.7
+	sprite.rotation_degrees = randf_range(-INITIAL_ROTATION, INITIAL_ROTATION)
+
+	# Create tween for the heavy "plop" animation
+	var tween := create_tween()
+	tween.set_parallel(true)
+
+	# Phase 1: Drop with acceleration (ease in = accelerate)
+	tween.tween_property(sprite, "position", final_pos + Vector2(0, IMPACT_OVERSHOOT), DROP_DURATION).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tween.tween_property(sprite, "scale", Vector2(SQUASH_X, SQUASH_Y), DROP_DURATION).set_ease(Tween.EASE_IN)
+	tween.tween_property(sprite, "modulate:a", 1.0, DROP_DURATION * 0.6)
+	tween.tween_property(sprite, "rotation_degrees", 0.0, DROP_DURATION).set_ease(Tween.EASE_OUT)
+
+	# Phase 2: Bounce back and settle (ease out = decelerate)
+	tween.chain()
+	tween.set_parallel(true)
+	tween.tween_property(sprite, "position", final_pos, BOUNCE_DURATION).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BOUNCE)
+	tween.tween_property(sprite, "scale", Vector2(1.0, 1.0), BOUNCE_DURATION).set_ease(Tween.EASE_OUT)
 
 
 ## Update connectivity visual for a single block
