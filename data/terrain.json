@@ -14,6 +14,10 @@
         {"type": "flowers", "weight": 0.05, "size": [1, 1]}
       ],
       "decoration_density": 0.08,
+      "decoration_clear_zone": {
+        "center": [0, 0],
+        "radius": 5
+      },
       "has_river": true,
       "river": {
         "width": 1,
@@ -53,6 +57,10 @@
         {"type": "crater_small", "weight": 0.1, "size": [1, 1]}
       ],
       "decoration_density": 0.12,
+      "decoration_clear_zone": {
+        "center": [0, 0],
+        "radius": 4
+      },
       "has_river": false,
       "underground": {
         "sprite_path": "res://assets/sprites/terrain/mars/underground/",

@@ -275,6 +275,21 @@ func get_decoration_density() -> float:
 	return data.get("decoration_density", 0.0)
 
 
+## Get decoration clear zone configuration for current theme
+## Returns dict with "center" [x, y] and "radius" or empty dict
+func get_decoration_clear_zone() -> Dictionary:
+	var data := _get_theme_data(theme)
+	return data.get("decoration_clear_zone", {})
+
+
+## Check if a position is within the clear zone
+func _is_in_clear_zone(pos: Vector2i, center: Vector2i, radius: float) -> bool:
+	if radius <= 0.0:
+		return false
+	var distance := Vector2(pos - center).length()
+	return distance <= radius
+
+
 ## Check if current theme has a river
 func has_river() -> bool:
 	var data := _get_theme_data(theme)
@@ -314,6 +329,15 @@ func scatter_decorations(area: Rect2i) -> void:
 	if decorations_config.is_empty():
 		return
 
+	# Get clear zone configuration
+	var clear_zone := get_decoration_clear_zone()
+	var clear_center := Vector2i.ZERO
+	var clear_radius: float = 0.0
+	if not clear_zone.is_empty():
+		var center_arr: Array = clear_zone.get("center", [0, 0])
+		clear_center = Vector2i(int(center_arr[0]), int(center_arr[1]))
+		clear_radius = clear_zone.get("radius", 0.0)
+
 	# Calculate total weight for normalization
 	var total_weight := 0.0
 	for config in decorations_config:
@@ -333,6 +357,10 @@ func scatter_decorations(area: Rect2i) -> void:
 
 			# Skip positions that are part of river
 			if pos in _river_positions:
+				continue
+
+			# Skip positions within clear zone (starting area)
+			if clear_radius > 0.0 and _is_in_clear_zone(pos, clear_center, clear_radius):
 				continue
 
 			# Use position-seeded random for this cell

@@ -757,3 +757,33 @@ Followup:
 - Notification persistence needs save/load integration
 - Panel height calculation could be refined for long lists
 
+## Iteration 37 - 2026-01-26
+Task: arcology-2pw - Camera controls like Cities Skylines
+Docs Consulted:
+- documentation/ui/controls.md (keyboard/mouse reference)
+- src/core/main.gd (existing camera implementation)
+Status: PASSED
+Changes:
+- src/core/camera_controller.gd: New CameraController class with enhanced controls
+  - Smooth zoom with easing (zooms toward mouse position)
+  - Middle-mouse and right-click drag panning
+  - Double-click to center camera on clicked position
+  - Q/E keys for 4-angle rotation (0°, 90°, 180°, 270°)
+  - Shift+scroll for camera rotation
+  - Home/End for zoom/position reset
+  - Zoom adjusts pan speed inversely
+  - Pan direction adjusts for camera rotation
+- src/core/main.gd: Integrated CameraController via preload
+- test/core/test_camera_controller.gd: 17 unit tests
+Learnings:
+- class_name works for classes but requires preload() to reference in other files
+- Godot --import hangs in headless mode, use dynamic load() in tests instead
+- Double-click detection needs manual tracking of last click time/position
+- set_input_as_handled() prevents event from reaching other handlers
+- lerp smoothing formula: position.lerp(target, factor * delta) where factor ~8-10 feels responsive
+- wrapi() for circular index wrapping (e.g., rotation angle index)
+- ROTATION_ANGLES array returns Variant, need explicit type annotation for subtraction
+Followup:
+- Edge scrolling (mouse at screen edge) not implemented - optional feature
+- Zoom to selection (Z key) needs selection system first
+
