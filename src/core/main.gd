@@ -3,6 +3,8 @@ extends Node2D
 ## Simple, clean interface inspired by reference city builder video
 ## Handles camera controls and game initialization
 
+const CameraControllerClass := preload("res://src/core/camera_controller.gd")
+
 @onready var camera: Camera2D = $Camera2D
 @onready var world: Node2D = $World
 @onready var ui_layer: CanvasLayer = $UI
@@ -11,7 +13,7 @@ var grid: Grid
 var block_renderer: BlockRenderer
 var input_handler: InputHandler
 var terrain: Terrain
-var camera_controller: CameraController
+var camera_controller: Node  # CameraController instance
 
 
 func _ready() -> void:
@@ -25,7 +27,7 @@ func _ready() -> void:
 
 
 func _setup_camera() -> void:
-	camera_controller = CameraController.new()
+	camera_controller = CameraControllerClass.new()
 	add_child(camera_controller)
 	camera_controller.setup(camera)
 	print("Camera controls: WASD/arrows pan, scroll zoom, Q/E rotate, middle/right drag pan, double-click center")
