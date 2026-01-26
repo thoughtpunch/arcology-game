@@ -77,17 +77,28 @@ func _create_floor_label() -> void:
 	add_child(_floor_label)  # Temporary parent until setup() called
 
 
+var _ready_logged := false
+
 func _process(_delta: float) -> void:
 	if not _is_ready():
+		if not _ready_logged:
+			print("InputHandler waiting for setup... grid=%s camera=%s ghost=%s" % [grid != null, camera != null, ghost_container != null])
 		return
+	if not _ready_logged:
+		print("InputHandler ready!")
+		_ready_logged = true
 	_update_ghost_position()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _is_ready():
+		if event is InputEventMouseButton and event.pressed:
+			print("InputHandler not ready! grid=%s camera=%s ghost=%s" % [grid != null, camera != null, ghost_container != null])
 		return
 
 	if event is InputEventMouseButton:
+		if event.pressed:
+			print("Mouse click received at: ", event.position)
 		_handle_mouse_button(event)
 
 
@@ -114,20 +125,25 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 
 ## Attempt to place a block at the given grid position
 func _try_place_block(pos: Vector3i) -> void:
+	print("Trying to place %s at %s" % [selected_block_type, pos])
+
 	# Validate placement
 	if grid.has_block(pos):
+		print("  -> FAILED: Position already occupied")
 		block_placement_attempted.emit(pos, selected_block_type, false)
 		return
 
 	# Check ground_only constraint for entrance blocks
 	var block_data := _get_block_data(selected_block_type)
 	if block_data.get("ground_only", false) and pos.z != 0:
+		print("  -> FAILED: Block requires ground level (Z=0)")
 		block_placement_attempted.emit(pos, selected_block_type, false)
 		return
 
 	# Create and place block
 	var block := Block.new(selected_block_type, pos)
 	grid.set_block(pos, block)
+	print("  -> SUCCESS: Block placed!")
 
 	block_placement_attempted.emit(pos, selected_block_type, true)
 
