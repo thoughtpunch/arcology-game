@@ -43,9 +43,26 @@ var theme: String = "earth":
 # Visual size of the terrain plane (in screen pixels)
 var plane_size := Vector2(2000, 2000)
 
+# World seed for deterministic decoration placement
+var world_seed: int = 0:
+	set(value):
+		world_seed = value
+		# Regenerate decorations when seed changes
+		if is_inside_tree() and _decorations_container:
+			_clear_decorations()
+			scatter_decorations(_scatter_area)
+
 # Internal nodes
 var _base_plane: ColorRect
 var _background: ColorRect
+var _decorations_container: Node2D
+
+# Decoration tracking
+# Maps grid position (Vector2i) to Sprite2D node
+var _decorations: Dictionary = {}
+
+# Area for decoration scatter (grid coordinates)
+var _scatter_area: Rect2i = Rect2i(-20, -20, 40, 40)
 
 
 func _init() -> void:
@@ -55,6 +72,7 @@ func _init() -> void:
 
 func _ready() -> void:
 	_setup_base_plane()
+	_setup_decorations_container()
 	_update_theme()
 
 
@@ -130,6 +148,15 @@ func _setup_base_plane() -> void:
 	add_child(_base_plane)
 
 
+## Setup the decorations container
+func _setup_decorations_container() -> void:
+	_decorations_container = Node2D.new()
+	# Decorations are between base plane and blocks
+	# z_index relative to parent (-1000), so +500 puts us at -500 absolute
+	_decorations_container.z_index = Z_INDEX_DECORATIONS_MIN - Z_INDEX_BASE_PLANE
+	add_child(_decorations_container)
+
+
 ## Update visuals based on current theme
 func _update_theme() -> void:
 	if not is_inside_tree():
@@ -199,3 +226,179 @@ func get_background_sprite() -> String:
 	if bg.is_empty():
 		return ""
 	return "res://assets/sprites/terrain/backgrounds/" + bg
+
+
+# =============================================================================
+# DECORATION SCATTER SYSTEM
+# =============================================================================
+
+## Scatter decorations across the terrain area
+## Uses world_seed for deterministic placement
+func scatter_decorations(area: Rect2i) -> void:
+	_scatter_area = area
+	_clear_decorations()
+
+	# Ensure decorations container exists
+	if not _decorations_container:
+		_decorations_container = Node2D.new()
+		_decorations_container.z_index = Z_INDEX_DECORATIONS_MIN - Z_INDEX_BASE_PLANE
+		add_child(_decorations_container)
+
+	var density := get_decoration_density()
+	if density <= 0:
+		return
+
+	var decorations_config := get_decorations_config()
+	if decorations_config.is_empty():
+		return
+
+	# Calculate total weight for normalization
+	var total_weight := 0.0
+	for config in decorations_config:
+		total_weight += config.get("weight", 0.0)
+
+	if total_weight <= 0:
+		return
+
+	# Create deterministic RNG
+	var rng := RandomNumberGenerator.new()
+	rng.seed = world_seed
+
+	# Iterate over area and place decorations based on density
+	for x in range(area.position.x, area.end.x):
+		for y in range(area.position.y, area.end.y):
+			# Use position-seeded random for this cell
+			var cell_seed := world_seed + x * 10000 + y
+			rng.seed = cell_seed
+
+			if rng.randf() < density:
+				var deco_type := _pick_weighted_decoration(rng, decorations_config, total_weight)
+				if not deco_type.is_empty():
+					_place_decoration(Vector2i(x, y), deco_type)
+
+
+## Pick a decoration type based on weights
+func _pick_weighted_decoration(rng: RandomNumberGenerator, configs: Array, total_weight: float) -> String:
+	var roll := rng.randf() * total_weight
+	var cumulative := 0.0
+
+	for config in configs:
+		cumulative += config.get("weight", 0.0)
+		if roll <= cumulative:
+			return config.get("type", "")
+
+	# Fallback to last type
+	if not configs.is_empty():
+		return configs[-1].get("type", "")
+	return ""
+
+
+## Place a decoration sprite at grid position
+func _place_decoration(grid_pos: Vector2i, deco_type: String) -> void:
+	if not _decorations_container:
+		return
+
+	# Check if position already has a decoration
+	if _decorations.has(grid_pos):
+		return
+
+	# Load sprite texture
+	var sprite_path := _get_decoration_sprite_path(deco_type)
+	if sprite_path.is_empty():
+		return
+
+	var texture := load(sprite_path) as Texture2D
+	if texture == null:
+		return
+
+	# Create sprite
+	var sprite := Sprite2D.new()
+	sprite.texture = texture
+	sprite.position = _grid_to_screen(grid_pos)
+
+	# Calculate z_index for proper sorting within decorations layer
+	# Higher x+y = further back = lower z_index within decorations range
+	var sort_value := grid_pos.x + grid_pos.y
+	# Map sort value to z_index range (Z_INDEX_DECORATIONS_MIN to MAX relative to container)
+	sprite.z_index = sort_value
+
+	_decorations_container.add_child(sprite)
+	_decorations[grid_pos] = sprite
+
+
+## Get sprite path for decoration type
+func _get_decoration_sprite_path(deco_type: String) -> String:
+	# Theme-specific path
+	var theme_dir := theme
+	if theme == "space":
+		return ""  # No decorations in space
+
+	return "res://assets/sprites/terrain/%s/%s.png" % [theme_dir, deco_type]
+
+
+## Convert grid position to screen position for decoration placement
+func _grid_to_screen(grid_pos: Vector2i) -> Vector2:
+	# Use same isometric conversion as blocks
+	const TILE_WIDTH := 64
+	const TILE_DEPTH := 32
+
+	var x := (grid_pos.x - grid_pos.y) * (TILE_WIDTH / 2)
+	var y := (grid_pos.x + grid_pos.y) * (TILE_DEPTH / 2)
+	return Vector2(x, y)
+
+
+## Clear all decorations
+func _clear_decorations() -> void:
+	for pos in _decorations:
+		var sprite: Sprite2D = _decorations[pos]
+		if sprite and is_instance_valid(sprite):
+			sprite.queue_free()
+	_decorations.clear()
+
+
+## Hide decoration at grid position (when block placed)
+func hide_decoration_at(grid_pos: Vector2i) -> void:
+	if _decorations.has(grid_pos):
+		var sprite: Sprite2D = _decorations[grid_pos]
+		if sprite and is_instance_valid(sprite):
+			sprite.visible = false
+
+
+## Show decoration at grid position (when block removed)
+func show_decoration_at(grid_pos: Vector2i) -> void:
+	if _decorations.has(grid_pos):
+		var sprite: Sprite2D = _decorations[grid_pos]
+		if sprite and is_instance_valid(sprite):
+			sprite.visible = true
+
+
+## Check if there's a decoration at position
+func has_decoration_at(grid_pos: Vector2i) -> bool:
+	return _decorations.has(grid_pos)
+
+
+## Get decoration type at position (or empty string)
+func get_decoration_type_at(grid_pos: Vector2i) -> String:
+	# We don't store type, but can check if decoration exists
+	if _decorations.has(grid_pos):
+		return "decoration"  # Generic - could enhance to track types
+	return ""
+
+
+## Get all decoration positions
+func get_all_decoration_positions() -> Array[Vector2i]:
+	var positions: Array[Vector2i] = []
+	for pos in _decorations.keys():
+		positions.append(pos as Vector2i)
+	return positions
+
+
+## Get decoration count
+func get_decoration_count() -> int:
+	return _decorations.size()
+
+
+## Set scatter area and regenerate decorations
+func set_scatter_area(area: Rect2i) -> void:
+	if area != _scatter_area:
+		scatter_decorations(area)

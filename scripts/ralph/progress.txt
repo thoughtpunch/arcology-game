@@ -387,3 +387,26 @@ Learnings:
 - Keep static is_valid_theme() for convenience but it only checks fallbacks
 - Instance method get_available_themes() can read from loaded JSON data
 
+## Iteration 22 - 2026-01-25
+Task: arcology-ak9.2 - Create terrain decoration sprites (Earth theme)
+Docs Consulted:
+- documentation/game-design/environment/terrain.md (sprite dimensions, decoration types)
+- documentation/quick-reference/isometric-math.md (sprite geometry)
+Status: PASSED
+Changes:
+- assets/sprites/terrain/earth/*.png: 6 decoration sprites
+  - tree_oak.png (64x64): Deciduous tree with elliptical foliage
+  - tree_pine.png (64x64): Conifer with layered triangular branches
+  - rock_small.png (64x64): Irregular 1x1 boulder with lighting
+  - rock_large.png (128x96): Large 2x2 rock formation
+  - bush.png (64x64): Low rounded shrub
+  - flowers.png (64x64): Colorful flower patch on grass diamond
+- scripts/generate_terrain_sprites.py: Python sprite generator using Pillow
+- test/test_terrain_sprites.gd: 10 unit tests for sprite loading
+Learnings:
+- Pillow can generate isometric sprites programmatically for consistent style
+- 2x2 sprites use 128x96 dimensions (2x TILE_WIDTH, 1.5x TILE_HEIGHT)
+- Must run `godot --headless --import` before tests can load new PNG files
+- Use explicit type annotations in for loops (e.g., `var path: String = ...`)
+- RGBA format with transparent pixels allows compositing over terrain
+
