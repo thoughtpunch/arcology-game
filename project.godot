@@ -20,19 +20,20 @@ config/icon="res://icon.svg"
 BlockRegistry="*res://src/core/block_registry.gd"
 GameState="*res://src/core/game_state.gd"
 NotificationSystem="*res://src/ui/notification_system.gd"
+MenuManager="*res://src/ui/menu_manager.gd"
 BeehaveGlobalMetrics="*res://addons/beehave/metrics/beehave_global_metrics.gd"
 BeehaveGlobalDebugger="*res://addons/beehave/debug/global_debugger.gd"
 
 [display]
 
-window/size/viewport_width=1280
-window/size/viewport_height=720
+window/size/viewport_width=1920
+window/size/viewport_height=1080
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/beehave/plugin.cfg", "res://addons/gdUnit4/plugin.cfg", "res://addons/limboai/plugin.cfg")
+enabled=PackedStringArray("res://addons/beehave/plugin.cfg", "res://addons/gdUnit4/plugin.cfg")
 
 [input]
 
