@@ -25,10 +25,40 @@ Use `bd` (Beads) for task tracking instead of prd.json.
 9. Run quality checks (see below)
 10. **⚠️ MANDATORY: Commit with ticket ID:** `git commit -m "feat: arcology-x0d.1 - Title"`
 11. Run post-task hook: `./scripts/hooks/post-task.sh <id>` (blocks if no commit!)
-12. Close task: `bd close <id> --reason "Implemented"`
-13. Sync: `bd sync`
-14. Append learnings to `scripts/ralph/progress.txt`
-15. Check for more work: `bd ready --json`
+12. **⚠️ MANDATORY: Add completion comment** (see Completion Comment Format below)
+13. Close task: `bd close <id> --reason "Implemented"`
+14. Sync: `bd sync`
+15. Append learnings to `scripts/ralph/progress.txt`
+16. Check for more work: `bd ready --json`
+
+## Completion Comment Format
+
+**Before closing a ticket**, add a detailed completion comment:
+
+```bash
+bd comment <ticket-id> "$(cat <<'EOF'
+## Completion Summary
+
+**Completed:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+### What Was Done
+- <Specific change 1>
+- <Specific change 2>
+- Files modified: <list them>
+
+### What Was Left Undone / Deferred
+- <Any scope cut, edge cases not handled, or "None - full scope implemented">
+
+### Gotchas / Notes for Future Work
+- <Anything surprising, patterns to document, assumptions made>
+
+### Test Coverage
+- <Tests added, manual testing done>
+EOF
+)"
+```
+
+This is MANDATORY for every ticket closure.
 
 ## Beads Commands Reference
 
