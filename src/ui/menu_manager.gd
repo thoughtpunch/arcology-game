@@ -1,4 +1,3 @@
-class_name MenuManager
 extends CanvasLayer
 ## Manages all game menus and transitions between them
 ## Handles menu navigation, game state, and auto-save integration
@@ -359,9 +358,18 @@ func _on_save_load_back() -> void:
 
 
 func _on_save_selected(save_name: String) -> void:
-	# TODO: Actually save the game
-	print("Saving game as: %s" % save_name)
-	_has_unsaved_changes = false
+	# Get main scene and call save_game
+	var main_scene = get_tree().current_scene
+	if main_scene and main_scene.has_method("save_game"):
+		var save_path: String = main_scene.save_game(save_name)
+		if not save_path.is_empty():
+			print("Saved game as: %s" % save_name)
+			_has_unsaved_changes = false
+		else:
+			show_error("Save Failed", "Could not save the game. Please try again.")
+	else:
+		push_warning("MenuManager: Main scene doesn't have save_game method")
+		_has_unsaved_changes = false
 	_on_save_load_back()
 
 
