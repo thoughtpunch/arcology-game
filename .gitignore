@@ -2,3 +2,4 @@
 .vscode/
 .godot/
 *.uid
+scripts/ralph/ralph.log

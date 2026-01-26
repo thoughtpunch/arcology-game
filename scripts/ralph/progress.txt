@@ -7,6 +7,8 @@
 - Sprites go in assets/sprites/blocks/{category}/
 - Signals over polling: blocks emit signals, systems connect to them
 - Balance numbers loaded from data/balance.json at runtime
+- AutoLoad scripts must NOT have class_name (use autoload name instead)
+- Access autoloads via get_root().get_node("/root/AutoloadName")
 
 ---
 
@@ -33,4 +35,81 @@ Changes:
 - scenes/main.tscn: Added PlaceholderSprite node
 Learnings:
 - SVG works well for placeholder sprites in Godot 4
+
+## Iteration 3 - 2026-01-25
+Task: arcology-x0d.1 - Implement Grid class
+Status: PASSED
+Changes:
+- src/core/grid.gd: Grid class with sparse 3D dictionary, isometric conversion, signals
+- test/test_grid.gd: Unit tests for Grid class
+Learnings:
+- Grid extends Node (not RefCounted) so it can be added to scene tree
+- Use roundi() for screen_to_grid to handle floating point precision
+- TILE_DEPTH (32) is diamond height, FLOOR_HEIGHT (32) is Z offset
+- grid_to_screen formula: x = (pos.x - pos.y) * 32, y = (pos.x + pos.y) * 16 - pos.z * 32
+- screen_to_grid requires known Z level to invert correctly
+
+## Iteration 4 - 2026-01-25
+Task: arcology-x0d.4 - Create blocks.json data file
+Status: PASSED
+Changes:
+- data/blocks.json: 6 block types for M1-M3
+Learnings:
+- Block schema: name, category, traversability, size, cost, sprite, connects_horizontal, connects_vertical
+- entrance has ground_only: true (can only be placed on Z=0)
+- stairs connects to Z+1 only; elevator connects full shaft
+- private blocks (residential/commercial) have connects_horizontal: false
+
+## Iteration 5 - 2026-01-25
+Task: arcology-x0d.2 - Implement Block base class
+Status: PASSED
+Changes:
+- src/blocks/block.gd: Block RefCounted class
+- test/test_block.gd: Unit tests
+Learnings:
+- Block extends RefCounted (not Node) for lightweight data storage
+- get_definition() looks up BlockRegistry via Engine.get_main_loop().get_node()
+- property_changed signal uses property name string for reactive updates
+- Graceful fallback when BlockRegistry not available (returns empty dict)
+- Must run --import to generate .uid files for new scripts
+
+## Iteration 6 - 2026-01-25
+Task: arcology-x0d.3 - Implement BlockRegistry
+Status: PASSED
+Changes:
+- src/core/block_registry.gd: BlockRegistry autoload
+- project.godot: Added BlockRegistry to [autoload] section
+- test/test_block_registry.gd: Unit tests
+Learnings:
+- AutoLoad scripts must NOT have class_name (conflicts with singleton name)
+- Access autoload via get_root().get_node("/root/BlockRegistry")
+- JSON.parse() returns error code, use get_data() for parsed result
+- Helper methods (is_public, connects_vertical, etc.) keep Block class simple
+
+## Iteration 7 - 2026-01-25
+Task: arcology-x0d.8 - Create basic block sprites
+Status: PASSED
+Changes:
+- assets/sprites/blocks/*.png: 6 isometric block sprites
+- scripts/generate_sprites.py: Python sprite generator
+Learnings:
+- Pillow (PIL) can generate isometric sprites programmatically
+- 64x64 hexagonal shape: top diamond + left wall + right wall
+- Use RGBA mode for transparency
+- Keep generator script for easy regeneration with different colors
+
+## Iteration 8 - 2026-01-25
+Task: arcology-x0d.5 - Setup isometric rendering with Y-sort
+Status: PASSED
+Changes:
+- src/core/block_renderer.gd: BlockRenderer class for sprite management
+- src/core/main.gd: Setup grid and renderer, test blocks
+- scenes/main.tscn: Removed placeholder sprite
+- test/test_renderer.gd: Unit tests
+Learnings:
+- BlockRenderer extends Node2D with y_sort_enabled = true
+- Connect to Grid signals for reactive sprite creation/removal
+- z_index formula: x + y + z*100 ensures proper floor stacking
+- Cache loaded textures to avoid repeated load() calls
+- Block types in code must match blocks.json keys exactly
 
