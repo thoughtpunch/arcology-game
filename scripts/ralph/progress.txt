@@ -130,3 +130,20 @@ Learnings:
 - _unhandled_input receives mouse events; _process handles ghost position updates
 - Tests can run without scene tree if BlockRegistry lookup gracefully fails
 
+## Iteration 10 - 2026-01-25
+Task: arcology-x0d.7 - Create simple block picker UI
+Docs Consulted:
+- documentation/architecture/milestones/milestone-1-grid-blocks.md (UI requirements)
+- documentation/game-design/blocks/README.md (block categories)
+Status: PASSED
+Changes:
+- src/ui/block_picker.gd: BlockPicker Control class with HBoxContainer
+- src/core/main.gd: Integrated BlockPicker with ui_layer
+- test/test_block_picker.gd: Unit tests for selection
+Learnings:
+- Control anchors: anchor_top=1.0, anchor_bottom=1.0, offset_top=-60 for bottom panel
+- Use toggle_mode=true on Button for visual pressed state
+- Define BLOCK_ORDER constant array for consistent keyboard shortcuts (1-6)
+- call_deferred("_populate_buttons") to wait for BlockRegistry autoload
+- Connect block_type_selected signal to InputHandler.set_selected_block_type()
+
