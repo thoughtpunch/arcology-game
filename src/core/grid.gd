@@ -113,3 +113,80 @@ func get_sort_key(pos: Vector3i) -> int:
 ## Manhattan distance between two grid positions
 static func manhattan_distance(a: Vector3i, b: Vector3i) -> int:
 	return abs(a.x - b.x) + abs(a.y - b.y) + abs(a.z - b.z)
+
+
+## Get neighbors that contain blocks (not empty positions)
+func get_occupied_neighbors(pos: Vector3i) -> Array[Vector3i]:
+	var occupied: Array[Vector3i] = []
+	for neighbor_pos in get_neighbors(pos):
+		if has_block(neighbor_pos):
+			occupied.append(neighbor_pos)
+	return occupied
+
+
+## Get neighbors that contain blocks on the same floor
+func get_occupied_horizontal_neighbors(pos: Vector3i) -> Array[Vector3i]:
+	var occupied: Array[Vector3i] = []
+	for neighbor_pos in get_horizontal_neighbors(pos):
+		if has_block(neighbor_pos):
+			occupied.append(neighbor_pos)
+	return occupied
+
+
+## Check if two adjacent blocks can connect (for walkability/pathfinding)
+## Requires BlockRegistry autoload
+## Horizontal: connects if at least one block is public (traversable)
+## Vertical: only connects if both blocks support vertical connections (stairs/elevator)
+func can_connect(from_pos: Vector3i, to_pos: Vector3i) -> bool:
+	var from_block = get_block(from_pos)
+	var to_block = get_block(to_pos)
+
+	# Both positions must have blocks
+	if from_block == null or to_block == null:
+		return false
+
+	var direction := to_pos - from_pos
+
+	# Must be orthogonally adjacent
+	var dist: int = abs(direction.x) + abs(direction.y) + abs(direction.z)
+	if dist != 1:
+		return false
+
+	# Get BlockRegistry for traversability checks
+	var registry = _get_block_registry()
+	if registry == null:
+		# Without registry, assume public
+		return true
+
+	# Horizontal connection (same floor)
+	if direction.z == 0:
+		# At least one must be public (traversable)
+		var from_public: bool = registry.is_public(from_block.block_type)
+		var to_public: bool = registry.is_public(to_block.block_type)
+		return from_public or to_public
+
+	# Vertical connection (different floor)
+	if abs(direction.z) == 1:
+		# Both must support vertical connections
+		var from_connects: bool = registry.connects_vertical(from_block.block_type)
+		var to_connects: bool = registry.connects_vertical(to_block.block_type)
+		return from_connects and to_connects
+
+	return false
+
+
+## Get walkable neighbors (blocks that can be reached from this position)
+func get_walkable_neighbors(pos: Vector3i) -> Array[Vector3i]:
+	var walkable: Array[Vector3i] = []
+	for neighbor_pos in get_neighbors(pos):
+		if can_connect(pos, neighbor_pos):
+			walkable.append(neighbor_pos)
+	return walkable
+
+
+## Helper to get BlockRegistry autoload
+func _get_block_registry():
+	var tree := get_tree()
+	if tree == null:
+		return null
+	return tree.get_root().get_node_or_null("/root/BlockRegistry")
