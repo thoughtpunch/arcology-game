@@ -15,11 +15,11 @@ const COLOR_TEXT_SECONDARY := Color("#e0e0e0")
 const COLOR_ACCENT := Color("#e94560")
 
 # Size constants
-const TOP_BAR_HEIGHT := 48
-const BOTTOM_BAR_HEIGHT := 80
-const LEFT_SIDEBAR_COLLAPSED := 64
-const LEFT_SIDEBAR_EXPANDED := 240
-const RIGHT_PANEL_WIDTH := 320
+const TOP_BAR_HEIGHT := 40
+const BOTTOM_BAR_HEIGHT := 64
+const LEFT_SIDEBAR_COLLAPSED := 56
+const LEFT_SIDEBAR_EXPANDED := 200
+const RIGHT_PANEL_WIDTH := 280
 
 # Animation constants
 const PANEL_ANIM_DURATION := 0.2
@@ -27,6 +27,7 @@ const PANEL_ANIM_DURATION := 0.2
 # Signals
 signal left_sidebar_toggled(expanded: bool)
 signal right_panel_toggled(visible: bool)
+signal viewport_clicked(event: InputEventMouseButton)
 
 # UI components
 var top_bar: Control
@@ -71,10 +72,14 @@ func _setup_layout() -> void:
 	middle.add_child(left_sidebar)
 
 	# Central viewport spacer (game renders underneath)
+	# This Control captures clicks in the game area and emits a signal
 	viewport_margin = MarginContainer.new()
+	viewport_margin.name = "ViewportMargin"
 	viewport_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	viewport_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	viewport_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Use PASS to receive events but also let them through to _unhandled_input
+	viewport_margin.mouse_filter = Control.MOUSE_FILTER_PASS
+	viewport_margin.gui_input.connect(_on_viewport_input)
 	middle.add_child(viewport_margin)
 
 	# Right panel
@@ -223,34 +228,6 @@ func _create_bottom_bar() -> Control:
 	sep2.custom_minimum_size = Vector2(2, 60)
 	hbox.add_child(sep2)
 
-	# View mode toggle
-	var view_box := HBoxContainer.new()
-	view_box.add_theme_constant_override("separation", 4)
-	view_box.name = "ViewMode"
-	hbox.add_child(view_box)
-
-	var iso_btn := Button.new()
-	iso_btn.text = "ISO"
-	iso_btn.tooltip_text = "Isometric view"
-	iso_btn.toggle_mode = true
-	iso_btn.button_pressed = true
-	iso_btn.custom_minimum_size = Vector2(50, 40)
-	iso_btn.name = "IsoButton"
-	view_box.add_child(iso_btn)
-
-	var top_btn := Button.new()
-	top_btn.text = "TOP"
-	top_btn.tooltip_text = "Top-down view"
-	top_btn.toggle_mode = true
-	top_btn.custom_minimum_size = Vector2(50, 40)
-	top_btn.name = "TopButton"
-	view_box.add_child(top_btn)
-
-	# Separator
-	var sep3 := VSeparator.new()
-	sep3.custom_minimum_size = Vector2(2, 60)
-	hbox.add_child(sep3)
-
 	# Overlay buttons
 	var overlay_btn := Button.new()
 	overlay_btn.text = "Overlays ▼"
@@ -285,6 +262,17 @@ func _style_panel(panel: Control, bg_color: Color, border_color: Color = Color.T
 		style.content_margin_top = 8
 		style.content_margin_bottom = 8
 		panel.add_theme_stylebox_override("panel", style)
+
+
+func _on_viewport_input(event: InputEvent) -> void:
+	# Forward mouse clicks in the game viewport area
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		# Only forward press events, not release
+		if mouse_event.pressed:
+			viewport_clicked.emit(mouse_event)
+			# Mark as handled so _unhandled_input doesn't also process it
+			viewport_margin.accept_event()
 
 
 func _on_sidebar_toggle() -> void:

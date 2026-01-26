@@ -14,10 +14,10 @@ const COLOR_TEXT := Color("#ffffff")
 const COLOR_TEXT_SECONDARY := Color("#e0e0e0")
 
 # Size constants
-const COLLAPSED_WIDTH := 64
-const EXPANDED_WIDTH := 240
-const BUTTON_SIZE_COLLAPSED := Vector2(48, 48)
-const BUTTON_SIZE_EXPANDED := Vector2(200, 40)
+const COLLAPSED_WIDTH := 56
+const EXPANDED_WIDTH := 200
+const BUTTON_SIZE_COLLAPSED := Vector2(44, 44)
+const BUTTON_SIZE_EXPANDED := Vector2(180, 36)
 const EXPAND_DELAY := 0.3  # Seconds before hover expands
 
 # Tool enum matching InputHandler modes
