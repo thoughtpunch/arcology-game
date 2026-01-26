@@ -336,3 +336,28 @@ Learnings:
 - Space theme needs transparent Color(0,0,0,0) for base plane
 - push_warning() for invalid theme input (not error)
 
+## Iteration 20 - 2026-01-25
+Task: arcology-j61 - UX: Build mode floor feedback and auto-stacking
+Docs Consulted:
+- documentation/architecture/milestones/milestone-2-floor-navigation.md
+- src/core/input_handler.gd, block_renderer.gd, game_state.gd, grid.gd
+Status: PASSED
+Changes:
+- src/core/input_handler.gd:
+  - _floor_label: Label showing "Z: N" near ghost preview
+  - FLOOR_LABEL_OFFSET for positioning label relative to ghost
+  - _create_floor_label() with shadow styling for visibility
+  - Shift+click auto-stacking in _handle_mouse_button()
+  - _get_auto_stack_position() finds highest Z and returns Z+1
+  - Ghost preview shows auto-stack position when Shift held
+  - Label shows "(auto)" suffix during Shift preview
+- src/core/grid.gd:
+  - get_highest_z_at(x, y) returns highest Z at column or -1 if empty
+- test/test_floor_feedback.gd: 9 unit tests for new functionality
+Learnings:
+- get_tree() returns null in SceneTree unit tests during _init
+- Use "var tree := get_tree(); if tree:" pattern for safe access
+- Input.is_key_pressed(KEY_SHIFT) for checking modifier in _process
+- Label z_index works relative to parent, set to 1001 (above ghost at 1000)
+- add_theme_color_override for font_shadow_color gives readable labels
+
