@@ -937,3 +937,25 @@ Followup:
 - Need to integrate pathfinding system with bt_travel_to
 - Need state machine (LimboHSM) for resident activity modes
 
+## Iteration 45 - 2026-01-26
+Task: arcology-7e6.1 - Create SettingsPersistence autoload
+Docs Consulted:
+- src/ui/settings_menu.gd (settings schema)
+- src/core/game_state.gd (autoload pattern reference)
+- project.godot (autoload registration)
+Status: PASSED
+Changes:
+- src/core/settings_persistence.gd: New autoload for persistent settings (180 lines)
+- test/core/test_settings_persistence.gd: 21 unit tests
+- project.godot: Added SettingsPersistence autoload
+Learnings:
+- Autoloads cannot have class_name (conflicts with singleton name) - confirmed pattern
+- When testing outside scene tree, _ready() doesn't fire - manually initialize _settings and call load_settings()
+- DEFAULT_SETTINGS const must be duplicated to _settings using duplicate(true) for deep copy
+- JSON.parse() returns error code, use get_data() for actual parsed result
+- FileAccess.file_exists() to check before opening
+- Use explicit type annotations for Dictionary.get() returns (Variant inference errors)
+- For test isolation, cleanup test files before each test that depends on file state
+Followup:
+- arcology-7e6.2: Wire SettingsMenu to use SettingsPersistence instead of internal _settings
+

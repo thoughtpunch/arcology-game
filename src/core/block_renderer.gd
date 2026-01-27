@@ -21,6 +21,7 @@ var _texture_cache: Dictionary = {}
 # Audio
 var _place_sound: AudioStreamPlayer
 var _construction_complete_sound: AudioStreamPlayer
+var _snap_sound: AudioStreamPlayer  # Sound when block connects to neighbors
 
 # Floor visibility settings
 const FLOORS_BELOW_VISIBLE: int = 2
@@ -30,6 +31,11 @@ const OPACITY_FALLOFF: float = 0.3  # Opacity reduction per floor below
 const CONSTRUCTION_PULSE_SPEED: float = 2.0  # Pulsing animation speed
 const CONSTRUCTION_MIN_ALPHA: float = 0.4
 const CONSTRUCTION_MAX_ALPHA: float = 0.8
+
+# Connection feedback settings
+const CONNECTION_FLASH_DURATION: float = 0.1  # White flash duration in seconds
+const CONNECTION_PULSE_SCALE: float = 1.05  # Scale factor for neighbor pulse
+const CONNECTION_PULSE_DURATION: float = 0.15  # Duration of pulse animation
 
 # Visibility mode
 var show_all_floors: bool = false  # When true, show entire structure
@@ -43,14 +49,24 @@ func _ready() -> void:
 	_place_sound = AudioStreamPlayer.new()
 	_place_sound.name = "PlaceSound"
 	_place_sound.volume_db = -6.0  # Slightly quieter than full volume
+	_place_sound.bus = "SFX"  # Route to SFX bus for volume control
 	add_child(_place_sound)
 
 	# Setup audio player for construction complete sounds
 	_construction_complete_sound = AudioStreamPlayer.new()
 	_construction_complete_sound.name = "ConstructionCompleteSound"
 	_construction_complete_sound.volume_db = -4.0
+	_construction_complete_sound.bus = "SFX"  # Route to SFX bus for volume control
 	add_child(_construction_complete_sound)
 	_construction_complete_sound.stream = _generate_construction_complete_sound()
+
+	# Setup audio player for snap/click connection sounds
+	_snap_sound = AudioStreamPlayer.new()
+	_snap_sound.name = "SnapSound"
+	_snap_sound.volume_db = -8.0  # Quieter than main placement sound
+	_snap_sound.bus = "SFX"  # Route to SFX bus for volume control
+	add_child(_snap_sound)
+	_snap_sound.stream = _generate_snap_sound()
 
 	# Try to load placement sound effect
 	var sound_path := "res://assets/audio/sfx/place_block.wav"
@@ -200,6 +216,8 @@ func _on_block_added(pos: Vector3i, block) -> void:
 	_apply_visibility_to_sprite(pos)
 	# Play placement animation
 	_animate_block_placement(pos)
+	# Check for connection to neighbors and provide feedback
+	_check_connection_feedback(pos)
 
 
 func _on_block_removed(pos: Vector3i) -> void:
@@ -391,6 +409,97 @@ func _update_connectivity_visual(block) -> void:
 		block.sprite.modulate = Color(CONNECTED_TINT.r, CONNECTED_TINT.g, CONNECTED_TINT.b, current_alpha)
 	else:
 		block.sprite.modulate = Color(DISCONNECTED_TINT.r, DISCONNECTED_TINT.g, DISCONNECTED_TINT.b, current_alpha)
+
+
+# =============================================================================
+# Connection Snap Feedback
+# =============================================================================
+
+## Check if block connects to neighbors and trigger feedback
+func _check_connection_feedback(pos: Vector3i) -> void:
+	if not grid:
+		return
+
+	# Get occupied neighbors
+	var neighbors: Array[Vector3i] = grid.get_occupied_neighbors(pos)
+	if neighbors.is_empty():
+		return  # No neighbors, no connection feedback
+
+	# Play snap sound
+	_play_snap_sound()
+
+	# Flash the newly placed block white
+	_flash_block_white(pos)
+
+	# Pulse each connected neighbor
+	for neighbor_pos in neighbors:
+		_pulse_neighbor(neighbor_pos)
+
+
+## Flash a block sprite white briefly (0.1s)
+func _flash_block_white(pos: Vector3i) -> void:
+	if not _sprites.has(pos):
+		return
+
+	var sprite: Sprite2D = _sprites[pos]
+	var original_modulate: Color = sprite.modulate
+
+	# Flash to white (preserve alpha)
+	sprite.modulate = Color(2.0, 2.0, 2.0, original_modulate.a)  # Oversaturated white for bright flash
+
+	# Tween back to original color
+	var tween := create_tween()
+	tween.tween_property(sprite, "modulate", original_modulate, CONNECTION_FLASH_DURATION)
+
+
+## Pulse a neighbor block (scale 1.0 -> 1.05 -> 1.0)
+func _pulse_neighbor(pos: Vector3i) -> void:
+	if not _sprites.has(pos):
+		return
+
+	var sprite: Sprite2D = _sprites[pos]
+	var original_scale: Vector2 = sprite.scale
+
+	# Create pulse animation
+	var tween := create_tween()
+	tween.tween_property(sprite, "scale", original_scale * CONNECTION_PULSE_SCALE, CONNECTION_PULSE_DURATION / 2.0).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tween.tween_property(sprite, "scale", original_scale, CONNECTION_PULSE_DURATION / 2.0).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+
+
+## Generate a snap/click sound for block connections
+func _generate_snap_sound() -> AudioStream:
+	var sample_rate := 22050
+	var duration := 0.05  # 50ms - short snap
+	var num_samples := int(sample_rate * duration)
+
+	var audio := AudioStreamWAV.new()
+	audio.format = AudioStreamWAV.FORMAT_8_BITS
+	audio.mix_rate = sample_rate
+	audio.stereo = false
+
+	var data := PackedByteArray()
+	data.resize(num_samples)
+
+	for i in range(num_samples):
+		var t := float(i) / sample_rate
+		# Quick attack, very fast decay click sound
+		var envelope := exp(-t * 100.0)  # Very fast decay for click
+		# High frequency for click character
+		var tone := sin(t * 2000.0 * TAU)
+		var click := sin(t * 500.0 * TAU) * 0.3  # Lower undertone
+		var sample := (tone * 0.7 + click) * envelope
+		data[i] = int(clamp(sample * 80.0 + 128.0, 0, 255))
+
+	audio.data = data
+	return audio
+
+
+## Play the snap/click sound
+func _play_snap_sound() -> void:
+	if _snap_sound and _snap_sound.stream:
+		# Slight pitch variation for variety
+		_snap_sound.pitch_scale = randf_range(0.95, 1.05)
+		_snap_sound.play()
 
 
 # =============================================================================
