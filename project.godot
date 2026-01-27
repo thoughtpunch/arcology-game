@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 BlockRegistry="*res://src/core/block_registry.gd"
 GameState="*res://src/core/game_state.gd"
+SettingsPersistence="*res://src/core/settings_persistence.gd"
 NotificationSystem="*res://src/ui/notification_system.gd"
 MenuManager="*res://src/ui/menu_manager.gd"
 BeehaveGlobalMetrics="*res://addons/beehave/metrics/beehave_global_metrics.gd"
