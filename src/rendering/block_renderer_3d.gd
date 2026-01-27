@@ -54,6 +54,11 @@ var _ghost_mesh: MeshInstance3D = null
 var _ghost_grid_pos: Vector3i = Vector3i.ZERO
 var _ghost_state: BlockState = BlockState.GHOST_VALID
 
+# Chunk manager for geometry batching (optional)
+const ChunkManagerClass := preload("res://src/rendering/chunk_manager.gd")
+var _chunk_manager: Node3D = null  # ChunkManager instance
+var _chunking_enabled: bool = false
+
 
 func _ready() -> void:
 	_load_shader()
@@ -226,10 +231,47 @@ func clear() -> void:
 	_block_meshes.clear()
 	_block_states.clear()
 
+	# Clear chunk manager
+	if _chunking_enabled and _chunk_manager:
+		_chunk_manager.clear()
+
 
 ## Get count of rendered blocks
 func get_block_count() -> int:
 	return _block_meshes.size()
+
+
+## Enable chunk-based geometry batching
+func enable_chunking(camera: Camera3D = null) -> Node3D:
+	if _chunk_manager:
+		return _chunk_manager
+
+	_chunk_manager = ChunkManagerClass.new()
+	_chunk_manager.name = "ChunkManager"
+	if camera:
+		_chunk_manager.set_camera(camera)
+	add_child(_chunk_manager)
+	_chunking_enabled = true
+	return _chunk_manager
+
+
+## Disable chunking and revert to per-block rendering
+func disable_chunking() -> void:
+	if _chunk_manager:
+		_chunk_manager.clear()
+		_chunk_manager.queue_free()
+		_chunk_manager = null
+	_chunking_enabled = false
+
+
+## Get the chunk manager (null if chunking not enabled)
+func get_chunk_manager() -> Node3D:
+	return _chunk_manager
+
+
+## Check if chunking is enabled
+func is_chunking_enabled() -> bool:
+	return _chunking_enabled
 
 
 # --- Grid Signal Handlers ---
@@ -241,6 +283,12 @@ func _on_block_added(grid_pos: Vector3i, block) -> void:
 	elif block is Dictionary:
 		block_type = block.get("block_type", "corridor")
 
+	# Add to chunk manager if chunking enabled
+	if _chunking_enabled and _chunk_manager:
+		var material := _get_material_for_type(block_type)
+		_chunk_manager.add_block(grid_pos, block_type, 0, material)
+
+	# Always add individual mesh (needed for selection, state changes, raycasting)
 	add_block(grid_pos, block_type)
 
 	# Check if block is connected
@@ -250,6 +298,10 @@ func _on_block_added(grid_pos: Vector3i, block) -> void:
 
 
 func _on_block_removed(grid_pos: Vector3i) -> void:
+	# Remove from chunk manager if chunking enabled
+	if _chunking_enabled and _chunk_manager:
+		_chunk_manager.remove_block(grid_pos)
+
 	remove_block(grid_pos)
 
 
