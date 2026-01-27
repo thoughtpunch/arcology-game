@@ -77,23 +77,35 @@ func trigger_auto_save() -> void:
 	_save_in_progress = true
 	auto_save_started.emit()
 
-	# Generate save path
-	var save_path := _get_next_save_path()
+	# Generate auto-save name
+	var save_name := AUTO_SAVE_PREFIX + str(_save_number)
 
-	# Get game state from GameState autoload
-	var game_state = _get_game_state()
-	if not game_state:
-		_save_in_progress = false
-		auto_save_failed.emit("GameState not available")
-		return
+	# Try to use main scene's save function for consistent format
+	var main_scene := _get_main_scene()
+	var save_path := ""
 
-	# Build save data
-	var save_data := _build_save_data(game_state)
+	if main_scene and main_scene.has_method("save_game"):
+		# Use main.save_game for full state persistence (v0.2.0 format)
+		save_path = main_scene.save_game(save_name)
 
-	# Write to file
-	var success := _write_save_file(save_path, save_data)
+		# Add auto-save metadata to the file
+		if not save_path.is_empty():
+			_add_auto_save_metadata(save_path)
+	else:
+		# Fallback: build save data directly
+		save_path = SAVE_DIR + save_name + ".save"
+		var game_state = _get_game_state()
+		if not game_state:
+			_save_in_progress = false
+			auto_save_failed.emit("GameState not available")
+			return
 
-	if success:
+		var save_data := _build_save_data(game_state)
+		var success := _write_save_file(save_path, save_data)
+		if not success:
+			save_path = ""
+
+	if not save_path.is_empty():
 		_last_save_time = Time.get_unix_time_from_system()
 		_save_number += 1
 		_cleanup_old_auto_saves()
@@ -102,6 +114,36 @@ func trigger_auto_save() -> void:
 		auto_save_failed.emit("Failed to write save file")
 
 	_save_in_progress = false
+
+
+func _get_main_scene() -> Object:
+	var tree := get_tree()
+	if not tree:
+		return null
+	return tree.current_scene
+
+
+func _add_auto_save_metadata(save_path: String) -> void:
+	# Read, modify, write to add is_auto flag
+	var file := FileAccess.open(save_path, FileAccess.READ)
+	if not file:
+		return
+
+	var json := JSON.new()
+	var error := json.parse(file.get_as_text())
+	file.close()
+
+	if error != OK:
+		return
+
+	var data: Dictionary = json.get_data()
+	data["is_auto"] = true
+	data["name"] = "Auto-save %d" % _save_number
+
+	file = FileAccess.open(save_path, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(data, "\t"))
+		file.close()
 
 
 func _get_next_save_path() -> String:
@@ -116,33 +158,41 @@ func _get_game_state() -> Object:
 
 
 func _build_save_data(game_state: Object) -> Dictionary:
-	var now := Time.get_datetime_dict_from_system()
-	var date_str := "%04d-%02d-%02d %02d:%02d" % [
-		now.year, now.month, now.day, now.hour, now.minute
-	]
+	# Build save data in v0.2.0 format to match main.gd format
+	var timestamp := Time.get_unix_time_from_system()
 
-	var data := {
-		"name": "Auto-save",
-		"date": date_str,
-		"timestamp": Time.get_unix_time_from_system(),
-		"is_auto": true,
-		"population": 0,
-		"money": 100000,
-		"aei": 0,
-		"scenario": "fresh_start",
-		"playtime": "0h 0m"
-	}
-
-	# Get data from game state if available
-	if game_state.has_method("get_current_floor"):
-		data["current_floor"] = game_state.get_current_floor()
+	# Get full game state if available
+	var state_data := {}
+	if game_state.has_method("get_state"):
+		state_data = game_state.get_state()
+	else:
+		# Fallback minimal state
+		state_data = {
+			"money": 50000,
+			"current_floor": 0
+		}
 
 	# Get grid data if available
+	var blocks_data := []
 	var grid := _get_grid()
 	if grid:
-		data["blocks"] = _serialize_blocks(grid)
+		blocks_data = _serialize_blocks(grid)
 
-	return data
+	return {
+		"name": "Auto-save %d" % _save_number,
+		"timestamp": timestamp,
+		"version": "0.2.0",
+		"is_auto": true,
+		"game_state": state_data,
+		"config": {},
+		"blocks": blocks_data,
+		"camera": {},
+		"terrain_seed": 0,
+		"statistics": {
+			"blocks_placed": blocks_data.size(),
+			"playtime_seconds": 0
+		}
+	}
 
 
 func _get_grid() -> Object:
