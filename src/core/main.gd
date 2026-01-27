@@ -418,11 +418,15 @@ func _load_game(save_path: String) -> void:
 
 
 func _apply_save_data(data: Dictionary) -> void:
+	# Load terrain seed first (before any terrain generation)
+	if terrain:
+		terrain.world_seed = data.get("terrain_seed", 0)
+
 	# Clear existing blocks
 	if grid:
 		grid.clear()
 
-	# Load blocks
+	# Load blocks with connected status
 	var blocks_data: Array = data.get("blocks", [])
 	for block_data in blocks_data:
 		var pos := Vector3i(
@@ -430,19 +434,51 @@ func _apply_save_data(data: Dictionary) -> void:
 			block_data.get("y", 0),
 			block_data.get("z", 0)
 		)
-		var block_type: String = block_data.get("type", "residential")
+		var block_type: String = block_data.get("type", "residential_basic")
 		var block := Block.new(block_type, pos)
+		block.connected = block_data.get("connected", true)
 		grid.set_block(pos, block)
 
-	# Load game state
+	# Load full game state
 	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
 	if game_state:
-		game_state.current_floor = data.get("current_floor", 0)
+		# Check for new format (game_state object) vs old format (current_floor only)
+		if data.has("game_state"):
+			game_state.load_state(data.game_state)
+		else:
+			# Legacy format - just load current_floor
+			game_state.current_floor = data.get("current_floor", 0)
 
 	# Load config
 	_game_config = data.get("config", {})
 
-	print("Loaded %d blocks" % blocks_data.size())
+	# Load camera state
+	var camera_data: Dictionary = data.get("camera", {})
+	if camera_controller and not camera_data.is_empty():
+		var pos := Vector2(
+			camera_data.get("position_x", 0.0),
+			camera_data.get("position_y", 0.0)
+		)
+		camera_controller.set_position(pos)
+		camera_controller.set_zoom(camera_data.get("zoom", 1.0))
+		camera_controller.set_rotation_index(camera_data.get("rotation_index", 0))
+		camera_controller.apply_immediately()
+
+	# Update HUD with loaded state
+	if hud and game_state:
+		hud.update_resources(game_state.money, game_state.population, int(game_state.aei_score))
+		hud.update_datetime(game_state.year, game_state.month, game_state.day)
+		hud.update_floor_display(game_state.current_floor)
+
+	# Load block registry unlock state from config
+	var block_registry = get_tree().get_root().get_node_or_null("/root/BlockRegistry")
+	if block_registry:
+		if _game_config.get("all_blocks_unlocked", false):
+			block_registry.unlock_all()
+		else:
+			block_registry.lock_all_to_defaults()
+
+	print("Loaded %d blocks (save version: %s)" % [blocks_data.size(), data.get("version", "unknown")])
 
 
 func save_game(save_name: String) -> String:
@@ -476,27 +512,59 @@ func save_game(save_name: String) -> String:
 func _create_save_data(save_name: String, timestamp: float) -> Dictionary:
 	var blocks_data := []
 
-	# Save all blocks
+	# Save all blocks with connected status
 	if grid:
 		for block in grid.get_all_blocks():
-			blocks_data.append({
+			var block_data := {
 				"x": block.grid_position.x,
 				"y": block.grid_position.y,
 				"z": block.grid_position.z,
-				"type": block.block_type
-			})
+				"type": block.block_type,
+				"connected": block.connected if "connected" in block else true
+			}
+			blocks_data.append(block_data)
 
-	# Get current game state
+	# Get full game state
 	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
-	var current_floor := 0
+	var state_data := {}
 	if game_state:
-		current_floor = game_state.current_floor
+		state_data = game_state.get_state()
+
+	# Get camera state
+	var camera_data := {}
+	if camera_controller:
+		camera_data = {
+			"position_x": camera_controller.get_position().x,
+			"position_y": camera_controller.get_position().y,
+			"zoom": camera_controller.get_zoom(),
+			"rotation_index": camera_controller.get_rotation_index()
+		}
+
+	# Get terrain seed
+	var terrain_seed := 0
+	if terrain:
+		terrain_seed = terrain.world_seed
+
+	# Get statistics
+	var stats := {
+		"blocks_placed": grid.get_block_count() if grid else 0,
+		"playtime_seconds": _get_playtime_seconds()
+	}
 
 	return {
 		"name": save_name,
 		"timestamp": timestamp,
-		"version": "0.1.0",
-		"current_floor": current_floor,
+		"version": "0.2.0",  # Upgraded version for new format
+		"game_state": state_data,
 		"config": _game_config,
-		"blocks": blocks_data
+		"blocks": blocks_data,
+		"camera": camera_data,
+		"terrain_seed": terrain_seed,
+		"statistics": stats
 	}
+
+
+## Get current playtime in seconds (placeholder - needs proper tracking)
+func _get_playtime_seconds() -> int:
+	# TODO: Track actual playtime with Timer
+	return 0
