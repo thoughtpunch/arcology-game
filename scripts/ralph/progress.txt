@@ -959,3 +959,326 @@ Learnings:
 Followup:
 - arcology-7e6.2: Wire SettingsMenu to use SettingsPersistence instead of internal _settings
 
+## Iteration 46 - 2026-01-26
+Task: arcology-7e6.2 - Wire audio settings to AudioServer
+Docs Consulted:
+- src/core/block_renderer.gd (existing audio patterns)
+- src/core/settings_persistence.gd (settings API)
+Status: PASSED
+Changes:
+- default_bus_layout.tres: New audio bus layout (Master, Music, SFX, Ambient, UI)
+- src/core/audio_settings.gd: New autoload for audio settings integration
+- src/core/block_renderer.gd: Added .bus = "SFX" to audio players
+- test/core/test_audio_settings.gd: 8 unit tests
+- project.godot: Added AudioSettings autoload and audio bus config
+Learnings:
+- Volume conversion: linear_to_db() for percentage to dB, db_to_linear() for reverse
+- 0% = -80dB (effectively muted), 100% = 0dB (full volume)
+- NOTIFICATION_APPLICATION_FOCUS_IN/OUT for window focus detection (mute when minimized)
+- Audio buses must be registered in project.godot [audio] section with buses/default_bus_layout
+- AudioServer works in headless mode - tests pass without issues
+- AudioStreamPlayer.bus property assigns to named bus
+Followup:
+- dynamic_music setting is placeholder only until music system exists
+
+## Iteration 47 - 2026-01-26
+Task: arcology-7e6.3 - Wire graphics settings to DisplayServer
+Docs Consulted:
+- src/core/audio_settings.gd (pattern reference)
+- src/core/settings_persistence.gd (settings API)
+Status: PASSED
+Changes:
+- src/core/graphics_settings.gd: New autoload for graphics settings integration
+- test/core/test_graphics_settings.gd: 9 unit tests
+- project.godot: Added GraphicsSettings autoload
+Learnings:
+- DisplayServer.window_set_size() for resolution
+- DisplayServer.window_set_mode() for windowed/fullscreen/borderless
+- DisplayServer.window_set_vsync_mode() for vsync
+- Engine.max_fps for frame rate limit (0 = unlimited)
+- tree.root.content_scale_factor for UI scale
+- Use call_deferred() for initial settings to ensure scene tree is ready
+- Borderless maps to WINDOW_MODE_EXCLUSIVE_FULLSCREEN (BORDERLESS doesn't exist as mode)
+- Handle both string ("60 FPS") and int (60) for frame rate setting
+Followup:
+- Quality settings (sprite/shadow/animation/particles) deferred - may need custom implementation
+
+## Iteration 48 - 2026-01-26
+Task: arcology-7e6.4 - Wire game settings to gameplay systems
+Docs Consulted:
+- src/core/auto_save.gd (auto-save API)
+- src/core/camera_controller.gd (camera settings pattern)
+- src/ui/notification_system.gd (notification API)
+Status: PASSED
+Changes:
+- src/core/game_settings.gd: New autoload for game settings integration
+- test/core/test_game_settings.gd: 8 unit tests
+- project.godot: Added GameSettings autoload
+Learnings:
+- Prefer getter methods over direct system modification for loose coupling
+- Systems should query GameSettings (e.g., is_edge_scrolling_enabled())
+- Auto-save interval of 0 means disabled (calls set_enabled(false))
+- NOTIFICATION_APPLICATION_FOCUS_OUT for pause_on_lost_focus
+- For tests outside scene tree, get_tree() returns null - return default values
+Followup:
+- CameraController needs to be updated to query GameSettings for edge_scrolling/scroll_speed
+- tutorial_hints deferred until hint system exists
+
+## Iteration 49 - 2026-01-26
+Task: arcology-7e6.5 - Wire controls settings and keybind remapping
+Docs Consulted:
+- src/core/camera_controller.gd (control patterns)
+- project.godot (existing keybind definitions)
+Status: PASSED
+Changes:
+- src/core/controls_settings.gd: New autoload for controls/keybind management
+- test/core/test_controls_settings.gd: 9 unit tests
+- project.godot: Added ControlsSettings autoload
+Learnings:
+- Keybindings stored as dictionaries: {"key": KEY_W, "alt_key": KEY_UP, "mouse": MOUSE_BUTTON_X}
+- InputMap.action_erase_events() clears before adding new events
+- OS.get_keycode_string() converts keycode to display string
+- InputEventKey.keycode and InputEventMouseButton.button_index for serialization
+- Skip "ui_" prefixed actions when checking conflicts (built-in UI)
+- Mouse sensitivity mapped from 0-100% to 0.1-2.0 range
+Followup:
+- Keybind rebind UI (listen for next key press) needs separate implementation
+- CameraController needs to call ControlsSettings.is_scroll_zoom_inverted()
+
+## Iteration 50 - 2026-01-26
+Task: arcology-7e6.6 - Wire accessibility settings
+Docs Consulted:
+- src/core/settings_persistence.gd (accessibility setting keys)
+Status: PASSED
+Changes:
+- src/core/accessibility_settings.gd: New autoload for accessibility features
+- test/core/test_accessibility_settings.gd: 12 unit tests
+- project.godot: Added AccessibilitySettings autoload
+Learnings:
+- Colorblind modes as integer IDs (0-3) for shader uniform compatibility
+- Font size as multiplier (0.9-1.5) for easy theme scaling
+- get_adjusted_duration(base) pattern for motion reduction
+- Slower game speed caps at 2x instead of 3x for accessibility
+- Emit signals for each setting so systems can react
+Followup:
+- Colorblind shader needs to be created
+- High contrast theme needs implementation
+- OpenDyslexic font resource needs to be added
+- Extended tooltips needs tooltip system
+
+## Iteration 51 - 2026-01-26
+Task: arcology-7e6.7 - Wire NewGame config to GameState initialization
+Docs Consulted:
+- src/ui/new_game_menu.gd (config schema)
+- src/core/game_state.gd (existing state management)
+- data/blocks.json (block type IDs)
+Status: PASSED
+Changes:
+- src/core/game_state.gd: Added money, arcology_name, scenario, sandbox flags
+- src/core/game_state.gd: apply_new_game_config() parses all settings
+- src/core/game_state.gd: Money management (spend_money, can_afford, add_money)
+- src/core/game_state.gd: get_state/load_state for save/load
+- src/core/block_registry.gd: Block unlocking system (is_unlocked, unlock_all)
+- src/core/main.gd: Connect HUD to GameState money/time signals
+- test/core/test_game_state_config.gd: 14 unit tests
+- test/core/test_block_registry_unlock.gd: 8 unit tests
+Learnings:
+- Block IDs in blocks.json use underscores: residential_basic, commercial_basic, elevator_shaft
+- DEFAULT_UNLOCKED must match actual block IDs from blocks.json
+- MIN_FLOOR changed to -3 to support basement levels
+- Funds string parsing: "$25,000 (Hard)" -> 25000 requires stripping commas and non-digits
+- Dictionary.get() returns Variant - use explicit type annotations
+Followup:
+- Scenario preset loading deferred (loading pre-built scenarios)
+- Entropy/failure systems don't exist yet (flags ready for when they do)
+
+## Iteration 52 - 2026-01-26
+Task: arcology-7e6.8 - Enhance save file format with complete game state
+Docs Consulted:
+- src/core/main.gd (existing save/load implementation)
+- src/core/game_state.gd (get_state/load_state methods)
+- src/core/camera_controller.gd (position/zoom/rotation getters)
+Status: PASSED
+Changes:
+- src/core/main.gd: Enhanced _create_save_data with full state
+  - game_state object from GameState.get_state()
+  - Block connected status
+  - Camera state (position, zoom, rotation_index)
+  - Terrain seed
+  - Statistics (blocks_placed, playtime placeholder)
+- src/core/main.gd: Enhanced _apply_save_data to restore all state
+  - Full GameState via load_state()
+  - Camera state restoration with apply_immediately()
+  - Legacy v0.1.0 format handling
+  - HUD update after load
+- test/core/test_save_load.gd: 5 unit tests
+Learnings:
+- Save format versioning allows graceful upgrades (0.1.0 -> 0.2.0)
+- Camera needs apply_immediately() after setting position/zoom/rotation
+- Block default type in _apply_save_data was "residential" (wrong) - changed to "residential_basic"
+- Terrain seed must be set before terrain generates decorations
+Followup:
+- Thumbnail screenshots for save cards need viewport capture
+- Playtime tracking needs proper Timer implementation
+
+## Iteration 53 - 2026-01-26
+Task: arcology-7e6.9 - Implement save file deletion with confirmation
+Docs Consulted:
+- src/ui/save_load_menu.gd (existing delete button)
+- src/ui/menu_manager.gd (confirmation dialog handling)
+- src/ui/confirmation_dialog.gd (show_confirm API)
+Status: PASSED
+Changes:
+- src/ui/save_load_menu.gd: Added pending delete tracking and confirm/cancel methods
+- src/ui/save_load_menu.gd: delete_confirmation_requested signal for dialog trigger
+- src/ui/menu_manager.gd: Added PendingConfirmation enum for context tracking
+- src/ui/menu_manager.gd: Connected delete signal and handled confirm/cancel
+- test/ui/test_save_delete.gd: 4 unit tests
+Learnings:
+- Signal-based decoupling: SaveLoadMenu emits signal, MenuManager shows dialog
+- PendingConfirmation enum pattern tracks what action is awaiting confirmation
+- DirAccess.remove_absolute() returns error code (1 = file not found)
+- UI initialization: null-check _save_list before refresh in tests
+Followup:
+- Could add user-visible error dialog on delete failure (currently only logs)
+
+## Iteration 54 - 2026-01-26
+Task: arcology-7e6.13 - Wire Continue button to most recent save
+Docs Consulted:
+- src/ui/main_menu.gd (existing Continue button)
+- src/ui/menu_manager.gd (_get_sorted_saves, _on_continue_pressed)
+Status: PASSED
+Changes:
+- src/ui/main_menu.gd: Enhanced _check_for_saves to load metadata and track most recent
+- src/ui/main_menu.gd: _load_save_metadata helper parses save JSON
+- src/ui/main_menu.gd: _update_continue_tooltip formats tooltip with save name and date
+- src/ui/main_menu.gd: refresh_saves() public method for menu manager
+- src/ui/menu_manager.gd: show_main_menu calls refresh_saves()
+- test/ui/test_continue_button.gd: 4 unit tests
+Learnings:
+- Time.get_datetime_dict_from_unix_time() takes int, not float - need cast
+- _setup_layout() must be called before accessing UI components in tests
+- Tooltip uses tooltip_text property, plain string format
+Followup:
+- None - feature complete
+
+## Iteration 55 - 2026-01-26
+Task: arcology-7e6.14 - Wire AutoSave to main scene save function
+Docs Consulted:
+- src/core/auto_save.gd (existing implementation)
+- src/core/main.gd (_create_save_data v0.2.0 format)
+Status: PASSED
+Changes:
+- src/core/auto_save.gd: trigger_auto_save tries main.save_game first
+- src/core/auto_save.gd: _add_auto_save_metadata post-processes to add is_auto
+- src/core/auto_save.gd: _build_save_data fallback updated to v0.2.0 format
+- Existing test/ui/test_auto_save.gd: 19 tests all pass
+Learnings:
+- get_tree().current_scene gives access to main scene from autoload
+- Post-modification pattern: save file, read, modify, rewrite for metadata
+- Format consistency: auto-saves and manual saves now use same v0.2.0 format
+Followup:
+- Could optimize to pass is_auto to save_game instead of post-modify
+
+## Iteration 56 - 2026-01-26
+Task: arcology-t8d - Create 3D spike branch and minimal Node3D scene
+Docs Consulted:
+- documentation/architecture/3d-refactor/phase-0-spike.md (implicit from ticket)
+- documentation/ideas_not_implemented/3d-orthographic-migration.md (reference)
+Status: PASSED
+Changes:
+- scenes/spike/spike_3d.tscn: New 3D scene with all required nodes
+  - Node3D root
+  - Camera3D (orthographic, size 50)
+  - DirectionalLight3D (soft shadows enabled)
+  - GroundPlane (100x100 PlaneMesh)
+  - WorldEnvironment (ambient lighting)
+- test/spike/test_spike_3d_scene.gd: 7 validation tests
+Learnings:
+- Camera3D.projection = 1 for PROJECTION_ORTHOGONAL
+- Camera3D.size controls orthographic view extent (50 = ~8 blocks visible)
+- DirectionalLight3D.shadow_blur for soft shadows
+- WorldEnvironment with ambient_light improves visibility in 3D scenes
+- Transform for 45-degree isometric view: rotate X by -45 degrees
+Followup:
+- Next: Orbit camera controls (arcology tasks for Phase 0)
+
+## Iteration 57 - 2026-01-26
+Task: arcology-d0b - Implement basic orbital camera controller for spike
+Docs Consulted:
+- Task description (requirements for controls, limits, smoothing)
+Status: PASSED
+Changes:
+- src/spike/camera_orbit.gd: New orbital camera controller (230 lines)
+  - Q/E rotation, R/F tilt, WASD pan, scroll zoom
+  - Middle mouse orbit, Shift+middle pan
+  - Smooth lerp interpolation (factor 10)
+  - Clamping: elevation 5-85°, distance 10-500, ortho size 10-200
+- test/spike/test_camera_orbit.gd: 13 unit tests
+- scenes/spike/spike_3d.tscn: Updated to use CameraOrbit script
+Learnings:
+- Camera3D.PROJECTION_ORTHOGONAL = 1 in tscn files
+- Spherical to Cartesian: x = sin(az)*cos(el)*d, y = sin(el)*d, z = cos(az)*cos(el)*d
+- Node3D position works without tree, but look_at() requires tree
+- Use Basis.looking_at() for manual look-at without tree
+- exp(-LERP_FACTOR * delta) gives frame-rate independent smoothing
+Followup:
+- Next: CSG placeholder blocks (arcology-k97)
+
+## Iteration 58 - 2026-01-26
+Task: arcology-k97 - Add CSG placeholder blocks for spike testing
+Docs Consulted:
+- Task description (block dimensions, materials, grid snapping)
+Status: PASSED
+Changes:
+- src/spike/block_3d.gd: Block3D class extending CSGBox3D (125 lines)
+  - Dimensions: 6x6x3.5m (THE CUBE)
+  - Materials: 8 block types with distinct colors
+  - grid_to_world() and world_to_grid() conversions
+  - Collision on layer 2
+- src/spike/block_spawner.gd: BlockSpawner class (100 lines)
+  - Dictionary storage by Vector3i
+  - place_block/remove_block with signals
+  - spawn_test_blocks() creates 12-block demo
+- scenes/spike/spike_3d.tscn: Added BlockSpawner node
+- test/spike/test_block_3d.gd: 10 unit tests
+- test/spike/test_block_spawner.gd: 10 unit tests
+Learnings:
+- CSGBox3D.use_collision = true enables collision for raycasting
+- Return types can't use class_name from preloaded scripts - use base type
+- Block Y position is center, not bottom: y = grid_y * height + height/2
+- Grid (0,0,0) -> World (0, 1.75, 0) because blocks centered vertically
+- StandardMaterial3D.new() for runtime materials works in CSG
+Followup:
+- Click-to-place with raycast (next spike task)
+
+## Iteration 59 - 2026-01-26
+Task: arcology-bwn - Implement raycast click-to-place for spike
+Docs Consulted:
+- Task description (requirements for raycasting, grid snapping, ghost preview)
+- src/spike/block_3d.gd (grid conversion methods)
+- src/spike/block_spawner.gd (placement API)
+- src/spike/camera_orbit.gd (camera reference pattern)
+Status: PASSED
+Changes:
+- src/spike/block_placer.gd: New BlockPlacer class (203 lines)
+  - Raycast from camera through mouse position
+  - Ghost preview with valid/invalid coloring
+  - Grid snapping via Block3D.world_to_grid()
+  - Left-click place, right-click remove
+  - Signals for block_placed/block_removed
+- src/spike/spike_3d_main.gd: Main scene script wiring (56 lines)
+  - Number keys 1-6 select block type
+  - Wires placer with camera and spawner
+- scenes/spike/spike_3d.tscn: Added BlockPlacer node
+- test/spike/test_block_placer.gd: 13 unit tests
+Learnings:
+- PhysicsRayQueryParameters3D.create(from, to, mask) for 3D raycasting
+- camera.project_ray_origin() and project_ray_normal() for mouse-to-world
+- get_world_3d().direct_space_state for physics space access
+- Ghost material needs BaseMaterial3D.TRANSPARENCY_ALPHA for proper blending
+- Collision mask 0b11 covers layer 1 (ground) and layer 2 (blocks)
+- For removal, detect collider directly; for placement, offset by normal
+Followup:
+- Performance baseline measurement (arcology-8oo spike evaluation)
+

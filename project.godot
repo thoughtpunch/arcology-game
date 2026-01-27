@@ -80,10 +80,6 @@ zoom_out={
 ]
 }
 
-[audio]
-
-buses/default_bus_layout="res://default_bus_layout.tres"
-
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
