@@ -131,6 +131,9 @@ func _setup_grid() -> void:
 	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
 	if game_state:
 		game_state.floor_changed.connect(_on_floor_visibility_changed)
+		# Connect for unsaved changes tracking
+		game_state.money_changed.connect(_on_game_state_changed)
+		game_state.config_applied.connect(_on_config_applied)
 
 	# Setup construction queue
 	_setup_construction_queue()
@@ -380,6 +383,9 @@ func _on_grid_block_added(pos: Vector3i, _block) -> void:
 		terrain.hide_decoration_at(pos_2d)
 		terrain.hide_river_at(pos_2d)
 
+	# Mark unsaved changes
+	_mark_unsaved()
+
 
 func _on_grid_block_removed(pos: Vector3i) -> void:
 	# Show decoration at Z=0 when block removed
@@ -388,12 +394,33 @@ func _on_grid_block_removed(pos: Vector3i) -> void:
 		terrain.show_decoration_at(pos_2d)
 		terrain.show_river_at(pos_2d)
 
+	# Mark unsaved changes
+	_mark_unsaved()
+
 
 func _place_starting_block() -> void:
 	# Start with one entrance block at origin
 	var entrance := Block.new("entrance", Vector3i(0, 0, 0))
 	grid.set_block(entrance.grid_position, entrance)
 	print("Starting block placed - start building!")
+
+
+## Mark game as having unsaved changes
+func _mark_unsaved() -> void:
+	var menu_manager = get_tree().get_root().get_node_or_null("/root/MenuManager")
+	if menu_manager:
+		menu_manager.mark_unsaved_changes()
+
+
+func _on_game_state_changed(_value) -> void:
+	# Called when money or other game state changes
+	_mark_unsaved()
+
+
+func _on_config_applied(_config: Dictionary) -> void:
+	# New game config applied - this is a fresh start, not unsaved
+	# Don't mark unsaved here since it's the initial state
+	pass
 
 
 # --- Save/Load System ---
