@@ -32,8 +32,12 @@ var grid: Node = null  # Grid class
 var camera: Camera3D = null  # ArcologyCamera's internal Camera3D
 var block_renderer_3d: Node3D = null  # BlockRenderer3D
 
+# Ghost preview (uses GhostPreview3D if available, falls back to BlockRenderer3D)
+var ghost_preview: Node3D = null  # GhostPreview3D instance
+
 # State
 var selected_block_type: String = "corridor"
+var _rotation_index: int = 0  # Block rotation (0-3)
 
 # Raycast settings
 const RAY_LENGTH: float = 2000.0
@@ -55,7 +59,16 @@ var construction_queue = null
 
 
 func _ready() -> void:
-	pass
+	_create_ghost_preview()
+
+
+func _create_ghost_preview() -> void:
+	## Create GhostPreview3D instance
+	var GhostPreview3DClass = load("res://src/core/ghost_preview_3d.gd")
+	if GhostPreview3DClass:
+		ghost_preview = GhostPreview3DClass.new()
+		ghost_preview.name = "GhostPreview"
+		add_child(ghost_preview)
 
 
 ## Setup with required dependencies
@@ -63,8 +76,8 @@ func setup(p_grid: Node, p_camera: Camera3D, p_renderer: Node3D = null) -> void:
 	grid = p_grid
 	camera = p_camera
 	block_renderer_3d = p_renderer
-	print("InputHandler3D: Setup complete (grid=%s, camera=%s, renderer=%s)" % [
-		grid != null, camera != null, block_renderer_3d != null
+	print("InputHandler3D: Setup complete (grid=%s, camera=%s, renderer=%s, ghost=%s)" % [
+		grid != null, camera != null, block_renderer_3d != null, ghost_preview != null
 	])
 
 
@@ -246,8 +259,15 @@ func _update_ghost_position() -> void:
 	# Check validity
 	_ghost_valid = _is_placement_valid(place_pos)
 
-	# Update renderer ghost
-	if block_renderer_3d:
+	# Update ghost preview (prefer GhostPreview3D, fall back to BlockRenderer3D)
+	if ghost_preview:
+		ghost_preview.set_block_type(selected_block_type)
+		ghost_preview.set_grid_position(place_pos)
+		if _ghost_valid:
+			ghost_preview.set_state(ghost_preview.GhostState.VALID)
+		else:
+			ghost_preview.set_state(ghost_preview.GhostState.INVALID)
+	elif block_renderer_3d:
 		var state: int
 		if _ghost_valid:
 			state = 2  # BlockState.GHOST_VALID
@@ -258,7 +278,9 @@ func _update_ghost_position() -> void:
 
 func _hide_ghost() -> void:
 	_ghost_visible = false
-	if block_renderer_3d:
+	if ghost_preview:
+		ghost_preview.hide_ghost()
+	elif block_renderer_3d:
 		block_renderer_3d.hide_ghost()
 
 
@@ -423,6 +445,20 @@ func is_ghost_visible() -> bool:
 
 func is_placement_valid() -> bool:
 	return _ghost_visible and _ghost_valid
+
+
+func get_rotation_index() -> int:
+	## Get current rotation index (0-3)
+	if ghost_preview:
+		return ghost_preview.get_rotation_index()
+	return _rotation_index
+
+
+func set_rotation_index(rotation_idx: int) -> void:
+	## Set rotation index (0-3 = N/E/S/W)
+	_rotation_index = rotation_idx % 4
+	if ghost_preview:
+		ghost_preview.set_rotation_index(_rotation_index)
 
 
 ## Handle click forwarded from HUD (for compatibility with existing UI)
