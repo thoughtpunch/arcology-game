@@ -12,7 +12,8 @@ enum MenuState {
 	NEW_GAME,       # New game menu
 	SAVE,           # Save menu
 	LOAD,           # Load menu
-	CREDITS         # Credits screen
+	CREDITS,        # Credits screen
+	HELP            # Help screen
 }
 
 # Signals
@@ -27,6 +28,8 @@ var pause_menu: PauseMenu
 var settings_menu: SettingsMenu
 var new_game_menu: NewGameMenu
 var save_load_menu: SaveLoadMenu
+var credits_screen: CreditsScreen
+var help_screen: HelpScreen
 var confirmation_dialog: GameConfirmationDialog
 var auto_save: AutoSave
 
@@ -83,6 +86,18 @@ func _create_menus() -> void:
 	save_load_menu.visible = false
 	add_child(save_load_menu)
 
+	# Credits screen
+	credits_screen = CreditsScreen.new()
+	credits_screen.name = "CreditsScreen"
+	credits_screen.visible = false
+	add_child(credits_screen)
+
+	# Help screen
+	help_screen = HelpScreen.new()
+	help_screen.name = "HelpScreen"
+	help_screen.visible = false
+	add_child(help_screen)
+
 	# Confirmation dialog (always on top)
 	confirmation_dialog = GameConfirmationDialog.new()
 	confirmation_dialog.name = "ConfirmationDialog"
@@ -109,6 +124,7 @@ func _connect_signals() -> void:
 	pause_menu.save_game_pressed.connect(_on_save_game_pressed)
 	pause_menu.load_game_pressed.connect(_on_pause_load_pressed)
 	pause_menu.settings_pressed.connect(_on_pause_settings_pressed)
+	pause_menu.help_pressed.connect(_on_pause_help_pressed)
 	pause_menu.main_menu_pressed.connect(_on_return_to_main_menu)
 	pause_menu.quit_pressed.connect(_on_pause_quit_pressed)
 
@@ -125,6 +141,12 @@ func _connect_signals() -> void:
 	save_load_menu.save_selected.connect(_on_save_selected)
 	save_load_menu.load_selected.connect(_on_load_selected)
 	save_load_menu.delete_confirmation_requested.connect(_on_delete_confirmation_requested)
+
+	# Credits screen
+	credits_screen.back_pressed.connect(_on_credits_back)
+
+	# Help screen
+	help_screen.back_pressed.connect(_on_help_back)
 
 	# Confirmation dialog
 	confirmation_dialog.confirmed.connect(_on_confirmation_confirmed)
@@ -153,6 +175,8 @@ func _hide_all_menus() -> void:
 	settings_menu.visible = false
 	new_game_menu.visible = false
 	save_load_menu.visible = false
+	credits_screen.visible = false
+	help_screen.visible = false
 
 
 ## Show main menu
@@ -217,6 +241,23 @@ func show_load_menu() -> void:
 	save_load_menu.visible = true
 
 
+## Show credits screen
+func show_credits_screen() -> void:
+	_previous_state = _current_state
+	_current_state = MenuState.CREDITS
+	_hide_all_menus()
+	credits_screen.reset_scroll()
+	credits_screen.visible = true
+
+
+## Show help screen
+func show_help_screen() -> void:
+	_previous_state = _current_state
+	_current_state = MenuState.HELP
+	_hide_all_menus()
+	help_screen.visible = true
+
+
 ## Hide all menus (return to gameplay)
 func hide_menus() -> void:
 	_hide_all_menus()
@@ -268,8 +309,7 @@ func _on_settings_pressed() -> void:
 
 
 func _on_credits_pressed() -> void:
-	# TODO: Implement credits screen
-	print("Credits pressed - not implemented yet")
+	show_credits_screen()
 
 
 func _on_quit_pressed() -> void:
@@ -294,6 +334,10 @@ func _on_pause_load_pressed() -> void:
 
 func _on_pause_settings_pressed() -> void:
 	show_settings_menu()
+
+
+func _on_pause_help_pressed() -> void:
+	show_help_screen()
 
 
 func _on_return_to_main_menu() -> void:
@@ -342,6 +386,20 @@ func _apply_settings(settings: Dictionary) -> void:
 
 func _on_new_game_back() -> void:
 	show_main_menu()
+
+
+func _on_credits_back() -> void:
+	show_main_menu()
+
+
+func _on_help_back() -> void:
+	match _previous_state:
+		MenuState.PAUSE:
+			_current_state = MenuState.PAUSE
+			_hide_all_menus()
+			pause_menu.visible = true
+		_:
+			show_main_menu()
 
 
 func _on_start_game(config: Dictionary) -> void:
