@@ -4,12 +4,18 @@ extends Node
 
 const BLOCKS_PATH := "res://data/blocks.json"
 
+# Default unlocked blocks (always available)
+const DEFAULT_UNLOCKED := ["entrance", "corridor", "residential_basic", "stairs"]
+
 var _blocks: Dictionary = {}
 var _loaded: bool = false
+var _unlocked_blocks: Array[String] = []
+var _all_unlocked: bool = false
 
 
 func _ready() -> void:
 	_load_blocks()
+	_reset_unlocked()
 
 
 ## Load block definitions from JSON file
@@ -115,3 +121,68 @@ func reload() -> void:
 	_blocks.clear()
 	_loaded = false
 	_load_blocks()
+
+
+# --- Block Unlocking System ---
+
+## Reset unlocked blocks to default
+func _reset_unlocked() -> void:
+	_unlocked_blocks.clear()
+	for block_type in DEFAULT_UNLOCKED:
+		_unlocked_blocks.append(block_type)
+	_all_unlocked = false
+
+
+## Check if a block type is unlocked (available for building)
+func is_unlocked(type_id: String) -> bool:
+	if _all_unlocked:
+		return true
+	return type_id in _unlocked_blocks
+
+
+## Unlock a specific block type
+func unlock_block(type_id: String) -> void:
+	if has_type(type_id) and type_id not in _unlocked_blocks:
+		_unlocked_blocks.append(type_id)
+
+
+## Lock a specific block type (remove from unlocked list)
+func lock_block(type_id: String) -> void:
+	var index := _unlocked_blocks.find(type_id)
+	if index >= 0:
+		_unlocked_blocks.remove_at(index)
+
+
+## Unlock all block types (sandbox mode)
+func unlock_all() -> void:
+	_all_unlocked = true
+
+
+## Lock all blocks except defaults (reset to normal gameplay)
+func lock_all_to_defaults() -> void:
+	_all_unlocked = false
+	_reset_unlocked()
+
+
+## Get all unlocked block type IDs
+func get_unlocked_types() -> Array[String]:
+	if _all_unlocked:
+		return get_all_types()
+	return _unlocked_blocks.duplicate()
+
+
+## Get unlocked types filtered by category
+func get_unlocked_types_by_category(category: String) -> Array[String]:
+	var types: Array[String] = []
+	for type_id in _blocks:
+		if not is_unlocked(type_id):
+			continue
+		var block_data: Dictionary = _blocks[type_id]
+		if block_data.get("category", "") == category:
+			types.append(type_id)
+	return types
+
+
+## Check if all blocks are unlocked (sandbox mode)
+func is_all_unlocked() -> bool:
+	return _all_unlocked

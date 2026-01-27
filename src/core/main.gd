@@ -48,6 +48,7 @@ func _ready() -> void:
 func _on_game_started(config: Dictionary) -> void:
 	print("Starting new game with config: %s" % config)
 	_game_config = config
+	_apply_game_config(config)
 	_initialize_game()
 	_place_starting_block()
 
@@ -61,6 +62,21 @@ func _on_game_loaded(save_path: String) -> void:
 func _on_game_resumed() -> void:
 	# Game resumed from pause - no action needed
 	pass
+
+
+func _apply_game_config(config: Dictionary) -> void:
+	# Apply config to GameState
+	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
+	if game_state:
+		game_state.apply_new_game_config(config)
+
+	# Apply block unlocking
+	var block_registry = get_tree().get_root().get_node_or_null("/root/BlockRegistry")
+	if block_registry:
+		if config.get("all_blocks_unlocked", false):
+			block_registry.unlock_all()
+		else:
+			block_registry.lock_all_to_defaults()
 
 
 func _initialize_game() -> void:
@@ -130,8 +146,9 @@ func _setup_construction_queue() -> void:
 	if block_renderer:
 		block_renderer.connect_to_construction_queue(construction_queue)
 
-	# Check game config for instant construction
-	if _game_config.get("instant_construction", false):
+	# Check GameState for instant construction flag
+	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
+	if game_state and game_state.instant_construction:
 		construction_queue.set_instant_construction(true)
 
 
@@ -178,15 +195,26 @@ func _setup_hud() -> void:
 	hud = HUD.new()
 	ui_layer.add_child(hud)
 
-	# Connect floor changes to HUD
+	# Connect to GameState
 	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
 	if game_state:
+		# Floor changes
 		game_state.floor_changed.connect(_on_hud_floor_changed)
 		hud.update_floor_display(game_state.current_floor)
 
-	# Set initial resources
-	hud.update_resources(100000, 0, 0)
-	hud.update_datetime(1, 1, 1)
+		# Money changes
+		game_state.money_changed.connect(_on_money_changed)
+
+		# Time changes
+		game_state.time_changed.connect(_on_time_changed)
+
+		# Set initial values from GameState
+		hud.update_resources(game_state.money, game_state.population, int(game_state.aei_score))
+		hud.update_datetime(game_state.year, game_state.month, game_state.day)
+	else:
+		# Fallback defaults
+		hud.update_resources(50000, 0, 0)
+		hud.update_datetime(1, 1, 1)
 
 	# Connect tool sidebar to input handler
 	if hud.left_sidebar and hud.left_sidebar is ToolSidebar:
@@ -208,6 +236,16 @@ func _on_viewport_clicked(event: InputEventMouseButton) -> void:
 
 func _on_hud_floor_changed(new_floor: int) -> void:
 	hud.update_floor_display(new_floor)
+
+
+func _on_money_changed(new_amount: int) -> void:
+	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
+	if game_state:
+		hud.update_resources(new_amount, game_state.population, int(game_state.aei_score))
+
+
+func _on_time_changed(year: int, month: int, day: int, _hour: int) -> void:
+	hud.update_datetime(year, month, day)
 
 
 func _on_tool_selected(tool: int) -> void:
