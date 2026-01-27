@@ -1,21 +1,33 @@
-extends Node2D
+extends Node3D
 ## Main game scene controller
 ## Simple, clean interface inspired by reference city builder video
 ## Handles camera controls and game initialization
+##
+## NOTE: As of 3D refactor Phase 1, this scene uses Node3D root.
+## 2D systems (Terrain, BlockRenderer) are temporarily disabled.
+## 3D equivalents will be implemented in subsequent phases.
 
-const CameraControllerClass := preload("res://src/core/camera_controller.gd")
+# 2D camera controller - temporarily disabled for 3D refactor
+# const CameraControllerClass := preload("res://src/core/camera_controller.gd")
 const CameraControlsPaneClass := preload("res://src/ui/camera_controls_pane.gd")
 
-@onready var camera: Camera2D = $Camera2D
-@onready var world: Node2D = $World
+# 3D camera controller from spike
+const CameraOrbitClass := preload("res://src/spike/camera_orbit.gd")
+
+@onready var camera_3d: Camera3D = $Camera3DController/Camera3D
+@onready var camera_controller_node: Node3D = $Camera3DController
+@onready var world: Node3D = $World
 @onready var ui_layer: CanvasLayer = $UI
 
 var grid: Grid
-var block_renderer: BlockRenderer
-var input_handler: InputHandler
-var terrain: Terrain
-var camera_controller: Node  # CameraController instance
+var block_renderer: BlockRenderer  # 2D renderer - temporarily disabled for 3D refactor
+var input_handler: InputHandler  # 2D input - temporarily disabled for 3D refactor
+var terrain: Terrain  # 2D terrain - temporarily disabled for 3D refactor
+var camera_controller  # CameraOrbit instance for 3D
 var construction_queue  # ConstructionQueue instance
+
+# Flag for 3D mode - will be removed once 3D refactor is complete
+var _is_3d_mode := true
 
 # UI Components
 var hud: HUD
@@ -97,14 +109,30 @@ func _initialize_game() -> void:
 
 
 func _setup_camera() -> void:
-	camera_controller = CameraControllerClass.new()
-	add_child(camera_controller)
-	camera_controller.setup(camera)
-	print("Camera controls: WASD/arrows pan, scroll zoom, Q/E rotate, middle/right drag pan, double-click center")
+	if _is_3d_mode:
+		# Use 3D orbital camera controller
+		camera_controller = CameraOrbitClass.new()
+		camera_controller_node.add_child(camera_controller)
+		# The camera orbit script controls the Camera3D directly
+		camera_controller.camera = camera_3d
+		print("3D Camera controls: Q/E rotate, R/F tilt, WASD pan, scroll zoom, middle-mouse orbit")
+	else:
+		# Legacy 2D camera (disabled during 3D refactor)
+		pass
+		#camera_controller = CameraControllerClass.new()
+		#add_child(camera_controller)
+		#camera_controller.setup(camera)
+		#print("Camera controls: WASD/arrows pan, scroll zoom, Q/E rotate, middle/right drag pan, double-click center")
 
 
 func _setup_terrain() -> void:
-	# Create terrain as first child of world (renders beneath everything)
+	if _is_3d_mode:
+		# 2D terrain disabled during 3D refactor
+		# Ground plane is in the scene file (World/GroundPlane)
+		print("3D mode: Using scene ground plane (2D terrain disabled)")
+		return
+
+	# Legacy 2D terrain (disabled during 3D refactor)
 	terrain = Terrain.new()
 	world.add_child(terrain)
 	world.move_child(terrain, 0)  # First child = renders first (behind everything)
@@ -116,21 +144,27 @@ func _setup_grid() -> void:
 	grid = Grid.new()
 	add_child(grid)
 
-	# Create renderer and connect to grid
-	block_renderer = BlockRenderer.new()
-	world.add_child(block_renderer)
-	block_renderer.connect_to_grid(grid)
-	block_renderer.view_mode_changed.connect(_on_view_mode_changed)
+	if _is_3d_mode:
+		# 2D block renderer disabled during 3D refactor
+		# 3D block rendering will be implemented in Phase 2
+		print("3D mode: Grid ready (2D BlockRenderer disabled)")
+	else:
+		# Legacy 2D renderer (disabled during 3D refactor)
+		block_renderer = BlockRenderer.new()
+		world.add_child(block_renderer)
+		block_renderer.connect_to_grid(grid)
+		block_renderer.view_mode_changed.connect(_on_view_mode_changed)
 
-	# Connect grid to terrain for decoration visibility
-	if terrain:
-		grid.block_added.connect(_on_grid_block_added)
-		grid.block_removed.connect(_on_grid_block_removed)
+		# Connect grid to terrain for decoration visibility
+		if terrain:
+			grid.block_added.connect(_on_grid_block_added)
+			grid.block_removed.connect(_on_grid_block_removed)
 
 	# Connect floor changes to visibility updates
 	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
 	if game_state:
-		game_state.floor_changed.connect(_on_floor_visibility_changed)
+		if not _is_3d_mode:
+			game_state.floor_changed.connect(_on_floor_visibility_changed)
 		# Connect for unsaved changes tracking
 		game_state.money_changed.connect(_on_game_state_changed)
 		game_state.config_applied.connect(_on_config_applied)
@@ -156,9 +190,17 @@ func _setup_construction_queue() -> void:
 
 
 func _setup_input_handler() -> void:
+	if _is_3d_mode:
+		# 2D input handler disabled during 3D refactor
+		# 3D block placement will be implemented in Phase 2
+		print("3D mode: Input handler disabled (3D placement coming in Phase 2)")
+		return
+
+	# Legacy 2D input handler (disabled during 3D refactor)
 	input_handler = InputHandler.new()
 	add_child(input_handler)
-	input_handler.setup(grid, camera, world)
+	# Note: camera variable doesn't exist in 3D mode
+	#input_handler.setup(grid, camera, world)
 
 	# Feedback signals
 	input_handler.block_placement_attempted.connect(_on_block_placed)
@@ -320,7 +362,13 @@ func _on_floor_changed(new_floor: int) -> void:
 
 
 func _setup_camera_controls() -> void:
-	# Create camera controls pane (Cities Skylines style)
+	if _is_3d_mode:
+		# In 3D mode, camera controls pane is disabled for now
+		# The CameraOrbit script handles all controls directly
+		print("3D mode: Camera controls handled by CameraOrbit (UI pane disabled)")
+		return
+
+	# Legacy 2D camera controls pane (disabled during 3D refactor)
 	camera_controls_pane = CameraControlsPaneClass.new()
 	camera_controls_pane.name = "CameraControlsPane"
 	ui_layer.add_child(camera_controls_pane)
@@ -333,14 +381,19 @@ func _setup_camera_controls() -> void:
 
 
 func _on_floor_visibility_changed(new_floor: int) -> void:
+	if _is_3d_mode or not block_renderer:
+		return
 	block_renderer.update_visibility(new_floor)
 
 
 func _on_view_mode_changed(show_all: bool) -> void:
+	if _is_3d_mode:
+		return
 	# Update floor navigator display
-	var floor_navigator: FloorNavigator = hud.bottom_bar.get_node_or_null("HBoxContainer/FloorNavigator")
-	if floor_navigator:
-		floor_navigator.set_view_mode(show_all)
+	if hud and hud.bottom_bar:
+		var floor_navigator: FloorNavigator = hud.bottom_bar.get_node_or_null("HBoxContainer/FloorNavigator")
+		if floor_navigator:
+			floor_navigator.set_view_mode(show_all)
 	var mode := "ALL FLOORS" if show_all else "CUTAWAY"
 	print("View mode: %s" % mode)
 
@@ -349,8 +402,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_V:
-				# Toggle show all floors
-				block_renderer.toggle_show_all_floors()
+				# Toggle show all floors (2D mode only)
+				if not _is_3d_mode and block_renderer:
+					block_renderer.toggle_show_all_floors()
 			KEY_DELETE:
 				# Clear all blocks (with Shift held for confirmation)
 				if event.shift_pressed:
@@ -377,8 +431,8 @@ func _clear_all_blocks() -> void:
 
 
 func _on_grid_block_added(pos: Vector3i, _block) -> void:
-	# Hide decoration at Z=0 when block placed
-	if pos.z == 0 and terrain:
+	# Hide decoration at Z=0 when block placed (2D mode only)
+	if not _is_3d_mode and pos.z == 0 and terrain:
 		var pos_2d := Vector2i(pos.x, pos.y)
 		terrain.hide_decoration_at(pos_2d)
 		terrain.hide_river_at(pos_2d)
@@ -388,8 +442,8 @@ func _on_grid_block_added(pos: Vector3i, _block) -> void:
 
 
 func _on_grid_block_removed(pos: Vector3i) -> void:
-	# Show decoration at Z=0 when block removed
-	if pos.z == 0 and terrain:
+	# Show decoration at Z=0 when block removed (2D mode only)
+	if not _is_3d_mode and pos.z == 0 and terrain:
 		var pos_2d := Vector2i(pos.x, pos.y)
 		terrain.show_decoration_at(pos_2d)
 		terrain.show_river_at(pos_2d)
@@ -399,7 +453,14 @@ func _on_grid_block_removed(pos: Vector3i) -> void:
 
 
 func _place_starting_block() -> void:
-	# Start with one entrance block at origin
+	if _is_3d_mode:
+		# In 3D mode, we still track grid data but don't render (yet)
+		var entrance := Block.new("entrance", Vector3i(0, 0, 0))
+		grid.set_block(entrance.grid_position, entrance)
+		print("3D mode: Starting block added to grid (3D rendering in Phase 2)")
+		return
+
+	# Legacy 2D: Start with one entrance block at origin
 	var entrance := Block.new("entrance", Vector3i(0, 0, 0))
 	grid.set_block(entrance.grid_position, entrance)
 	print("Starting block placed - start building!")
@@ -445,8 +506,8 @@ func _load_game(save_path: String) -> void:
 
 
 func _apply_save_data(data: Dictionary) -> void:
-	# Load terrain seed first (before any terrain generation)
-	if terrain:
+	# Load terrain seed first (before any terrain generation) - 2D mode only
+	if not _is_3d_mode and terrain:
 		terrain.world_seed = data.get("terrain_seed", 0)
 
 	# Clear existing blocks
@@ -482,14 +543,27 @@ func _apply_save_data(data: Dictionary) -> void:
 	# Load camera state
 	var camera_data: Dictionary = data.get("camera", {})
 	if camera_controller and not camera_data.is_empty():
-		var pos := Vector2(
-			camera_data.get("position_x", 0.0),
-			camera_data.get("position_y", 0.0)
-		)
-		camera_controller.set_position(pos)
-		camera_controller.set_zoom(camera_data.get("zoom", 1.0))
-		camera_controller.set_rotation_index(camera_data.get("rotation_index", 0))
-		camera_controller.apply_immediately()
+		if _is_3d_mode:
+			# 3D camera uses different state: target, azimuth, elevation, distance
+			var target_pos := Vector3(
+				camera_data.get("target_x", 0.0),
+				camera_data.get("target_y", 0.0),
+				camera_data.get("target_z", 0.0)
+			)
+			camera_controller.set_target(target_pos, true)
+			camera_controller.set_azimuth(camera_data.get("azimuth", 0.0), true)
+			camera_controller.set_elevation(camera_data.get("elevation", 45.0), true)
+			camera_controller.set_distance(camera_data.get("distance", 50.0), true)
+		else:
+			# Legacy 2D camera state
+			var pos := Vector2(
+				camera_data.get("position_x", 0.0),
+				camera_data.get("position_y", 0.0)
+			)
+			camera_controller.set_position(pos)
+			camera_controller.set_zoom(camera_data.get("zoom", 1.0))
+			camera_controller.set_rotation_index(camera_data.get("rotation_index", 0))
+			camera_controller.apply_immediately()
 
 	# Update HUD with loaded state
 	if hud and game_state:
@@ -560,16 +634,28 @@ func _create_save_data(save_name: String, timestamp: float) -> Dictionary:
 	# Get camera state
 	var camera_data := {}
 	if camera_controller:
-		camera_data = {
-			"position_x": camera_controller.get_position().x,
-			"position_y": camera_controller.get_position().y,
-			"zoom": camera_controller.get_zoom(),
-			"rotation_index": camera_controller.get_rotation_index()
-		}
+		if _is_3d_mode:
+			# 3D camera uses different state: target, azimuth, elevation, distance
+			camera_data = {
+				"target_x": camera_controller.target.x,
+				"target_y": camera_controller.target.y,
+				"target_z": camera_controller.target.z,
+				"azimuth": camera_controller.azimuth,
+				"elevation": camera_controller.elevation,
+				"distance": camera_controller.distance
+			}
+		else:
+			# Legacy 2D camera state
+			camera_data = {
+				"position_x": camera_controller.get_position().x,
+				"position_y": camera_controller.get_position().y,
+				"zoom": camera_controller.get_zoom(),
+				"rotation_index": camera_controller.get_rotation_index()
+			}
 
-	# Get terrain seed
+	# Get terrain seed (2D mode only)
 	var terrain_seed := 0
-	if terrain:
+	if not _is_3d_mode and terrain:
 		terrain_seed = terrain.world_seed
 
 	# Get statistics
