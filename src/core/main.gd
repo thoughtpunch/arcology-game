@@ -11,14 +11,12 @@ extends Node3D
 # const CameraControllerClass := preload("res://src/core/camera_controller.gd")
 const CameraControlsPaneClass := preload("res://src/ui/camera_controls_pane.gd")
 
-# 3D camera controller from spike
-const CameraOrbitClass := preload("res://src/spike/camera_orbit.gd")
+# 3D camera controller
+const ArcologyCameraClass := preload("res://src/core/camera_3d_controller.gd")
 
 # 3D block renderer
 const BlockRenderer3DClass := preload("res://src/rendering/block_renderer_3d.gd")
 
-@onready var camera_3d: Camera3D = $Camera3DController/Camera3D
-@onready var camera_controller_node: Node3D = $Camera3DController
 @onready var world: Node3D = $World
 @onready var ui_layer: CanvasLayer = $UI
 
@@ -114,12 +112,13 @@ func _initialize_game() -> void:
 
 func _setup_camera() -> void:
 	if _is_3d_mode:
-		# Use 3D orbital camera controller
-		camera_controller = CameraOrbitClass.new()
-		camera_controller_node.add_child(camera_controller)
-		# The camera orbit script controls the Camera3D directly
-		camera_controller.camera = camera_3d
-		print("3D Camera controls: Q/E rotate, R/F tilt, WASD pan, scroll zoom, middle-mouse orbit")
+		# Use 3D ArcologyCamera with orbital controls and ortho snap views
+		camera_controller = ArcologyCameraClass.new()
+		camera_controller.name = "ArcologyCamera"
+		add_child(camera_controller)
+		# ArcologyCamera creates its own Camera3D as a child
+		print("3D Camera controls: Q/E rotate, R/F tilt, WASD pan, scroll zoom")
+		print("  Tab=toggle mode, Shift+1-7=ortho views, Home=reset")
 	else:
 		# Legacy 2D camera (disabled during 3D refactor)
 		pass
@@ -551,16 +550,17 @@ func _apply_save_data(data: Dictionary) -> void:
 	var camera_data: Dictionary = data.get("camera", {})
 	if camera_controller and not camera_data.is_empty():
 		if _is_3d_mode:
-			# 3D camera uses different state: target, azimuth, elevation, distance
+			# 3D camera uses: target, azimuth, elevation, distance, ortho_size
 			var target_pos := Vector3(
 				camera_data.get("target_x", 0.0),
 				camera_data.get("target_y", 0.0),
 				camera_data.get("target_z", 0.0)
 			)
 			camera_controller.set_target(target_pos, true)
-			camera_controller.set_azimuth(camera_data.get("azimuth", 0.0), true)
+			camera_controller.set_azimuth(camera_data.get("azimuth", 45.0), true)
 			camera_controller.set_elevation(camera_data.get("elevation", 45.0), true)
-			camera_controller.set_distance(camera_data.get("distance", 50.0), true)
+			camera_controller.set_distance(camera_data.get("distance", 100.0), true)
+			camera_controller.set_ortho_size(camera_data.get("ortho_size", 50.0), true)
 		else:
 			# Legacy 2D camera state
 			var pos := Vector2(
@@ -642,14 +642,15 @@ func _create_save_data(save_name: String, timestamp: float) -> Dictionary:
 	var camera_data := {}
 	if camera_controller:
 		if _is_3d_mode:
-			# 3D camera uses different state: target, azimuth, elevation, distance
+			# 3D camera uses: target, azimuth, elevation, distance, ortho_size
 			camera_data = {
 				"target_x": camera_controller.target.x,
 				"target_y": camera_controller.target.y,
 				"target_z": camera_controller.target.z,
 				"azimuth": camera_controller.azimuth,
 				"elevation": camera_controller.elevation,
-				"distance": camera_controller.distance
+				"distance": camera_controller.distance,
+				"ortho_size": camera_controller.ortho_size
 			}
 		else:
 			# Legacy 2D camera state
