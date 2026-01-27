@@ -20,6 +20,9 @@ const BlockRenderer3DClass := preload("res://src/rendering/block_renderer_3d.gd"
 # 3D input handler
 const InputHandler3DClass := preload("res://src/core/input_handler_3d.gd")
 
+# Visibility controller for cutaway mode
+const VisibilityControllerClass := preload("res://src/core/visibility_controller.gd")
+
 @onready var world: Node3D = $World
 @onready var ui_layer: CanvasLayer = $UI
 
@@ -31,6 +34,7 @@ var input_handler_3d: Node3D  # 3D input handler (InputHandler3D)
 var terrain: Terrain  # 2D terrain - temporarily disabled for 3D refactor
 var camera_controller  # ArcologyCamera instance for 3D
 var construction_queue  # ConstructionQueue instance
+var visibility_controller  # VisibilityController for cutaway mode (3D only)
 
 # Flag for 3D mode - will be removed once 3D refactor is complete
 var _is_3d_mode := true
@@ -105,6 +109,7 @@ func _initialize_game() -> void:
 	_setup_camera()
 	_setup_terrain()
 	_setup_grid()
+	_setup_visibility_controller()
 	_setup_input_handler()
 	_setup_hud()
 	_setup_build_toolbar()
@@ -181,6 +186,41 @@ func _setup_grid() -> void:
 
 	# Setup construction queue
 	_setup_construction_queue()
+
+
+func _setup_visibility_controller() -> void:
+	if not _is_3d_mode:
+		return
+
+	visibility_controller = VisibilityControllerClass.new()
+	visibility_controller.name = "VisibilityController"
+	add_child(visibility_controller)
+
+	# Connect to renderer for direct material updates (optional)
+	if block_renderer_3d:
+		visibility_controller.connect_to_renderer(block_renderer_3d)
+
+	# Create cut plane indicator in the world
+	if world:
+		visibility_controller.show_cut_plane_indicator(world, Vector2(300, 300))
+
+	# Connect signals for HUD updates
+	visibility_controller.mode_changed.connect(_on_visibility_mode_changed)
+	visibility_controller.cut_height_changed.connect(_on_cut_height_changed)
+
+	print("Visibility controller ready. C=toggle cutaway, [/]=adjust height")
+
+
+func _on_visibility_mode_changed(new_mode: int) -> void:
+	var mode_name := VisibilityControllerClass.get_mode_name(new_mode)
+	print("Visibility mode changed: %s" % mode_name)
+	# Future: Update HUD indicator
+
+
+func _on_cut_height_changed(new_height: float) -> void:
+	var floor_num := int(new_height / VisibilityControllerClass.CUBE_HEIGHT)
+	print("Cut height: %.1fm (floor %d)" % [new_height, floor_num])
+	# Future: Update HUD floor indicator
 
 
 func _setup_construction_queue() -> void:

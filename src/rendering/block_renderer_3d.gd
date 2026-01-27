@@ -5,6 +5,7 @@ class_name BlockRenderer3D
 ##
 ## Manages MeshInstance3D nodes for each placed block.
 ## Connects to Grid signals for reactive rendering.
+## Uses ShaderMaterial with global visibility mode support.
 ##
 ## Block dimensions (THE CUBE):
 ## - Width: 6m (X axis)
@@ -42,8 +43,11 @@ var _block_states: Dictionary = {}  # Vector3i -> BlockState
 var _grid: Node = null  # Grid reference
 
 # Materials cache
-var _base_materials: Dictionary = {}  # block_type -> StandardMaterial3D
-var _state_materials: Dictionary = {}  # BlockState -> StandardMaterial3D
+var _base_materials: Dictionary = {}  # block_type -> ShaderMaterial
+var _state_materials: Dictionary = {}  # BlockState -> StandardMaterial3D (legacy)
+
+# Shader resource
+var _block_shader: Shader = null
 
 # Ghost preview
 var _ghost_mesh: MeshInstance3D = null
@@ -52,6 +56,7 @@ var _ghost_state: BlockState = BlockState.GHOST_VALID
 
 
 func _ready() -> void:
+	_load_shader()
 	_init_materials()
 
 
@@ -269,10 +274,21 @@ func _on_connectivity_changed() -> void:
 				update_block_state(grid_pos, BlockState.DISCONNECTED)
 
 
+# --- Shader Management ---
+
+func _load_shader() -> void:
+	# Load the block material shader for cutaway support
+	var shader_path := "res://shaders/block_material.gdshader"
+	if ResourceLoader.exists(shader_path):
+		_block_shader = load(shader_path)
+	else:
+		push_warning("BlockRenderer3D: Shader not found at %s, using fallback materials" % shader_path)
+
+
 # --- Material Management ---
 
 func _init_materials() -> void:
-	# Base materials for each block type
+	# Base materials for each block type (using ShaderMaterial if shader available)
 	_create_base_material("residential_basic", Color(0.85, 0.75, 0.65))  # Warm beige
 	_create_base_material("residential", Color(0.85, 0.75, 0.65))
 	_create_base_material("commercial_basic", Color(0.6, 0.7, 0.85))  # Cool blue
@@ -283,7 +299,7 @@ func _init_materials() -> void:
 	_create_base_material("elevator_shaft", Color(0.4, 0.4, 0.45), 0.3)  # Dark gray, metallic
 	_create_base_material("default", Color(1.0, 0.0, 1.0))  # Magenta for unknown
 
-	# State materials (overlays/modifiers)
+	# State materials (overlays/modifiers) - still use StandardMaterial3D for simplicity
 	_create_state_material(BlockState.SELECTED, Color(1.0, 1.0, 0.5, 1.0))  # Yellow tint
 	_create_state_material(BlockState.GHOST_VALID, Color(0.5, 1.0, 0.5, 0.5))  # Green, transparent
 	_create_state_material(BlockState.GHOST_WARNING, Color(1.0, 1.0, 0.5, 0.5))  # Yellow, transparent
@@ -294,11 +310,23 @@ func _init_materials() -> void:
 
 
 func _create_base_material(type: String, color: Color, metallic: float = 0.0) -> void:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.roughness = 0.7
-	mat.metallic = metallic
-	_base_materials[type] = mat
+	if _block_shader:
+		# Use ShaderMaterial for cutaway support
+		var mat := ShaderMaterial.new()
+		mat.shader = _block_shader
+		mat.set_shader_parameter("albedo_color", color)
+		mat.set_shader_parameter("roughness", 0.7)
+		mat.set_shader_parameter("metallic", metallic)
+		mat.set_shader_parameter("alpha", 1.0)
+		mat.set_shader_parameter("is_ghost", false)
+		_base_materials[type] = mat
+	else:
+		# Fallback to StandardMaterial3D
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = color
+		mat.roughness = 0.7
+		mat.metallic = metallic
+		_base_materials[type] = mat
 
 
 func _create_state_material(state: BlockState, color: Color) -> void:
@@ -310,7 +338,7 @@ func _create_state_material(state: BlockState, color: Color) -> void:
 	_state_materials[state] = mat
 
 
-func _get_material_for_type(block_type: String) -> StandardMaterial3D:
+func _get_material_for_type(block_type: String) -> Material:
 	if _base_materials.has(block_type):
 		return _base_materials[block_type]
 	return _base_materials.get("default", null)
@@ -320,35 +348,62 @@ func _apply_state_to_mesh(mesh: MeshInstance3D, state: BlockState) -> void:
 	var block_type: String = mesh.get_meta("block_type", "default")
 	var base_mat := _get_material_for_type(block_type)
 
-	match state:
-		BlockState.NORMAL:
-			mesh.material_override = base_mat
-		BlockState.SELECTED:
-			# Apply selection highlight (rim glow effect)
-			var mat := base_mat.duplicate()
-			mat.emission_enabled = true
-			mat.emission = Color(1.0, 1.0, 0.5)
-			mat.emission_energy_multiplier = 0.3
-			mesh.material_override = mat
-		BlockState.DISCONNECTED:
-			# Red tint for disconnected blocks
-			var mat := base_mat.duplicate()
-			mat.albedo_color = base_mat.albedo_color.lerp(Color.RED, 0.4)
-			mesh.material_override = mat
-		BlockState.CONSTRUCTING:
-			# Semi-transparent blue
-			var mat := base_mat.duplicate()
-			mat.albedo_color = base_mat.albedo_color.lerp(Color(0.7, 0.7, 1.0), 0.5)
-			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			mat.albedo_color.a = 0.7
-			mesh.material_override = mat
-		BlockState.DAMAGED:
-			# Orange tint
-			var mat := base_mat.duplicate()
-			mat.albedo_color = base_mat.albedo_color.lerp(Color.ORANGE, 0.4)
-			mesh.material_override = mat
-		_:
-			mesh.material_override = base_mat
+	if base_mat is ShaderMaterial:
+		# Using shader material - modify shader parameters
+		match state:
+			BlockState.NORMAL:
+				mesh.material_override = base_mat
+			BlockState.SELECTED:
+				var mat: ShaderMaterial = base_mat.duplicate()
+				mat.set_shader_parameter("emission_enabled", true)
+				mat.set_shader_parameter("emission_color", Color(1.0, 1.0, 0.5))
+				mat.set_shader_parameter("emission_energy", 0.3)
+				mesh.material_override = mat
+			BlockState.DISCONNECTED:
+				var mat: ShaderMaterial = base_mat.duplicate()
+				var base_color: Color = mat.get_shader_parameter("albedo_color")
+				mat.set_shader_parameter("albedo_color", base_color.lerp(Color.RED, 0.4))
+				mesh.material_override = mat
+			BlockState.CONSTRUCTING:
+				var mat: ShaderMaterial = base_mat.duplicate()
+				var base_color: Color = mat.get_shader_parameter("albedo_color")
+				mat.set_shader_parameter("albedo_color", base_color.lerp(Color(0.7, 0.7, 1.0), 0.5))
+				mat.set_shader_parameter("alpha", 0.7)
+				mesh.material_override = mat
+			BlockState.DAMAGED:
+				var mat: ShaderMaterial = base_mat.duplicate()
+				var base_color: Color = mat.get_shader_parameter("albedo_color")
+				mat.set_shader_parameter("albedo_color", base_color.lerp(Color.ORANGE, 0.4))
+				mesh.material_override = mat
+			_:
+				mesh.material_override = base_mat
+	else:
+		# Fallback StandardMaterial3D
+		match state:
+			BlockState.NORMAL:
+				mesh.material_override = base_mat
+			BlockState.SELECTED:
+				var mat: StandardMaterial3D = base_mat.duplicate()
+				mat.emission_enabled = true
+				mat.emission = Color(1.0, 1.0, 0.5)
+				mat.emission_energy_multiplier = 0.3
+				mesh.material_override = mat
+			BlockState.DISCONNECTED:
+				var mat: StandardMaterial3D = base_mat.duplicate()
+				mat.albedo_color = mat.albedo_color.lerp(Color.RED, 0.4)
+				mesh.material_override = mat
+			BlockState.CONSTRUCTING:
+				var mat: StandardMaterial3D = base_mat.duplicate()
+				mat.albedo_color = mat.albedo_color.lerp(Color(0.7, 0.7, 1.0), 0.5)
+				mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				mat.albedo_color.a = 0.7
+				mesh.material_override = mat
+			BlockState.DAMAGED:
+				var mat: StandardMaterial3D = base_mat.duplicate()
+				mat.albedo_color = mat.albedo_color.lerp(Color.ORANGE, 0.4)
+				mesh.material_override = mat
+			_:
+				mesh.material_override = base_mat
 
 
 func _apply_ghost_material(block_type: String, state: BlockState) -> void:
@@ -356,27 +411,56 @@ func _apply_ghost_material(block_type: String, state: BlockState) -> void:
 		return
 
 	var base_mat := _get_material_for_type(block_type if block_type != "" else "corridor")
-	var ghost_mat := base_mat.duplicate()
-	ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 
-	match state:
-		BlockState.GHOST_VALID:
-			ghost_mat.albedo_color = base_mat.albedo_color
-			ghost_mat.albedo_color.a = 0.5
-			ghost_mat.emission_enabled = true
-			ghost_mat.emission = Color(0.3, 1.0, 0.3)
-			ghost_mat.emission_energy_multiplier = 0.2
-		BlockState.GHOST_WARNING:
-			ghost_mat.albedo_color = Color(1.0, 1.0, 0.3, 0.5)
-			ghost_mat.emission_enabled = true
-			ghost_mat.emission = Color(1.0, 1.0, 0.0)
-			ghost_mat.emission_energy_multiplier = 0.3
-		BlockState.GHOST_INVALID:
-			ghost_mat.albedo_color = Color(1.0, 0.3, 0.3, 0.5)
-			ghost_mat.emission_enabled = true
-			ghost_mat.emission = Color(1.0, 0.0, 0.0)
-			ghost_mat.emission_energy_multiplier = 0.3
-		_:
-			ghost_mat.albedo_color.a = 0.5
+	if base_mat is ShaderMaterial:
+		# Using shader material
+		var ghost_mat: ShaderMaterial = base_mat.duplicate()
+		ghost_mat.set_shader_parameter("is_ghost", true)
 
-	_ghost_mesh.material_override = ghost_mat
+		match state:
+			BlockState.GHOST_VALID:
+				ghost_mat.set_shader_parameter("alpha", 0.5)
+				ghost_mat.set_shader_parameter("emission_enabled", true)
+				ghost_mat.set_shader_parameter("emission_color", Color(0.3, 1.0, 0.3))
+				ghost_mat.set_shader_parameter("emission_energy", 0.2)
+			BlockState.GHOST_WARNING:
+				ghost_mat.set_shader_parameter("albedo_color", Color(1.0, 1.0, 0.3))
+				ghost_mat.set_shader_parameter("alpha", 0.5)
+				ghost_mat.set_shader_parameter("emission_enabled", true)
+				ghost_mat.set_shader_parameter("emission_color", Color(1.0, 1.0, 0.0))
+				ghost_mat.set_shader_parameter("emission_energy", 0.3)
+			BlockState.GHOST_INVALID:
+				ghost_mat.set_shader_parameter("albedo_color", Color(1.0, 0.3, 0.3))
+				ghost_mat.set_shader_parameter("alpha", 0.5)
+				ghost_mat.set_shader_parameter("emission_enabled", true)
+				ghost_mat.set_shader_parameter("emission_color", Color(1.0, 0.0, 0.0))
+				ghost_mat.set_shader_parameter("emission_energy", 0.3)
+			_:
+				ghost_mat.set_shader_parameter("alpha", 0.5)
+
+		_ghost_mesh.material_override = ghost_mat
+	else:
+		# Fallback StandardMaterial3D
+		var ghost_mat: StandardMaterial3D = base_mat.duplicate()
+		ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+
+		match state:
+			BlockState.GHOST_VALID:
+				ghost_mat.albedo_color.a = 0.5
+				ghost_mat.emission_enabled = true
+				ghost_mat.emission = Color(0.3, 1.0, 0.3)
+				ghost_mat.emission_energy_multiplier = 0.2
+			BlockState.GHOST_WARNING:
+				ghost_mat.albedo_color = Color(1.0, 1.0, 0.3, 0.5)
+				ghost_mat.emission_enabled = true
+				ghost_mat.emission = Color(1.0, 1.0, 0.0)
+				ghost_mat.emission_energy_multiplier = 0.3
+			BlockState.GHOST_INVALID:
+				ghost_mat.albedo_color = Color(1.0, 0.3, 0.3, 0.5)
+				ghost_mat.emission_enabled = true
+				ghost_mat.emission = Color(1.0, 0.0, 0.0)
+				ghost_mat.emission_energy_multiplier = 0.3
+			_:
+				ghost_mat.albedo_color.a = 0.5
+
+		_ghost_mesh.material_override = ghost_mat

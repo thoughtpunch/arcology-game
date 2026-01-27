@@ -82,4 +82,15 @@ zoom_out={
 
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
+renderer/rendering_method="forward_plus"
+
+[shader_globals]
+
+visibility_mode={
+"type": "int",
+"value": 0
+}
+cut_height={
+"type": "float",
+"value": 7.0
+}
