@@ -36,6 +36,10 @@ var _previous_state := MenuState.NONE
 var _game_running := false
 var _has_unsaved_changes := false
 
+# Pending confirmation state
+enum PendingConfirmation { NONE, DELETE_SAVE, UNSAVED_CHANGES }
+var _pending_confirmation := PendingConfirmation.NONE
+
 
 func _ready() -> void:
 	# Set high layer so menus appear above game
@@ -120,6 +124,7 @@ func _connect_signals() -> void:
 	save_load_menu.back_pressed.connect(_on_save_load_back)
 	save_load_menu.save_selected.connect(_on_save_selected)
 	save_load_menu.load_selected.connect(_on_load_selected)
+	save_load_menu.delete_confirmation_requested.connect(_on_delete_confirmation_requested)
 
 	# Confirmation dialog
 	confirmation_dialog.confirmed.connect(_on_confirmation_confirmed)
@@ -382,13 +387,30 @@ func _on_load_selected(save_path: String) -> void:
 
 
 func _on_confirmation_confirmed() -> void:
-	# Handle based on context
-	pass
+	# Handle based on pending confirmation type
+	match _pending_confirmation:
+		PendingConfirmation.DELETE_SAVE:
+			save_load_menu.confirm_delete()
+		PendingConfirmation.UNSAVED_CHANGES:
+			# Proceed without saving
+			pass
+	_pending_confirmation = PendingConfirmation.NONE
 
 
 func _on_confirmation_cancelled() -> void:
-	# Just close the dialog
-	pass
+	# Cancel any pending operation
+	match _pending_confirmation:
+		PendingConfirmation.DELETE_SAVE:
+			save_load_menu.cancel_delete()
+	_pending_confirmation = PendingConfirmation.NONE
+
+
+func _on_delete_confirmation_requested(save_name: String, _save_path: String) -> void:
+	_pending_confirmation = PendingConfirmation.DELETE_SAVE
+	confirmation_dialog.show_confirm(
+		"DELETE SAVE",
+		"Are you sure you want to delete \"%s\"?\n\nThis cannot be undone." % save_name
+	)
 
 
 func _on_save_and_quit() -> void:

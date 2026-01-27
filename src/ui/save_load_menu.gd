@@ -41,6 +41,10 @@ var _save_name_input: LineEdit
 var _save_list: VBoxContainer
 var _selected_save_path := ""
 var _mode := Mode.LOAD
+var _pending_delete_path := ""  # Path of save awaiting deletion confirmation
+
+# Signals for confirmation dialogs
+signal delete_confirmation_requested(save_name: String, save_path: String)
 
 
 func _ready() -> void:
@@ -477,9 +481,40 @@ func _on_overwrite_pressed(save_path: String) -> void:
 
 
 func _on_delete_pressed(save_path: String) -> void:
-	# Would typically show confirmation dialog
-	save_deleted.emit(save_path)
-	_refresh_save_list()
+	# Store the path and request confirmation
+	_pending_delete_path = save_path
+	var save_name := save_path.get_file().get_basename()
+	delete_confirmation_requested.emit(save_name, save_path)
+
+
+## Called by MenuManager when deletion is confirmed
+func confirm_delete() -> void:
+	if _pending_delete_path.is_empty():
+		return
+
+	# Actually delete the file
+	var error := DirAccess.remove_absolute(_pending_delete_path)
+	if error == OK:
+		print("Deleted save file: %s" % _pending_delete_path)
+		save_deleted.emit(_pending_delete_path)
+	else:
+		push_error("Failed to delete save file: %s (error %d)" % [_pending_delete_path, error])
+
+	_pending_delete_path = ""
+
+	# Only refresh list if UI is initialized
+	if _save_list:
+		_refresh_save_list()
+
+
+## Called by MenuManager when deletion is cancelled
+func cancel_delete() -> void:
+	_pending_delete_path = ""
+
+
+## Get pending delete path (for testing)
+func get_pending_delete_path() -> String:
+	return _pending_delete_path
 
 
 ## Set the menu mode (Save or Load)
