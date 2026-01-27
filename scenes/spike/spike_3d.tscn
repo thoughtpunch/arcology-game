@@ -1,6 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://c4xmk8j6dl7nh"]
+[gd_scene load_steps=6 format=3 uid="uid://c4xmk8j6dl7nh"]
 
 [ext_resource type="Script" path="res://src/spike/camera_orbit.gd" id="1_camera"]
+[ext_resource type="Script" path="res://src/spike/block_spawner.gd" id="2_spawner"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
 albedo_color = Color(0.4, 0.4, 0.4, 1)
@@ -36,3 +37,6 @@ surface_material_override/0 = SubResource("StandardMaterial3D_ground")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_main")
+
+[node name="BlockSpawner" type="Node3D" parent="."]
+script = ExtResource("2_spawner")
