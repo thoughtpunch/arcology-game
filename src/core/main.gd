@@ -14,6 +14,9 @@ const CameraControlsPaneClass := preload("res://src/ui/camera_controls_pane.gd")
 # 3D camera controller from spike
 const CameraOrbitClass := preload("res://src/spike/camera_orbit.gd")
 
+# 3D block renderer
+const BlockRenderer3DClass := preload("res://src/rendering/block_renderer_3d.gd")
+
 @onready var camera_3d: Camera3D = $Camera3DController/Camera3D
 @onready var camera_controller_node: Node3D = $Camera3DController
 @onready var world: Node3D = $World
@@ -21,6 +24,7 @@ const CameraOrbitClass := preload("res://src/spike/camera_orbit.gd")
 
 var grid: Grid
 var block_renderer: BlockRenderer  # 2D renderer - temporarily disabled for 3D refactor
+var block_renderer_3d: Node3D  # 3D renderer (BlockRenderer3D)
 var input_handler: InputHandler  # 2D input - temporarily disabled for 3D refactor
 var terrain: Terrain  # 2D terrain - temporarily disabled for 3D refactor
 var camera_controller  # CameraOrbit instance for 3D
@@ -145,9 +149,12 @@ func _setup_grid() -> void:
 	add_child(grid)
 
 	if _is_3d_mode:
-		# 2D block renderer disabled during 3D refactor
-		# 3D block rendering will be implemented in Phase 2
-		print("3D mode: Grid ready (2D BlockRenderer disabled)")
+		# 3D block renderer
+		block_renderer_3d = BlockRenderer3DClass.new()
+		block_renderer_3d.name = "BlockRenderer3D"
+		world.add_child(block_renderer_3d)
+		block_renderer_3d.connect_to_grid(grid)
+		print("3D mode: Grid ready with BlockRenderer3D")
 	else:
 		# Legacy 2D renderer (disabled during 3D refactor)
 		block_renderer = BlockRenderer.new()
