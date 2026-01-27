@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://c1234567890ab"]
+[gd_scene load_steps=8 format=3 uid="uid://c1234567890ab"]
 
 [ext_resource type="Script" path="res://src/core/main.gd" id="1_main"]
 
@@ -7,7 +7,10 @@ albedo_color = Color(0.35, 0.4, 0.35, 1)
 roughness = 0.9
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
-size = Vector2(200, 200)
+size = Vector2(600, 600)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
+size = Vector3(600, 0.1, 600)
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_top_color = Color(0.4, 0.55, 0.8, 1)
@@ -52,5 +55,13 @@ directional_shadow_max_distance = 200.0
 [node name="GroundPlane" type="MeshInstance3D" parent="World"]
 mesh = SubResource("PlaneMesh_ground")
 surface_material_override/0 = SubResource("StandardMaterial3D_ground")
+
+[node name="GroundCollision" type="StaticBody3D" parent="World/GroundPlane"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="World/GroundPlane/GroundCollision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+shape = SubResource("BoxShape3D_ground")
 
 [node name="UI" type="CanvasLayer" parent="."]

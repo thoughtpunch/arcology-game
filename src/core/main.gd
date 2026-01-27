@@ -17,6 +17,9 @@ const ArcologyCameraClass := preload("res://src/core/camera_3d_controller.gd")
 # 3D block renderer
 const BlockRenderer3DClass := preload("res://src/rendering/block_renderer_3d.gd")
 
+# 3D input handler
+const InputHandler3DClass := preload("res://src/core/input_handler_3d.gd")
+
 @onready var world: Node3D = $World
 @onready var ui_layer: CanvasLayer = $UI
 
@@ -24,8 +27,9 @@ var grid: Grid
 var block_renderer: BlockRenderer  # 2D renderer - temporarily disabled for 3D refactor
 var block_renderer_3d: Node3D  # 3D renderer (BlockRenderer3D)
 var input_handler: InputHandler  # 2D input - temporarily disabled for 3D refactor
+var input_handler_3d: Node3D  # 3D input handler (InputHandler3D)
 var terrain: Terrain  # 2D terrain - temporarily disabled for 3D refactor
-var camera_controller  # CameraOrbit instance for 3D
+var camera_controller  # ArcologyCamera instance for 3D
 var construction_queue  # ConstructionQueue instance
 
 # Flag for 3D mode - will be removed once 3D refactor is complete
@@ -197,9 +201,24 @@ func _setup_construction_queue() -> void:
 
 func _setup_input_handler() -> void:
 	if _is_3d_mode:
-		# 2D input handler disabled during 3D refactor
-		# 3D block placement will be implemented in Phase 2
-		print("3D mode: Input handler disabled (3D placement coming in Phase 2)")
+		# Use 3D raycast input handler
+		input_handler_3d = InputHandler3DClass.new()
+		input_handler_3d.name = "InputHandler3D"
+		add_child(input_handler_3d)
+
+		# Setup with dependencies
+		var cam: Camera3D = camera_controller.get_camera() if camera_controller else null
+		input_handler_3d.setup(grid, cam, block_renderer_3d)
+
+		# Connect signals
+		input_handler_3d.block_placement_attempted.connect(_on_block_placed)
+		input_handler_3d.block_removal_attempted.connect(_on_block_removed)
+		input_handler_3d.block_selected.connect(_on_block_selected)
+
+		# Connect to construction queue
+		call_deferred("_connect_input_handler_3d_to_queue")
+
+		print("3D mode: Click to place blocks, right-click to remove")
 		return
 
 	# Legacy 2D input handler (disabled during 3D refactor)
@@ -225,6 +244,11 @@ func _connect_input_handler_to_renderer() -> void:
 		input_handler.set_block_renderer(block_renderer)
 	if input_handler and construction_queue:
 		input_handler.set_construction_queue(construction_queue)
+
+
+func _connect_input_handler_3d_to_queue() -> void:
+	if input_handler_3d and construction_queue:
+		input_handler_3d.set_construction_queue(construction_queue)
 
 
 func _on_block_placed(pos: Vector3i, type: String, success: bool) -> void:
@@ -282,7 +306,10 @@ func _setup_hud() -> void:
 
 func _on_viewport_clicked(event: InputEventMouseButton) -> void:
 	# Forward viewport clicks to input handler
-	input_handler.handle_viewport_click(event)
+	if _is_3d_mode and input_handler_3d:
+		input_handler_3d.handle_viewport_click(event)
+	elif input_handler:
+		input_handler.handle_viewport_click(event)
 
 
 func _on_hud_floor_changed(new_floor: int) -> void:
@@ -301,20 +328,35 @@ func _on_time_changed(year: int, month: int, day: int, _hour: int) -> void:
 
 func _on_tool_selected(tool: int) -> void:
 	# Map ToolSidebar.Tool to InputHandler.Mode
-	match tool:
-		ToolSidebar.Tool.SELECT:
-			input_handler.set_mode(InputHandler.Mode.SELECT)
-			print("Mode: SELECT")
-		ToolSidebar.Tool.BUILD:
-			input_handler.set_mode(InputHandler.Mode.BUILD)
-			print("Mode: BUILD")
-		ToolSidebar.Tool.DEMOLISH:
-			input_handler.set_mode(InputHandler.Mode.DEMOLISH)
-			print("Mode: DEMOLISH")
-		_:
-			# INFO and UPGRADE don't have matching InputHandler modes yet
-			input_handler.set_mode(InputHandler.Mode.SELECT)
-			print("Mode: SELECT (fallback)")
+	if _is_3d_mode and input_handler_3d:
+		match tool:
+			ToolSidebar.Tool.SELECT:
+				input_handler_3d.set_mode(InputHandler3DClass.Mode.SELECT)
+				print("Mode: SELECT")
+			ToolSidebar.Tool.BUILD:
+				input_handler_3d.set_mode(InputHandler3DClass.Mode.BUILD)
+				print("Mode: BUILD")
+			ToolSidebar.Tool.DEMOLISH:
+				input_handler_3d.set_mode(InputHandler3DClass.Mode.DEMOLISH)
+				print("Mode: DEMOLISH")
+			_:
+				input_handler_3d.set_mode(InputHandler3DClass.Mode.SELECT)
+				print("Mode: SELECT (fallback)")
+	elif input_handler:
+		match tool:
+			ToolSidebar.Tool.SELECT:
+				input_handler.set_mode(InputHandler.Mode.SELECT)
+				print("Mode: SELECT")
+			ToolSidebar.Tool.BUILD:
+				input_handler.set_mode(InputHandler.Mode.BUILD)
+				print("Mode: BUILD")
+			ToolSidebar.Tool.DEMOLISH:
+				input_handler.set_mode(InputHandler.Mode.DEMOLISH)
+				print("Mode: DEMOLISH")
+			_:
+				# INFO and UPGRADE don't have matching InputHandler modes yet
+				input_handler.set_mode(InputHandler.Mode.SELECT)
+				print("Mode: SELECT (fallback)")
 
 
 func _setup_build_toolbar() -> void:
@@ -338,7 +380,10 @@ func _setup_build_toolbar() -> void:
 
 
 func _on_build_toolbar_block_selected(block_type: String) -> void:
-	input_handler.set_selected_block_type(block_type)
+	if _is_3d_mode and input_handler_3d:
+		input_handler_3d.set_selected_block_type(block_type)
+	elif input_handler:
+		input_handler.set_selected_block_type(block_type)
 	print("Selected: %s" % block_type)
 
 
@@ -351,7 +396,10 @@ func _setup_block_picker() -> void:
 
 
 func _on_block_type_selected(block_type: String) -> void:
-	input_handler.set_selected_block_type(block_type)
+	if _is_3d_mode and input_handler_3d:
+		input_handler_3d.set_selected_block_type(block_type)
+	elif input_handler:
+		input_handler.set_selected_block_type(block_type)
 	print("Selected block type: %s" % block_type)
 
 
