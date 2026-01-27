@@ -31,6 +31,7 @@ var current_mode := Mode.BUILD
 var grid: Node = null  # Grid class
 var camera: Camera3D = null  # ArcologyCamera's internal Camera3D
 var block_renderer_3d: Node3D = null  # BlockRenderer3D
+var placement_validator: RefCounted = null  # PlacementValidator
 
 # Ghost preview (uses GhostPreview3D if available, falls back to BlockRenderer3D)
 var ghost_preview: Node3D = null  # GhostPreview3D instance
@@ -60,6 +61,7 @@ var construction_queue = null
 
 func _ready() -> void:
 	_create_ghost_preview()
+	_create_placement_validator()
 
 
 func _create_ghost_preview() -> void:
@@ -71,13 +73,23 @@ func _create_ghost_preview() -> void:
 		add_child(ghost_preview)
 
 
+func _create_placement_validator() -> void:
+	## Create PlacementValidator instance
+	var PlacementValidatorClass = load("res://src/core/placement_validator.gd")
+	if PlacementValidatorClass:
+		placement_validator = PlacementValidatorClass.new(grid, null)
+
+
 ## Setup with required dependencies
 func setup(p_grid: Node, p_camera: Camera3D, p_renderer: Node3D = null) -> void:
 	grid = p_grid
 	camera = p_camera
 	block_renderer_3d = p_renderer
-	print("InputHandler3D: Setup complete (grid=%s, camera=%s, renderer=%s, ghost=%s)" % [
-		grid != null, camera != null, block_renderer_3d != null, ghost_preview != null
+	# Update placement validator with grid reference
+	if placement_validator:
+		placement_validator.grid = grid
+	print("InputHandler3D: Setup complete (grid=%s, camera=%s, renderer=%s, ghost=%s, validator=%s)" % [
+		grid != null, camera != null, block_renderer_3d != null, ghost_preview != null, placement_validator != null
 	])
 
 
@@ -256,23 +268,34 @@ func _update_ghost_position() -> void:
 	_ghost_grid_pos = place_pos
 	_ghost_visible = true
 
-	# Check validity
-	_ghost_valid = _is_placement_valid(place_pos)
+	# Get full validation result
+	var validation_result = _get_validation_result(place_pos)
+	var has_warnings := false
+
+	if validation_result:
+		_ghost_valid = validation_result.valid
+		has_warnings = validation_result.has_warnings()
+	else:
+		_ghost_valid = _is_placement_valid(place_pos)
 
 	# Update ghost preview (prefer GhostPreview3D, fall back to BlockRenderer3D)
 	if ghost_preview:
 		ghost_preview.set_block_type(selected_block_type)
 		ghost_preview.set_grid_position(place_pos)
-		if _ghost_valid:
-			ghost_preview.set_state(ghost_preview.GhostState.VALID)
-		else:
+		if not _ghost_valid:
 			ghost_preview.set_state(ghost_preview.GhostState.INVALID)
+		elif has_warnings:
+			ghost_preview.set_state(ghost_preview.GhostState.WARNING)
+		else:
+			ghost_preview.set_state(ghost_preview.GhostState.VALID)
 	elif block_renderer_3d:
 		var state: int
-		if _ghost_valid:
-			state = 2  # BlockState.GHOST_VALID
-		else:
+		if not _ghost_valid:
 			state = 4  # BlockState.GHOST_INVALID
+		elif has_warnings:
+			state = 3  # BlockState.GHOST_WARNING (if supported)
+		else:
+			state = 2  # BlockState.GHOST_VALID
 		block_renderer_3d.show_ghost(place_pos, selected_block_type, state)
 
 
@@ -323,7 +346,12 @@ func _try_place_block() -> void:
 
 
 func _is_placement_valid(pos: Vector3i) -> bool:
-	## Check if placement is valid at position
+	## Check if placement is valid at position using PlacementValidator
+	# Use placement validator if available
+	if placement_validator:
+		return placement_validator.is_valid_placement(pos, selected_block_type)
+
+	# Fallback to basic checks if validator not available
 	# Can't place below minimum floor
 	if pos.z < -3:  # MIN_FLOOR
 		return false
@@ -343,6 +371,13 @@ func _is_placement_valid(pos: Vector3i) -> bool:
 		return false
 
 	return true
+
+
+func _get_validation_result(pos: Vector3i):
+	## Get full validation result for ghost state updates
+	if placement_validator:
+		return placement_validator.validate_placement(pos, selected_block_type)
+	return null
 
 
 # --- Removal Logic ---
@@ -466,3 +501,48 @@ func handle_viewport_click(event: InputEventMouseButton) -> void:
 	if not _is_ready():
 		return
 	_handle_mouse_button(event)
+
+
+func get_validation_result(pos: Vector3i, block_type: String = ""):
+	## Get full validation result for a position
+	## Returns PlacementValidator.ValidationResult or null
+	if placement_validator:
+		var type := block_type if not block_type.is_empty() else selected_block_type
+		return placement_validator.validate_placement(pos, type)
+	return null
+
+
+func get_current_validation_result():
+	## Get validation result for current ghost position
+	## Returns PlacementValidator.ValidationResult or null
+	if not _ghost_visible:
+		return null
+	return get_validation_result(_ghost_grid_pos)
+
+
+func has_placement_warnings() -> bool:
+	## Check if current placement has warnings (but is still valid)
+	var result = get_current_validation_result()
+	if result == null:
+		return false
+	return result.valid and result.has_warnings()
+
+
+func get_placement_warnings() -> Array[String]:
+	## Get list of warnings for current placement
+	var result = get_current_validation_result()
+	if result == null:
+		return []
+	if result.has_warnings():
+		return result.warnings
+	return []
+
+
+func get_placement_error() -> String:
+	## Get error message if placement is invalid
+	var result = get_current_validation_result()
+	if result == null:
+		return ""
+	if not result.valid:
+		return result.reason
+	return ""
