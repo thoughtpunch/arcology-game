@@ -161,6 +161,8 @@ func show_main_menu() -> void:
 	_current_state = MenuState.MAIN_MENU
 	_hide_all_menus()
 	main_menu.visible = true
+	# Refresh Continue button state in case saves changed
+	main_menu.refresh_saves()
 
 
 ## Show pause menu

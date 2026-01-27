@@ -31,6 +31,7 @@ var _continue_button: Button
 
 # State
 var _has_saves := false
+var _most_recent_save: Dictionary = {}  # Metadata of most recent save
 
 
 func _ready() -> void:
@@ -212,20 +213,66 @@ func _apply_theme() -> void:
 
 
 func _check_for_saves() -> void:
-	# Check if any save files exist
+	# Check for most recent save file
 	var save_dir := "user://saves/"
 	var dir := DirAccess.open(save_dir)
+	var saves: Array = []
+
 	if dir:
 		dir.list_dir_begin()
 		var file_name := dir.get_next()
 		while file_name != "":
 			if file_name.ends_with(".save"):
-				_has_saves = true
-				break
+				var path := save_dir + file_name
+				var save_data := _load_save_metadata(path)
+				if not save_data.is_empty():
+					saves.append(save_data)
 			file_name = dir.get_next()
 		dir.list_dir_end()
 
+	_has_saves = not saves.is_empty()
+
+	# Find most recent save and update tooltip
+	if _has_saves:
+		saves.sort_custom(func(a, b): return a.get("timestamp", 0) > b.get("timestamp", 0))
+		_most_recent_save = saves[0]
+		_update_continue_tooltip()
+
 	_continue_button.visible = _has_saves
+
+
+func _load_save_metadata(path: String) -> Dictionary:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if not file:
+		return {}
+
+	var json := JSON.new()
+	var error := json.parse(file.get_as_text())
+	file.close()
+
+	if error != OK:
+		return {}
+
+	var data: Dictionary = json.get_data()
+	data["path"] = path
+	return data
+
+
+func _update_continue_tooltip() -> void:
+	if not _continue_button or _most_recent_save.is_empty():
+		return
+
+	var save_name: String = _most_recent_save.get("name", "Unknown")
+	var timestamp: float = _most_recent_save.get("timestamp", 0)
+
+	# Format timestamp to human-readable date
+	var date_dict := Time.get_datetime_dict_from_unix_time(int(timestamp))
+	var date_str := "%04d-%02d-%02d %02d:%02d" % [
+		date_dict.year, date_dict.month, date_dict.day,
+		date_dict.hour, date_dict.minute
+	]
+
+	_continue_button.tooltip_text = "Continue: %s\nSaved: %s" % [save_name, date_str]
 
 
 func _on_new_game_pressed() -> void:
@@ -267,3 +314,13 @@ func get_button(button_name: String) -> Button:
 ## Check if Continue button is visible
 func is_continue_visible() -> bool:
 	return _continue_button.visible if _continue_button else false
+
+
+## Refresh saves list (call when returning from save/load menu)
+func refresh_saves() -> void:
+	_check_for_saves()
+
+
+## Get most recent save metadata (for testing)
+func get_most_recent_save() -> Dictionary:
+	return _most_recent_save
