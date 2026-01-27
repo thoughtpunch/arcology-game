@@ -1,14 +1,19 @@
-[gd_scene load_steps=6 format=3 uid="uid://c4xmk8j6dl7nh"]
+[gd_scene load_steps=9 format=3 uid="uid://c4xmk8j6dl7nh"]
 
-[ext_resource type="Script" path="res://src/spike/camera_orbit.gd" id="1_camera"]
-[ext_resource type="Script" path="res://src/spike/block_spawner.gd" id="2_spawner"]
+[ext_resource type="Script" path="res://src/spike/spike_3d_main.gd" id="1_main"]
+[ext_resource type="Script" path="res://src/spike/camera_orbit.gd" id="2_camera"]
+[ext_resource type="Script" path="res://src/spike/block_spawner.gd" id="3_spawner"]
+[ext_resource type="Script" path="res://src/spike/block_placer.gd" id="4_placer"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
-albedo_color = Color(0.4, 0.4, 0.4, 1)
+albedo_color = Color(0.35, 0.4, 0.35, 1)
 roughness = 0.9
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
 size = Vector2(100, 100)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
+size = Vector3(100, 0.1, 100)
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 1
@@ -18,9 +23,10 @@ ambient_light_color = Color(0.8, 0.85, 0.9, 1)
 ambient_light_energy = 0.3
 
 [node name="Spike3D" type="Node3D"]
+script = ExtResource("1_main")
 
 [node name="Camera3D" type="Camera3D" parent="."]
-script = ExtResource("1_camera")
+script = ExtResource("2_camera")
 projection = 1
 size = 50.0
 far = 500.0
@@ -35,8 +41,18 @@ directional_shadow_mode = 1
 mesh = SubResource("PlaneMesh_ground")
 surface_material_override/0 = SubResource("StandardMaterial3D_ground")
 
+[node name="GroundCollision" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+collision_layer = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GroundCollision"]
+shape = SubResource("BoxShape3D_ground")
+
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_main")
 
 [node name="BlockSpawner" type="Node3D" parent="."]
-script = ExtResource("2_spawner")
+script = ExtResource("3_spawner")
+
+[node name="BlockPlacer" type="Node3D" parent="."]
+script = ExtResource("4_placer")
