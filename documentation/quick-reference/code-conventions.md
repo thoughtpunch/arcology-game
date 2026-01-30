@@ -18,9 +18,9 @@ signal block_placed(block: Block)
 signal resident_moved_in(resident: Resident)
 
 # Constants: UPPER_SNAKE_CASE
-const TILE_WIDTH: int = 64
-const TILE_HEIGHT: int = 32
-const FLOOR_HEIGHT: int = 24
+const CELL_SIZE: float = 6.0
+const GROUND_SIZE: int = 100
+const GROUND_DEPTH: int = 5
 ```
 
 ### Type Hints

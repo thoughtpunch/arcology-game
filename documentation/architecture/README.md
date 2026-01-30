@@ -10,6 +10,7 @@ Each milestone should be a working game you can play, just with fewer features. 
 
 | # | Milestone | Goal | Complexity |
 |---|-----------|------|------------|
+| P0 | [**Phase 0 Sandbox**](./milestones/phase-0-sandbox.md) | 3D block stacking playground | **Current** |
 | 0 | [Skeleton](./milestones/milestone-0-skeleton.md) | Empty project that runs | Setup |
 | 1 | [Grid & Blocks](./milestones/milestone-1-grid-blocks.md) | Place/remove blocks | Foundation |
 | 2 | [Floor Navigation](./milestones/milestone-2-floor-navigation.md) | Multiple floors, UI | Foundation |

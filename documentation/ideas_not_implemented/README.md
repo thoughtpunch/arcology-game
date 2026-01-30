@@ -14,6 +14,8 @@ This folder contains design documents and technical plans for features that are 
 | Document | Description | Status |
 |----------|-------------|--------|
 | [3d-orthographic-migration.md](./3d-orthographic-migration.md) | Migration from 2D sprites to 3D models with orthographic camera | Under Review |
+| [scenario-config.md](./scenario-config.md) | Scenario/map config system: gravity, day cycle, structural rules, custom game mode | Idea |
+| [building-limits.md](./building-limits.md) | Building height/volume tracking, infrastructure capacity limits (HVAC, power, water, elevators) | Idea |
 
 ## Workflow
 

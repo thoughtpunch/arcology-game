@@ -1,6 +1,6 @@
 # Arcology
 
-A 3D isometric city-builder where you build vertical megastructures and cultivate human flourishing. Think SimCity + SimTower + Dwarf Fortress.
+A 3D city-builder where you build vertical megastructures and cultivate human flourishing. Think SimCity + SimTower + Dwarf Fortress.
 
 ## Quick Start
 
@@ -15,7 +15,7 @@ A 3D isometric city-builder where you build vertical megastructures and cultivat
 All project knowledge is in the **[documentation/](./documentation/)** folder:
 
 - **[INDEX.md](./documentation/INDEX.md)** - Searchable A-Z index
-- **[quick-reference/](./documentation/quick-reference/)** - Formulas, conventions, isometric math
+- **[quick-reference/](./documentation/quick-reference/)** - Formulas, conventions, grid math
 - **[architecture/](./documentation/architecture/)** - Build milestones
 - **[game-design/](./documentation/game-design/)** - Blocks, environment, agents, economy
 - **[technical/](./documentation/technical/)** - Data model, simulation tick
@@ -27,7 +27,7 @@ All project knowledge is in the **[documentation/](./documentation/)** folder:
 |------|--------|
 | Engine | Godot 4.x |
 | Language | GDScript |
-| Art | 16-bit isometric pixel art |
+| Art | 3D blocks (procedural geometry) |
 | Data | JSON configs |
 
 ## Core Concept

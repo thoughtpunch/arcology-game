@@ -1,6 +1,11 @@
 # Isometric Math Reference
 
-## Constants
+> **SUPERSEDED:** This file describes the old 2D isometric rendering system.
+> The game now uses full 3D with `CELL_SIZE = 6.0` and `Vector3i` grid coordinates.
+> See `src/phase0/grid_utils.gd` for current grid math.
+> See `src/phase0/face.gd` for face direction utilities.
+
+## Constants (OLD — no longer used)
 
 ```gdscript
 const TILE_WIDTH: int = 64    # Hexagon width / diamond width

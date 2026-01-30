@@ -16,7 +16,7 @@ Fast lookup tables for common development tasks.
 |-------|-------------|------|
 | **Tech Stack** | Engine, language, tools | [tech-stack.md](./tech-stack.md) |
 | **Code Conventions** | Naming, style, patterns | [code-conventions.md](./code-conventions.md) |
-| **Isometric Math** | Grid-to-screen conversion | [isometric-math.md](./isometric-math.md) |
+| **Isometric Math** | *(superseded)* Old 2D system | [isometric-math.md](./isometric-math.md) |
 | **Formulas** | Game balance calculations | [formulas.md](./formulas.md) |
 | **Glossary** | Term definitions | [glossary.md](./glossary.md) |
 
@@ -24,12 +24,12 @@ Fast lookup tables for common development tasks.
 
 ## Most Used
 
-### Isometric Constants
+### Grid Constants
 
 ```gdscript
-const TILE_WIDTH = 64
-const TILE_HEIGHT = 32
-const FLOOR_HEIGHT = 24
+const CELL_SIZE: float = 6.0   # World units per grid cell
+const GROUND_SIZE: int = 100   # Grid cells per ground dimension
+const GROUND_DEPTH: int = 5    # Diggable ground layers
 ```
 
 ### Naming Conventions
@@ -40,7 +40,7 @@ const FLOOR_HEIGHT = 24
 | Functions | snake_case | `get_block_at()` |
 | Variables | snake_case | `current_floor` |
 | Signals | past_tense | `block_placed` |
-| Constants | UPPER_SNAKE | `TILE_WIDTH` |
+| Constants | UPPER_SNAKE | `CELL_SIZE` |
 
 ### Key Formulas
 

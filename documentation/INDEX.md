@@ -68,7 +68,7 @@
 - **Glossary** - Term definitions, see [glossary.md](./quick-reference/glossary.md)
 - **Green Blocks** - Parks, gardens, see [blocks/green.md](./game-design/blocks/green.md)
 - **Grid** - 3D voxel structure, see [core-concepts.md](./game-design/core-concepts.md#grid-architecture)
-- **Grid Math** - Coordinate conversion, see [isometric-math.md](./quick-reference/isometric-math.md)
+- **Grid Math** - 3D grid coordinate conversion, see `src/phase0/grid_utils.gd`
 
 ### H
 - **Human Nature** - Behavioral dynamics, see [dynamics/human-nature.md](./game-design/dynamics/human-nature.md)
@@ -78,7 +78,7 @@
 ### I
 - **Industrial Blocks** - Manufacturing, see [blocks/industrial.md](./game-design/blocks/industrial.md)
 - **Infrastructure Blocks** - Power, water, HVAC, see [blocks/infrastructure.md](./game-design/blocks/infrastructure.md)
-- **Isometric Math** - Screen/grid conversion, see [isometric-math.md](./quick-reference/isometric-math.md)
+- **Isometric Math** - *(superseded)* Old 2D system, see [isometric-math.md](./quick-reference/isometric-math.md)
 - **Isolation Score** - Self-sufficiency, see [scenarios.md](./game-design/scenarios.md)
 
 ### J-K

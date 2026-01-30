@@ -15,7 +15,7 @@
 
 ## What Is Arcology?
 
-A **3D isometric city-builder** where you build vertical megastructures and cultivate human flourishing. Think SimCity + SimTower + Dwarf Fortress.
+A **3D city-builder** where you build vertical megastructures and cultivate human flourishing. Think SimCity + SimTower + Dwarf Fortress.
 
 **Core loop:** Build blocks → People move in → Meet their needs → Watch them flourish (or suffer)
 
@@ -35,7 +35,7 @@ Your tools: Architecture, infrastructure, community spaces.
 |------|--------|
 | Engine | Godot 4.x |
 | Language | GDScript (C# for performance-critical) |
-| Art | 16-bit isometric pixel art |
+| Art | 3D blocks (procedural geometry, placeholder) |
 | Data | JSON configs, Godot Resources |
 
 ## Key Concepts (Memorize These)
@@ -104,14 +104,14 @@ signal block_placed(block)
 signal resident_moved_in(resident)
 
 # Constants: UPPER_SNAKE
-const TILE_WIDTH = 64
+const CELL_SIZE = 6.0
 ```
 
 ## Common Tasks
 
 ### Adding a Block Type
 1. Add to `data/blocks.json`
-2. Create sprite in `assets/sprites/blocks/`
+2. Create mesh or use procedural geometry in `src/phase0/`
 3. If special behavior needed, create script in `src/blocks/`
 
 ### Adding an Environment System
