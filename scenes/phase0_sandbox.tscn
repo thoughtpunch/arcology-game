@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://phase0sandbox"]
+
+[ext_resource type="Script" path="res://src/phase0/sandbox_main.gd" id="1_sandbox"]
+
+[node name="Phase0Sandbox" type="Node3D"]
+script = ExtResource("1_sandbox")
