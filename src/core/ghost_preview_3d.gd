@@ -14,10 +14,11 @@ class_name GhostPreview3D
 # Visual states
 enum GhostState { HIDDEN, VALID, WARNING, INVALID }
 
-# Block dimensions (same as BlockRenderer3D)
-const CUBE_WIDTH: float = 6.0
-const CUBE_DEPTH: float = 6.0
-const CUBE_HEIGHT: float = 3.5
+# Cell dimensions (same as BlockRenderer3D) — true cube, 6m all axes
+const CELL_SIZE: float = 6.0
+const CUBE_WIDTH: float = CELL_SIZE   # Alias for compatibility
+const CUBE_DEPTH: float = CELL_SIZE   # Alias for compatibility
+const CUBE_HEIGHT: float = CELL_SIZE  # Alias for compatibility
 
 # Collision layer for ghost (excluded from normal raycasts)
 const COLLISION_LAYER_GHOST: int = 8  # Layer 4 (bit 3)

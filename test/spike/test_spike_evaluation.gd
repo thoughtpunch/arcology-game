@@ -227,11 +227,11 @@ func _test_grid_to_world_conversion() -> void:
 	var grid_1 := Block3DScript.grid_to_world(Vector3i(1, 0, 0))
 	_assert_true(is_equal_approx(grid_1.x, 6.0), "Grid(1,0,0).x = 6m")
 
-	# Grid (0,1,0) should be 3.5m higher in Y
+	# Grid (0,1,0) should be 6.0m higher in Y (true cube)
 	var grid_y1 := Block3DScript.grid_to_world(Vector3i(0, 1, 0))
-	_assert_true(is_equal_approx(grid_y1.y, expected_y + 3.5), "Grid(0,1,0).y = %.1f" % (expected_y + 3.5))
+	_assert_true(is_equal_approx(grid_y1.y, expected_y + 6.0), "Grid(0,1,0).y = %.1f" % (expected_y + 6.0))
 
-	_findings.append("Grid to world: Correct (6x6x3.5m blocks)")
+	_findings.append("Grid to world: Correct (6x6x6m cells)")
 
 
 func _test_world_to_grid_conversion() -> void:
@@ -249,10 +249,10 @@ func _test_block_dimensions() -> void:
 	var block: Node = Block3DScript.new()
 
 	_assert_true(is_equal_approx(block.size.x, 6.0), "Block width = 6m")
-	_assert_true(is_equal_approx(block.size.y, 3.5), "Block height = 3.5m")
+	_assert_true(is_equal_approx(block.size.y, 6.0), "Block height = 6.0m")
 	_assert_true(is_equal_approx(block.size.z, 6.0), "Block depth = 6m")
 
-	_findings.append("Block size: 6m x 3.5m x 6m (THE CUBE)")
+	_findings.append("Block size: 6m x 6m x 6m (THE CELL — true cube)")
 
 
 func _test_collision_layer() -> void:

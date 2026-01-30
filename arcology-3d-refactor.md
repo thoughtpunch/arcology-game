@@ -17,33 +17,33 @@ All other sections (blocks, environment, agents, economy, transit, etc.) remain 
 
 ---
 
-## 1. The Cube: Foundational Unit
+## 1. The Cell: Foundational Unit
 
 ### 1.1 Definition
 
-The **Cube** is the atomic unit of 3D space in Arcology. All blocks occupy one or more cubes on an orthogonal grid.
+The **Cell** is the atomic unit of 3D space in Arcology. All blocks occupy one or more cells on an orthogonal grid. Each cell is a true cube.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                                                                 │
-│   THE CUBE                                                      │
+│   THE CELL                                                      │
 │   ════════                                                      │
 │                                                                 │
-│   Dimensions: 6m × 6m × 3.5m (Width × Depth × Height)           │
-│   Imperial:   ~20ft × 20ft × 11.5ft                             │
+│   Dimensions: 6m × 6m × 6m (Width × Depth × Height)             │
+│   Imperial:   ~20ft × 20ft × 20ft                               │
 │                                                                 │
-│   Floor Area: 36 m² (388 sq ft)                                 │
-│   Volume:     126 m³                                            │
+│   Footprint:  36 m² (388 sq ft)                                 │
+│   Volume:     216 m³                                            │
 │                                                                 │
-│   Usable Ceiling Height: ~2.7m (9 ft)                           │
-│   Structure + MEP:       ~0.8m                                  │
+│   Internal floors: 2 residential floors at 3m each              │
+│                    OR 1 double-height commercial/civic floor     │
 │                                                                 │
 │               ┌───────────────┐                                 │
 │              ╱               ╱│                                 │
 │             ╱       6m      ╱ │                                 │
 │            ┌───────────────┐  │                                 │
-│            │               │  │ 3.5m                            │
-│            │   1 CUBE      │  │                                 │
+│            │               │  │ 6m                              │
+│            │   1 CELL      │  │                                 │
 │            │               │ ╱                                  │
 │            │               │╱ 6m                                │
 │            └───────────────┘                                    │
@@ -57,47 +57,68 @@ The **Cube** is the atomic unit of 3D space in Arcology. All blocks occupy one o
 |-----------|-------|-----------|
 | Width | 6m | Comfortable room width; fits studio layout |
 | Depth | 6m | Square footprint for rotational symmetry |
-| Height | 3.5m | Standard efficient skyscraper floor-to-floor |
+| Height | 6m | True cube; fits 2 residential floors or 1 double-height space |
 
-**Floor-to-floor breakdown:**
+**Internal floor layout (residential mode, 2 floors at 3m each):**
+```
+┌─────────────────────────────────┐
+│░░░░░░ Slab: 150mm ░░░░░░░░░░░░░│  ← Concrete + steel deck
+├─────────────────────────────────┤
+│                                 │
+│     Usable: 2.5m                │  ← Occupant space (upper floor)
+│                                 │
+├─────────────────────────────────┤
+│     Ceiling/Plenum: 350mm       │  ← HVAC, pipes, cables
+├─────────────────────────────────┤  ← Internal floor slab
+│░░░░░░ Slab: 150mm ░░░░░░░░░░░░░│
+├─────────────────────────────────┤
+│                                 │
+│     Usable: 2.5m                │  ← Occupant space (lower floor)
+│                                 │
+├─────────────────────────────────┤
+│     Ceiling/Plenum: 350mm       │  ← HVAC, pipes, cables
+└─────────────────────────────────┘
+         TOTAL: 6.0m
+```
+
+**Internal layout (double-height mode, 1 floor):**
 ```
 ┌─────────────────────────────────┐
 │░░░░░░ Slab: 200mm ░░░░░░░░░░░░░│  ← Concrete + steel deck
 ├─────────────────────────────────┤
-│     Raised floor: 100mm         │  ← Cable routing (optional)
-├─────────────────────────────────┤
 │                                 │
-│     Usable: 2.7m                │  ← Occupant space
+│                                 │
+│     Usable: 5.4m                │  ← Full double-height space
+│                                 │
 │                                 │
 ├─────────────────────────────────┤
-│     Ceiling: 100mm              │  ← Tiles/drywall
-├─────────────────────────────────┤
-│     Plenum: 400mm               │  ← HVAC, pipes, cables
+│     Ceiling/Plenum: 400mm       │  ← HVAC, pipes, cables
 └─────────────────────────────────┘
-         TOTAL: 3.5m
+         TOTAL: 6.0m
 ```
 
 ### 1.3 Scale Reference
 
-**Vertical Scale:**
+**Vertical Scale (1 cell = 6m = 2 internal floors):**
 
-| Floors | Height | Real-World Equivalent |
-|--------|--------|----------------------|
-| 1 | 3.5m | Single story |
-| 5 | 17.5m | Walk-up apartment |
-| 10 | 35m | Mid-rise |
-| 20 | 70m | High-rise |
-| 30 | 105m | Skyscraper threshold |
-| 50 | 175m | Skyscraper |
-| 80 | 280m | Supertall |
-| 100 | 350m | Megatall (Empire State scale) |
+| Cells | Height | Internal Floors | Real-World Equivalent |
+|-------|--------|-----------------|----------------------|
+| 1 | 6m | 2 | Two-story rowhouse |
+| 3 | 18m | 6 | Walk-up apartment |
+| 5 | 30m | 10 | Mid-rise |
+| 10 | 60m | 20 | High-rise |
+| 17 | 102m | 34 | Skyscraper threshold |
+| 30 | 180m | 60 | Skyscraper |
+| 50 | 300m | 100 | Supertall |
+| 70 | 420m | 140 | Megatall (Empire State scale) |
+| 100 | 600m | 200 | True megatall |
 
 **Horizontal Scale:**
 
-| Cubes | Span | Real-World Equivalent |
+| Cells | Span | Real-World Equivalent |
 |-------|------|----------------------|
 | 1 | 6m | One room |
-| 5 | 30m | Large apartment |
+| 5 | 30m | Large apartment building |
 | 10 | 60m | Building wing |
 | 20 | 120m | City block edge |
 | 50 | 300m | Mega-complex |
@@ -113,83 +134,70 @@ The **Cube** is the atomic unit of 3D space in Arcology. All blocks occupy one o
 | 50×50 | 300m × 300m | 90,000 m² | Mega-complex |
 | 100×100 | 600m × 600m | 360,000 m² | Arcology |
 
-### 1.4 What Fits in 1 Cube
+### 1.4 Residential Density Model
 
-**Residential:**
+Each cell contains **2 internal floors** of 36 m² each. The block type determines how those floors subdivide into dwelling units:
+
+| Block Type | Cells | Internal Layout | Unit Size | Units | Real-World Equivalent |
+|------------|-------|-----------------|-----------|-------|-----------------------|
+| Pod housing | 1×1×1 | 2 floors, 2 units/floor | 18 m² | 4 | Hong Kong micro-flat |
+| Studio | 1×1×1 | 2 floors, 1 unit/floor | 36 m² | 2 | Comfortable studio |
+| Apartment (1BR) | 1×1×1 | Duplex (both floors) | 72 m² | 1 | Generous 1BR |
+| Family (2BR) | 2×1×1 | Duplex, double-wide | 144 m² | 1 | Spacious 2-3BR |
+| Family (2BR) | 2×1×1 | 2 side-by-side duplexes | 72 m² | 2 | Two 1BR apartments |
+
+**Key insight:** Same cell footprint, different density. The player chooses density vs. quality per block.
+
+### 1.5 What Fits in 1 Cell
+
+**Residential (36 m² footprint × 2 floors = 72 m² total):**
 ```
-STUDIO APARTMENT (36 m² / 388 sq ft)
-┌────────────────────────────────┐
-│ ┌─────┐          ┌──────────┐ │
-│ │ WC  │          │ kitchen  │ │
-│ │     │          │          │ │
-│ └─────┘          └──────────┘ │
-│ ┌─────┐                       │
-│ │closet    ┌──────────┐       │
-│ └─────┘    │   bed    │       │
-│    ════    └──────────┘       │
-│   couch              ◇ door   │
-└────────────────────────────────┘
-Comfortable studio: bed, bath, kitchenette, living nook
+1 CELL: STUDIO MODE (2 units)        1 CELL: DUPLEX MODE (1 unit)
+┌────────────────────────────────┐    ┌────────────────────────────────┐
+│ ┌─────┐          ┌──────────┐ │    │ ┌─────┐     ┌──────────────┐  │
+│ │ WC  │          │ kitchen  │ │    │ │ WC  │     │  bedroom 2   │  │
+│ └─────┘          └──────────┘ │    │ └─────┘     └──────────────┘  │
+│ ┌─────┐                       │    │ ┌─────┐     ┌──────────────┐  │
+│ │closet    ┌──────────┐       │    │ │closet     │   study      │  │
+│ └─────┘    │   bed    │       │    │ └─────┘     └──────────────┘  │
+│    ════    └──────────┘       │    │                     ┌─┐       │
+│   couch              ◇ door   │    │  Upper floor        │↕│stairs │
+├─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┤    ├─ ─ ─ ─ ─ ─ ─ ─ ─ ─┤ ├─ ─ ─ ─┤
+│ ┌─────┐          ┌──────────┐ │    │ ┌─────┐     ┌──────┤ │       │
+│ │ WC  │          │ kitchen  │ │    │ │ WC  │     │kitch.│↕│       │
+│ └─────┘          └──────────┘ │    │ └─────┘     └──────└─┘       │
+│ ┌─────┐                       │    │                               │
+│ │closet    ┌──────────┐       │    │  ┌──────────┐  ┌──────────┐  │
+│ └─────┘    │   bed    │       │    │  │  couch   │  │  dining  │  │
+│    ════    └──────────┘       │    │  └──────────┘  └──────────┘  │
+│   couch              ◇ door   │    │  Lower floor        ◇ door   │
+└────────────────────────────────┘    └────────────────────────────────┘
+2 × 36 m² studios                    1 × 72 m² duplex apartment
 ```
 
-**Commercial:**
-```
-SMALL SHOP / CAFE (36 m²)
-┌────────────────────────────────┐
-│▓▓▓▓▓▓▓▓ storefront ▓▓▓▓▓▓▓▓▓▓│
-│   ┌─────┐       ┌─────┐       │
-│   │shelf│       │shelf│       │
-│   └─────┘       └─────┘       │
-│       ┌────────────┐    ┌───┐ │
-│       │  counter   │    │stk│ │
-│       └────────────┘    └───┘ │
-│                    ◇ door     │
-└────────────────────────────────┘
-Boutique, coffee counter, small service business
-```
+**Commercial (double-height, 36 m² × 5.4m tall):**
+- Boutique, coffee counter, small service business
 
 **Transit:**
-```
-CORRIDOR SECTION
-┌────────────────────────────────┐
-│████████████████████████████████│  ← Wall 0.5m
-│                                │
-│      ← 5m clear width →        │  ← Walkable
-│                                │
-│████████████████████████████████│  ← Wall 0.5m
-└────────────────────────────────┘
-Generous corridor: 2-way traffic, benches, planters
-```
+- Generous corridor: 5m clear width, 2-way traffic, benches, planters
+- Double-height atrium segment
 
-**Office:**
-```
-OPEN OFFICE SEGMENT
-┌────────────────────────────────┐
-│  ┌────┐  ┌────┐  ┌────┐       │
-│  │desk│  │desk│  │desk│       │
-│  └────┘  └────┘  └────┘       │
-│  ┌────┐  ┌────┐  ┌────┐       │
-│  │desk│  │desk│  │desk│       │
-│  └────┘  └────┘  └────┘       │
-│                          ◇    │
-└────────────────────────────────┘
-6 workstations OR 2 private offices
-```
+**Office (2 floors × 36 m²):**
+- 12 workstations or 4 private offices across 2 floors
 
-### 1.5 Multi-Cube Prefabs
+### 1.6 Multi-Cell Blocks
 
-Blocks can span multiple cubes:
+Blocks can span multiple cells:
 
-| Size (Cubes) | Dimensions | Examples |
+| Size (Cells) | Dimensions | Examples |
 |--------------|------------|----------|
-| 1×1×1 | 6×6×3.5m | Studio, shop, corridor segment |
-| 2×1×1 | 12×6×3.5m | 1BR apartment, restaurant, wide corridor |
-| 2×2×1 | 12×12×3.5m | 2BR apartment, large shop, office suite |
-| 3×2×1 | 18×12×3.5m | 3BR apartment, grocery, clinic |
-| 1×1×2 | 6×6×7m | Double-height lobby segment |
-| 2×2×2 | 12×12×7m | Grand lobby, elevator bank |
-| 5×5×1 | 30×30×3.5m | Food hall, market hall |
-| 5×5×3 | 30×30×10.5m | Indoor forest, atrium, arena section |
+| 1×1×1 | 6×6×6m | Studio (2 units), apartment (1 unit), shop, corridor |
+| 2×1×1 | 12×6×6m | Family apartment, restaurant, wide corridor |
+| 2×2×1 | 12×12×6m | Large apartment, office suite, clinic |
+| 3×2×1 | 18×12×6m | Grocery, large clinic, school wing |
+| 2×2×2 | 12×12×12m | Grand lobby, elevator bank (4 internal floors) |
+| 5×5×1 | 30×30×6m | Food hall, market hall |
+| 5×5×2 | 30×30×12m | Indoor forest, atrium, arena section |
 
 ---
 
@@ -226,29 +234,27 @@ GridPosition {
 ### 2.3 World ↔ Grid Conversion
 
 ```gdscript
-const CUBE_WIDTH: float = 6.0    # meters (X axis)
-const CUBE_DEPTH: float = 6.0    # meters (Z axis)
-const CUBE_HEIGHT: float = 3.5   # meters (Y axis)
+const CELL_SIZE: float = 6.0     # meters (all axes — true cube)
 
 func grid_to_world(grid_pos: Vector3i) -> Vector3:
     return Vector3(
-        grid_pos.x * CUBE_WIDTH,
-        grid_pos.y * CUBE_HEIGHT,
-        grid_pos.z * CUBE_DEPTH
+        grid_pos.x * CELL_SIZE,
+        grid_pos.y * CELL_SIZE,
+        grid_pos.z * CELL_SIZE
     )
 
 func grid_to_world_center(grid_pos: Vector3i) -> Vector3:
     return Vector3(
-        grid_pos.x * CUBE_WIDTH + CUBE_WIDTH / 2,
-        grid_pos.y * CUBE_HEIGHT + CUBE_HEIGHT / 2,
-        grid_pos.z * CUBE_DEPTH + CUBE_DEPTH / 2
+        grid_pos.x * CELL_SIZE + CELL_SIZE / 2,
+        grid_pos.y * CELL_SIZE + CELL_SIZE / 2,
+        grid_pos.z * CELL_SIZE + CELL_SIZE / 2
     )
 
 func world_to_grid(world_pos: Vector3) -> Vector3i:
     return Vector3i(
-        int(floor(world_pos.x / CUBE_WIDTH)),
-        int(floor(world_pos.y / CUBE_HEIGHT)),
-        int(floor(world_pos.z / CUBE_DEPTH))
+        int(floor(world_pos.x / CELL_SIZE)),
+        int(floor(world_pos.y / CELL_SIZE)),
+        int(floor(world_pos.z / CELL_SIZE))
     )
 ```
 
@@ -393,7 +399,7 @@ BlockVisuals {
 Static geometry is merged into chunks for performance:
 
 ```
-CHUNK SIZE: 8×8×8 cubes (48m × 48m × 28m)
+CHUNK SIZE: 8×8×8 cells (48m × 48m × 48m)
 
 Per chunk:
   - Merge static opaque geometry → single draw call
@@ -1282,10 +1288,10 @@ adjacent to non-excavated terrain.
 
 | Term | Definition |
 |------|------------|
-| **Cube** | The fundamental 6m×6m×3.5m unit of space |
-| **Grid Position** | Integer (x, y, z) coordinates in cube units |
-| **Face** | One of 6 sides of a cube (top, bottom, north, south, east, west) |
-| **Chunk** | 8×8×8 cube region for rendering optimization |
+| **Cell** | The fundamental 6m×6m×6m unit of space (true cube); contains 2 internal residential floors or 1 double-height space |
+| **Grid Position** | Integer (x, y, z) coordinates in cell units |
+| **Face** | One of 6 sides of a cell (top, bottom, north, south, east, west) |
+| **Chunk** | 8×8×8 cell region for rendering optimization (48m×48m×48m) |
 | **LOD** | Level of Detail; simplified meshes for distant objects |
 | **Cutaway** | Visibility mode removing geometry above a plane |
 | **X-Ray** | Visibility mode making exteriors transparent |

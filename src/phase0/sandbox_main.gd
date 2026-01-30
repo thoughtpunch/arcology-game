@@ -11,7 +11,7 @@ const CameraScript = preload("res://src/phase0/orbital_camera.gd")
 const PaletteScript = preload("res://src/phase0/shape_palette.gd")
 
 const CELL_SIZE: float = 6.0
-const GROUND_SIZE: int = 20
+const GROUND_SIZE: int = 100
 
 # --- State ---
 var registry: RefCounted
@@ -31,6 +31,8 @@ var _ghost_mesh: MeshInstance3D
 var _ghost_valid_material: StandardMaterial3D
 var _ghost_invalid_material: StandardMaterial3D
 var _palette: HBoxContainer
+var _ground_multimesh_instance: MultiMeshInstance3D
+var _ground_cell_index: Dictionary = {}  # Vector2i(x,z) -> int (multimesh index)
 
 # Cached ghost state to avoid unnecessary mesh rebuilds
 var _ghost_def_id: String = ""
@@ -88,53 +90,73 @@ func _setup_camera() -> void:
 
 
 func _setup_ground() -> void:
-	# Ground is a grid of blocks at y=-1. They participate in occupancy
-	# so placement is uniform: always snap to a face.
-	var ground_def: Resource = BlockDefScript.new()
-	ground_def.id = "ground"
-	ground_def.display_name = "Ground"
-	ground_def.size = Vector3i(1, 1, 1)
-	ground_def.color = Color(0.3, 0.55, 0.2)
-	ground_def.is_symmetric = true
-
+	# Ground is a grid of individually-destroyable cells at y=-1.
+	# Uses MultiMesh for per-cell rendering so cells can be hidden on removal.
 	var ground_container := Node3D.new()
 	ground_container.name = "Ground"
 	add_child(ground_container)
 
-	# Single batched mesh for performance
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = ground_def.color
+	mat.albedo_color = Color(0.3, 0.55, 0.2)
 
-	# Single collision body for the whole ground slab
+	# MultiMesh: one box instance per ground cell
+	var cell_count := GROUND_SIZE * GROUND_SIZE
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.instance_count = cell_count
+	mm.mesh = _make_ground_cell_mesh()
+
+	var idx := 0
+	for x in range(GROUND_SIZE):
+		for z in range(GROUND_SIZE):
+			var center := GridUtilsScript.grid_to_world_center(
+				Vector3i(x, -1, z),
+			)
+			mm.set_instance_transform(idx, Transform3D(Basis(), center))
+			_ground_cell_index[Vector2i(x, z)] = idx
+			cell_occupancy[Vector3i(x, -1, z)] = -1
+			idx += 1
+
+	_ground_multimesh_instance = MultiMeshInstance3D.new()
+	_ground_multimesh_instance.multimesh = mm
+	_ground_multimesh_instance.material_override = mat
+	ground_container.add_child(_ground_multimesh_instance)
+
+	# Single collision body covers the full ground slab for raycasting.
+	# Individual cell removal is handled by checking occupancy after hit.
 	var static_body := StaticBody3D.new()
 	static_body.collision_layer = 1
 	static_body.set_meta("is_ground", true)
 
 	var total_size := float(GROUND_SIZE) * CELL_SIZE
-	var center := total_size / 2.0
+	var half := total_size / 2.0
 
 	var col_shape := CollisionShape3D.new()
 	var col_box := BoxShape3D.new()
 	col_box.size = Vector3(total_size, CELL_SIZE, total_size)
 	col_shape.shape = col_box
-	col_shape.position = Vector3(center, -CELL_SIZE / 2.0, center)
+	col_shape.position = Vector3(half, -CELL_SIZE / 2.0, half)
 	static_body.add_child(col_shape)
 	ground_container.add_child(static_body)
 
-	# Visual: single flat box for the whole ground
-	var mesh_instance := MeshInstance3D.new()
-	var box_mesh := BoxMesh.new()
-	box_mesh.size = Vector3(total_size, CELL_SIZE, total_size)
-	mesh_instance.mesh = box_mesh
-	mesh_instance.material_override = mat
-	mesh_instance.position = Vector3(center, -CELL_SIZE / 2.0, center)
-	ground_container.add_child(mesh_instance)
 
-	# Register every ground cell in occupancy at y=-1
-	for x in range(GROUND_SIZE):
-		for z in range(GROUND_SIZE):
-			var cell := Vector3i(x, -1, z)
-			cell_occupancy[cell] = -1  # Special ground ID
+func _make_ground_cell_mesh() -> Mesh:
+	var box := BoxMesh.new()
+	box.size = Vector3(CELL_SIZE, CELL_SIZE, CELL_SIZE)
+	return box
+
+
+func _remove_ground_cell(grid_pos: Vector3i) -> void:
+	var key := Vector2i(grid_pos.x, grid_pos.z)
+	if not _ground_cell_index.has(key):
+		return
+	cell_occupancy.erase(grid_pos)
+	var idx: int = _ground_cell_index[key]
+	# Hide by moving far off-screen
+	_ground_multimesh_instance.multimesh.set_instance_transform(
+		idx, Transform3D(Basis(), Vector3(0, -10000, 0)),
+	)
+	_ground_cell_index.erase(key)
 
 
 func _setup_block_container() -> void:
@@ -421,7 +443,7 @@ func _raycast_from_mouse() -> Dictionary:
 	var mouse_pos := viewport.get_mouse_position()
 	var from := camera.project_ray_origin(mouse_pos)
 	var dir := camera.project_ray_normal(mouse_pos)
-	var to := from + dir * 1000.0
+	var to := from + dir * 2000.0
 
 	var space := get_world_3d().direct_space_state
 	var query := PhysicsRayQueryParameters3D.create(from, to)
@@ -469,6 +491,10 @@ func _try_remove_block() -> void:
 
 	var collider = hit.collider
 	if collider and collider.has_meta("is_ground"):
+		# Destroy the ground cell under the cursor
+		var cell: Vector3i = hit.grid_pos
+		if cell.y == -1 and cell_occupancy.has(cell):
+			_remove_ground_cell(cell)
 		return
 
 	if collider and collider.has_meta("block_id"):

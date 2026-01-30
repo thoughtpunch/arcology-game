@@ -229,27 +229,23 @@ func _normal_to_face(normal: Vector3) -> CubeFace:
 func _world_to_grid(world_pos: Vector3) -> Vector3i:
 	## Convert world position to grid coordinates
 	## Uses BlockRenderer3D constants for consistency
-	const CUBE_WIDTH: float = 6.0
-	const CUBE_DEPTH: float = 6.0
-	const CUBE_HEIGHT: float = 3.5
+	const CELL_SIZE: float = 6.0  # True cube — 6m all axes
 
 	return Vector3i(
-		roundi(world_pos.x / CUBE_WIDTH),
-		roundi(world_pos.z / CUBE_DEPTH),  # world z -> grid y
-		roundi((world_pos.y - CUBE_HEIGHT / 2.0) / CUBE_HEIGHT)  # world y -> grid z
+		roundi(world_pos.x / CELL_SIZE),
+		roundi(world_pos.z / CELL_SIZE),  # world z -> grid y
+		roundi((world_pos.y - CELL_SIZE / 2.0) / CELL_SIZE)  # world y -> grid z
 	)
 
 
 func _grid_to_world_center(grid_pos: Vector3i) -> Vector3:
 	## Convert grid position to world center
-	const CUBE_WIDTH: float = 6.0
-	const CUBE_DEPTH: float = 6.0
-	const CUBE_HEIGHT: float = 3.5
+	const CELL_SIZE: float = 6.0  # True cube — 6m all axes
 
 	return Vector3(
-		grid_pos.x * CUBE_WIDTH,
-		grid_pos.z * CUBE_HEIGHT + CUBE_HEIGHT / 2.0,
-		grid_pos.y * CUBE_DEPTH
+		grid_pos.x * CELL_SIZE,
+		grid_pos.z * CELL_SIZE + CELL_SIZE / 2.0,
+		grid_pos.y * CELL_SIZE
 	)
 
 

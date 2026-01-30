@@ -13,9 +13,9 @@ func _init():
 	print("\nTest 1: Block dimensions")
 	var block: CSGBox3D = Block3DClass.new()
 	assert(abs(block.size.x - 6.0) < EPSILON, "Width should be 6m")
-	assert(abs(block.size.y - 3.5) < EPSILON, "Height should be 3.5m")
+	assert(abs(block.size.y - 6.0) < EPSILON, "Height should be 6m")
 	assert(abs(block.size.z - 6.0) < EPSILON, "Depth should be 6m")
-	print("PASS: Block dimensions are 6x3.5x6m")
+	print("PASS: Block dimensions are 6x6x6m (true cube)")
 
 	# Test 2: Collision enabled
 	print("\nTest 2: Collision enabled")
@@ -27,25 +27,25 @@ func _init():
 	print("\nTest 3: Grid to world conversion")
 	var world_pos: Vector3 = Block3DClass.grid_to_world(Vector3i(0, 0, 0))
 	assert(abs(world_pos.x) < EPSILON, "Origin X should be 0")
-	assert(abs(world_pos.y - 1.75) < EPSILON, "Origin Y should be half height (1.75)")
+	assert(abs(world_pos.y - 3.0) < EPSILON, "Origin Y should be half height (3.0)")
 	assert(abs(world_pos.z) < EPSILON, "Origin Z should be 0")
-	print("PASS: Grid (0,0,0) -> World (0, 1.75, 0)")
+	print("PASS: Grid (0,0,0) -> World (0, 3.0, 0)")
 
 	# Test 4: Grid to world at different positions
 	print("\nTest 4: Grid position offset")
 	world_pos = Block3DClass.grid_to_world(Vector3i(1, 2, -1))
 	assert(abs(world_pos.x - 6.0) < EPSILON, "X should be 6 at grid x=1")
-	assert(abs(world_pos.y - 8.75) < EPSILON, "Y should be 8.75 at grid y=2")  # 2*3.5 + 1.75
+	assert(abs(world_pos.y - 15.0) < EPSILON, "Y should be 15.0 at grid y=2")  # 2*6.0 + 3.0
 	assert(abs(world_pos.z - (-6.0)) < EPSILON, "Z should be -6 at grid z=-1")
-	print("PASS: Grid (1,2,-1) -> World (6, 8.75, -6)")
+	print("PASS: Grid (1,2,-1) -> World (6, 15.0, -6)")
 
 	# Test 5: World to grid conversion (inverse)
 	print("\nTest 5: World to grid conversion")
-	var grid_pos: Vector3i = Block3DClass.world_to_grid(Vector3(6.0, 8.75, -6.0))
+	var grid_pos: Vector3i = Block3DClass.world_to_grid(Vector3(6.0, 15.0, -6.0))
 	assert(grid_pos.x == 1, "Grid X should be 1")
 	assert(grid_pos.y == 2, "Grid Y should be 2")
 	assert(grid_pos.z == -1, "Grid Z should be -1")
-	print("PASS: World (6, 8.75, -6) -> Grid (1, 2, -1)")
+	print("PASS: World (6, 15.0, -6) -> Grid (1, 2, -1)")
 
 	# Test 6: Round-trip conversion
 	print("\nTest 6: Round-trip grid->world->grid")

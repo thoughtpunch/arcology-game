@@ -25,8 +25,9 @@ enum Mode {
 signal mode_changed(new_mode: Mode)
 signal cut_height_changed(new_height: float)
 
-# Block dimensions (must match BlockRenderer3D)
-const CUBE_HEIGHT: float = 3.5
+# Cell dimensions (must match BlockRenderer3D) — true cube, 6m all axes
+const CELL_SIZE: float = 6.0
+const CUBE_HEIGHT: float = CELL_SIZE  # Alias for compatibility
 
 # Cut plane settings
 const MIN_CUT_HEIGHT: float = 0.0  # Ground level

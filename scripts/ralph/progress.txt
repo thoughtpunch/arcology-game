@@ -9,6 +9,9 @@
 - Balance numbers loaded from data/balance.json at runtime
 - AutoLoad scripts must NOT have class_name (use autoload name instead)
 - Access autoloads via get_root().get_node("/root/AutoloadName")
+- Use preload() for cross-script type references; class_name resolution fails in headless test runs without --import
+- ChunkManager: blocks grouped in 8x8x8 chunks, enable via BlockRenderer3D.enable_chunking()
+- Floor division for negative grid coords: (a - b + 1) / b (GDScript truncates toward zero)
 
 ---
 
@@ -1339,3 +1342,254 @@ Learnings:
 - Test scripts need explicit type annotations for Variant returns
 - Memory leak warnings in headless tests are Godot artifacts, not code issues
 
+## Iteration 61 - 2026-01-26
+Task: arcology-kj1 - Convert main.tscn from Node2D to Node3D root
+Docs Consulted:
+- Task description (scene structure requirements)
+- scenes/spike/spike_3d.tscn (reference 3D scene from spike)
+- src/spike/camera_orbit.gd (3D camera controller API)
+Status: PASSED
+Changes:
+- scenes/main.tscn: Converted to Node3D root with full 3D setup
+  - WorldEnvironment with ProceduralSky, SSAO, glow, ACES tonemap
+  - DirectionalLight3D with shadows
+  - GroundPlane (200x200 PlaneMesh)
+  - Camera3D orthographic (size 50)
+- src/core/main.gd: Updated for Node3D
+  - extends Node3D
+  - Uses CameraOrbit from spike
+  - _is_3d_mode flag disables 2D systems
+  - Save/load handles 3D camera state
+- test/core/test_main_3d_scene.gd: 18 tests for 3D scene structure
+Learnings:
+- Camera3D.projection = 1 is PROJECTION_ORTHOGONAL in tscn files
+- Environment.BG_SKY = 2, ambient_light_source = 3 for sky ambient
+- DirectionalLight3D transform encodes rotation in 3x3 matrix portion
+- SSAO warning in headless mode is expected (requires Forward+ renderer)
+- CameraOrbit extends Camera3D so it IS the camera (not a controller of one)
+- _is_3d_mode flag pattern allows gradual migration without breaking 2D code
+Followup:
+- Phase 2: 3D block rendering and placement (next priority tasks)
+- Remove _is_3d_mode flag once migration complete
+
+## Iteration 62 - 2026-01-26
+Task: arcology-3c3 - Create BlockRenderer3D for mesh-based block rendering
+Docs Consulted:
+- Task description (BlockRenderer3D requirements)
+- src/spike/block_3d.gd (reference implementation from spike)
+- documentation/quick-reference/formulas.md (THE CUBE dimensions)
+Status: PASSED
+Changes:
+- src/rendering/block_renderer_3d.gd: New 3D block renderer (350 lines)
+  - MeshInstance3D with BoxMesh for each block
+  - THE CUBE dimensions: 6x6x3.5m
+  - Grid to world coordinate conversion
+  - 8 visual states with material changes
+  - Ghost preview system
+  - StaticBody3D collision for raycasting
+- src/core/main.gd: Integrated BlockRenderer3D
+- test/rendering/test_block_renderer_3d.gd: 29 unit tests
+Learnings:
+- Grid coordinate mapping to 3D world:
+  - Grid(x, y, z) -> World(x * CUBE_WIDTH, z * CUBE_HEIGHT + CUBE_HEIGHT/2, y * CUBE_DEPTH)
+  - Grid.y = horizontal (north/south) -> World.z
+  - Grid.z = floor level -> World.y (Y-up in 3D)
+- Static methods in GDScript return Variant, need explicit type annotations in tests
+- StandardMaterial3D emission works well for selection highlight (emission_energy_multiplier = 0.3)
+- BaseMaterial3D.TRANSPARENCY_ALPHA for ghost preview transparency
+- Block materials can be shared across instances (class-level Dictionary cache)
+Followup:
+- 3D block placement input handler needed (arcology next task)
+- LOD system deferred to later phase
+
+## Iteration 63 - 2026-01-26
+Task: arcology-9ro - Implement ArcologyCamera with free and ortho modes
+Docs Consulted:
+- Task description (ArcologyCamera spec)
+- src/spike/camera_orbit.gd (reference implementation from spike)
+- documentation/ideas_not_implemented/3d-orthographic-migration.md (context)
+Status: PASSED
+Changes:
+- src/core/camera_3d_controller.gd: New ArcologyCamera class (460 lines)
+  - extends Node3D with Camera3D child
+  - Mode enum: FREE, ORTHO
+  - OrthoView enum: TOP, NORTH, EAST, SOUTH, WEST, BOTTOM, ISO
+  - Spherical coordinates: azimuth, elevation, distance
+  - Smooth lerp with LERP_FACTOR = 10.0
+  - Controls: Q/E rotate, R/F tilt, WASD pan, scroll zoom
+  - Tab toggle mode, Shift+1-7 ortho views, Home reset
+- scenes/main.tscn: Simplified to use ArcologyCamera (creates own Camera3D)
+- src/core/main.gd: Updated to use ArcologyCameraClass, save/load ortho_size
+- test/core/test_arcology_camera.gd: 25 unit tests
+Learnings:
+- ArcologyCamera extends Node3D (not Camera3D) to allow more flexible gimbaling
+- The camera creates its own Camera3D child in _ready() for self-contained setup
+- Spherical to Cartesian: x = sin(az)*cos(el)*d, y = sin(el)*d, z = cos(az)*cos(el)*d
+- ISO elevation = arctan(1/sqrt(2)) ≈ 35.264° for true isometric view
+- Side ortho views use 15° elevation to avoid exactly horizontal (gimbal issues)
+- Camera stays orthographic in FREE mode for consistent arcology look
+- global_position requires is_inside_tree() - use position + Basis.looking_at() fallback
+- Tab key toggles FREE<->ORTHO, preserving last ortho view for return
+- ORTHO_PRESETS dict with azimuth, elevation, label for each view
+Followup:
+- arcology-9pr (3D raycast input handler) now unblocked
+- arcology-ha9 (View Cube widget) is P2 enhancement
+
+## Iteration 64 - 2026-01-26
+Task: arcology-9pr - Implement 3D raycast input handler
+Docs Consulted:
+- Task description (arcology-9pr raycast spec)
+- src/spike/block_placer.gd (reference implementation)
+- src/core/input_handler.gd (2D version for API compatibility)
+- src/rendering/block_renderer_3d.gd (grid/world conversion)
+Status: PASSED
+Changes:
+- src/core/input_handler_3d.gd: New InputHandler3D class (320 lines)
+  - Raycast from camera via PhysicsRayQueryParameters3D
+  - CubeFace enum: TOP, BOTTOM, NORTH, SOUTH, EAST, WEST
+  - Face detection from hit normal (threshold > 0.5)
+  - World<->Grid coordinate conversion
+  - Ghost preview via BlockRenderer3D.show_ghost()
+  - Modes: BUILD, SELECT, DEMOLISH
+- scenes/main.tscn: Added ground collision for raycast
+  - StaticBody3D on layer 1 (terrain)
+  - BoxShape3D 600x0.1x600 at Y=-0.05
+- src/core/main.gd: Integrated InputHandler3D
+  - _setup_input_handler() creates InputHandler3D in 3D mode
+  - Updated _on_tool_selected, _on_build_toolbar_block_selected
+  - Updated _on_viewport_clicked to forward to 3D handler
+- test/core/test_input_handler_3d.gd: 25 unit tests
+Learnings:
+- Collision layers: Layer 1 = Terrain, Layer 2 = Blocks
+- Ground collision needs StaticBody3D + CollisionShape3D (not just mesh)
+- PhysicsRayQueryParameters3D.create(from, to, mask) for raycasting
+- get_world_3d().direct_space_state.intersect_ray(query) returns hit dict
+- Hit normal determines which face was clicked -> offset for placement
+- World Y (vertical) maps to Grid Z (floor level)
+- World Z (depth) maps to Grid Y (north-south)
+- BlockRenderer3D already has collision on layer 2 for blocks
+- Ghost preview uses show_ghost(pos, type, state) and hide_ghost()
+Patterns:
+- InputHandler3D API mirrors InputHandler for easier migration
+- Same signals: block_placement_attempted, block_removal_attempted, block_selected
+- Same methods: set_mode(), set_selected_block_type(), handle_viewport_click()
+Followup:
+- arcology-9n9 (3D ghost preview) now unblocked
+- Block rotation (R key) could be added to ghost preview task
+
+## Iteration 65 - 2026-01-26
+Task: arcology-9n9 - Implement 3D ghost preview for block placement
+Docs Consulted:
+- Task description (arcology-9n9 ghost preview spec)
+- src/rendering/block_renderer_3d.gd (existing ghost methods)
+- src/core/input_handler_3d.gd (integration point)
+Status: PASSED
+Changes:
+- src/core/ghost_preview_3d.gd: New GhostPreview3D class (240 lines)
+  - GhostState enum: HIDDEN, VALID, WARNING, INVALID
+  - Materials: green/yellow/red with alpha=0.5 and emission
+  - Label3D for floor indicator (billboard, no_depth_test)
+  - R key rotation via rotate_ghost() method
+  - StaticBody3D on layer 4 for raycast exclusion
+- src/core/input_handler_3d.gd: Integrated GhostPreview3D
+  - Creates GhostPreview3D in _ready()
+  - Falls back to BlockRenderer3D.show_ghost() if no GhostPreview3D
+  - Added rotation methods set_rotation_index/get_rotation_index
+- test/core/test_ghost_preview_3d.gd: 25 unit tests
+Learnings:
+- Can't name methods set_rotation/get_rotation - conflicts with Node3D.rotation (Vector3)
+- Renamed to set_rotation_index/get_rotation_index to avoid type conflict
+- Label3D.no_depth_test = true makes label always visible (through geometry)
+- Label3D.billboard = BaseMaterial3D.BILLBOARD_ENABLED faces camera
+- Ghost collision layer 4 (collision_layer = 8, since it's a bitmask)
+- cull_mode = CULL_DISABLED on material makes ghost visible from inside
+- emission_enabled = true with emission_energy_multiplier = 0.3 adds subtle glow
+- GhostPreview3D handles R key in _unhandled_input for rotation
+Patterns:
+- GhostPreview3D is self-contained (creates own mesh, label, collision)
+- InputHandler3D owns GhostPreview3D as child, manages its state
+- grid_to_world_center is duplicated (could extract to utility class)
+Followup:
+- arcology-c0c (placement validation) can now use ghost WARNING state
+
+## Iteration 66 - 2026-01-26
+Task: arcology-c0c - Implement placement validation with structural rules
+Docs Consulted:
+- CLAUDE.md (project context, coordinate system)
+- data/blocks.json (block type properties)
+- src/core/grid.gd (grid API, neighbor functions)
+- src/core/ghost_preview_3d.gd (ghost state enum)
+Status: PASSED
+Changes:
+- src/core/placement_validator.gd: NEW - PlacementValidator with ValidationResult class
+- src/core/input_handler_3d.gd: Integrated PlacementValidator, added validation API
+- test/core/test_placement_validator.gd: NEW - 44 comprehensive tests
+Learnings:
+- Grid uses z for floor level (Vector3i(x, y, z) where z = floor/elevation)
+- Type inference with := fails for nullable Variant returns - use explicit null checks
+- For loops over typed arrays need explicit variable type annotation in GDScript 4.x
+- BFS works well for cantilever depth calculation
+- ValidationResult inner class pattern works for encapsulating results
+- Hardcoded block type lists (GROUND_ONLY_TYPES, PRIVATE_TYPES) provide fallback
+  when BlockRegistry not available during unit tests
+Patterns Discovered:
+- PlacementValidator is RefCounted (not Node) - can be instantiated without scene tree
+- Validation checks run in priority order (space → support → constraints → warnings)
+- Warnings are collected separately and don't block placement
+- InputHandler3D creates and owns PlacementValidator instance
+Followup:
+- Save file migration (arcology-jrk) is now unblocked
+
+## Iteration 67 - 2026-01-26
+Task: arcology-923 - Implement cutaway visibility mode
+Docs Consulted:
+- Task description (arcology-923 cutaway spec)
+- src/rendering/block_renderer_3d.gd (material management patterns)
+- documentation/ideas_not_implemented/3d-orthographic-migration.md (context)
+Status: PASSED
+Changes:
+- shaders/block_material.gdshader: NEW - Custom shader with global visibility params
+- src/core/visibility_controller.gd: NEW - Mode enum, cut height, signals, keyboard input
+- src/rendering/block_renderer_3d.gd: Updated to use ShaderMaterial with fallback
+- src/core/main.gd: Integrated VisibilityController, cut plane indicator
+- project.godot: Added shader_globals section, changed rendering to forward_plus
+- test/core/test_visibility_controller.gd: NEW - 30 tests
+Learnings:
+- Global shader parameters: [shader_globals] section in project.godot with type/value
+- RenderingServer.global_shader_parameter_set("name", value) at runtime
+- ShaderMaterial.get_shader_parameter() returns Variant - need explicit type annotation
+- Forward+ renderer required for advanced shader features (gl_compatibility limited)
+- world_position in vertex shader: (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz
+- Visibility modes: discard in fragment shader for cutaway, alpha for future modes
+- Cut plane indicator: PlaneMesh with transparent unshaded material
+- Lambda variable capture fails in SceneTree tests - use instance methods instead
+Patterns Discovered:
+- Shader+StandardMaterial fallback pattern: check `if _block_shader` then use ShaderMaterial
+- Global uniform pattern: shader reads global, controller sets via RenderingServer
+- Material duplication: base material cached, duplicate() for per-instance modifications
+Followup:
+- arcology-a1w (X-Ray mode) now unblocked
+- arcology-fix (Floor Isolate mode) now unblocked
+- HUD visibility mode indicator (future)
+
+## Iteration 25 - 2026-01-27
+Task: arcology-6ep - Implement chunk system for geometry batching
+Docs Consulted:
+- documentation/architecture/ (3D refactor context)
+- Existing src/rendering/block_renderer_3d.gd patterns
+- shaders/block_material.gdshader (shader parameter conventions)
+Status: PASSED
+Changes:
+- src/rendering/chunk.gd: New Chunk class - 8x8x8 spatial grouping, merged mesh via SurfaceTool, AABB for frustum culling
+- src/rendering/chunk_manager.gd: New ChunkManager class - chunk lifecycle, dirty queue, frame-budgeted rebuilds (2/frame, 4ms), camera-distance priority
+- src/rendering/block_renderer_3d.gd: Added optional chunking integration (enable_chunking/disable_chunking)
+- test/rendering/test_chunk.gd: 30 tests
+- test/rendering/test_chunk_manager.gd: 81 tests (including renderer integration, negative coords, performance)
+Learnings:
+- GDScript class_name resolution requires Godot --import; use preload() for cross-script references in headless tests
+- SurfaceTool.begin(PRIMITIVE_TRIANGLES) + add_vertex per face = merged ArrayMesh
+- Floor division for negatives: (a - b + 1) / b since GDScript int div truncates toward zero
+- Chunk rebuild guard: check if child nodes exist before accessing (chunk may not be in scene tree)
+- 500 blocks: add ~2-7ms, full rebuild ~17-25ms (well within budget)
+Followup Tickets Created:
+- None (LOD system arcology-m0v is now unblocked as dependent)

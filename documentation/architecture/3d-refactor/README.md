@@ -5,7 +5,7 @@ This directory contains the technical specification and architecture for the 3D 
 ## Documents
 
 - **[specification.md](./specification.md)** - Complete 3D refactor specification
-  - The Cube (6m x 6m x 3.5m foundational unit)
+  - The Cell (6m x 6m x 6m foundational unit, 2 internal floors)
   - Coordinate system (Y-up)
   - Camera system (free orbital + ortho snap)
   - Block rendering (meshes, LOD, chunks)

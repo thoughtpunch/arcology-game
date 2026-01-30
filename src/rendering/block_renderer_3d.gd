@@ -7,15 +7,16 @@ class_name BlockRenderer3D
 ## Connects to Grid signals for reactive rendering.
 ## Uses ShaderMaterial with global visibility mode support.
 ##
-## Block dimensions (THE CUBE):
-## - Width: 6m (X axis)
-## - Depth: 6m (Z axis)
-## - Height: 3.5m (Y axis)
+## Cell dimensions (THE CELL — true cube):
+## - All axes: 6m
+## - Contains 2 internal residential floors at 3m each
+## - Or 1 double-height commercial/civic floor
 
-# Block dimensions in meters (Godot units)
-const CUBE_WIDTH: float = 6.0  # X axis
-const CUBE_DEPTH: float = 6.0  # Z axis
-const CUBE_HEIGHT: float = 3.5  # Y axis
+# Cell dimensions in meters (Godot units) — true cube
+const CELL_SIZE: float = 6.0    # All axes (X, Y, Z)
+const CUBE_WIDTH: float = CELL_SIZE   # X axis (alias for compatibility)
+const CUBE_DEPTH: float = CELL_SIZE   # Z axis (alias for compatibility)
+const CUBE_HEIGHT: float = CELL_SIZE  # Y axis (alias for compatibility)
 
 # Collision layers
 const COLLISION_LAYER_BLOCKS: int = 2
@@ -95,7 +96,7 @@ func add_block(grid_pos: Vector3i, block_type: String, rotation: int = 0) -> Mes
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = "Block_%d_%d_%d" % [grid_pos.x, grid_pos.y, grid_pos.z]
 
-	# Create box mesh (THE CUBE)
+	# Create box mesh (THE CELL)
 	var box_mesh := BoxMesh.new()
 	box_mesh.size = Vector3(CUBE_WIDTH, CUBE_HEIGHT, CUBE_DEPTH)
 	mesh_instance.mesh = box_mesh

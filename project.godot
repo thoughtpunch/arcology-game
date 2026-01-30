@@ -80,10 +80,6 @@ zoom_out={
 ]
 }
 
-[rendering]
-
-renderer/rendering_method="forward_plus"
-
 [shader_globals]
 
 visibility_mode={

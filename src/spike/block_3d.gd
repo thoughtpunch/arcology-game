@@ -3,15 +3,15 @@ class_name Block3D
 
 ## 3D block for spike testing using CSGBox3D
 ##
-## Block dimensions (THE CUBE):
-## - Width: 6m (X)
-## - Depth: 6m (Z)
-## - Height: 3.5m (Y)
+## Cell dimensions (THE CELL — true cube):
+## - All axes: 6m
+## - Contains 2 internal residential floors at 3m each
 
-# Block dimensions in meters (Godot units)
-const BLOCK_WIDTH: float = 6.0  # X axis
-const BLOCK_DEPTH: float = 6.0  # Z axis
-const BLOCK_HEIGHT: float = 3.5  # Y axis
+# Cell dimensions in meters (Godot units) — true cube
+const CELL_SIZE: float = 6.0     # All axes
+const BLOCK_WIDTH: float = CELL_SIZE   # X axis (alias)
+const BLOCK_DEPTH: float = CELL_SIZE   # Z axis (alias)
+const BLOCK_HEIGHT: float = CELL_SIZE  # Y axis (alias)
 
 # Grid position in block coordinates
 var grid_position: Vector3i = Vector3i.ZERO:

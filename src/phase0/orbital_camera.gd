@@ -14,7 +14,7 @@ extends Node3D
 const MIN_ELEVATION: float = -45.0
 const MAX_ELEVATION: float = 85.0
 const MIN_DISTANCE: float = 10.0
-const MAX_DISTANCE: float = 500.0
+const MAX_DISTANCE: float = 1000.0
 const ROTATION_SPEED: float = 90.0
 const PAN_SPEED: float = 30.0
 const VERTICAL_PAN_SPEED: float = 20.0
@@ -27,12 +27,12 @@ const MIN_TARGET_Y: float = 0.0
 var target: Vector3 = Vector3.ZERO
 var azimuth: float = 45.0
 var elevation: float = 30.0
-var distance: float = 80.0
+var distance: float = 200.0
 var camera: Camera3D
 
 var _target_azimuth: float = 45.0
 var _target_elevation: float = 30.0
-var _target_distance: float = 80.0
+var _target_distance: float = 200.0
 var _target_target: Vector3 = Vector3.ZERO
 var _is_dragging: bool = false
 var _is_panning: bool = false

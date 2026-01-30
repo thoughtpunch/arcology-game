@@ -1,7 +1,7 @@
 extends Node3D
 class_name Chunk
 
-## A spatial chunk of 8x8x8 grid cells containing merged block geometry.
+## A spatial chunk of 8x8x8 cells (48m x 48m x 48m) containing merged block geometry.
 ##
 ## Chunks batch nearby blocks into fewer draw calls by merging
 ## their meshes into per-layer MeshInstance3D nodes.
@@ -15,10 +15,11 @@ class_name Chunk
 # Chunk size in grid cells per axis
 const CHUNK_SIZE: int = 8
 
-# Block dimensions (must match BlockRenderer3D)
-const CUBE_WIDTH: float = 6.0
-const CUBE_DEPTH: float = 6.0
-const CUBE_HEIGHT: float = 3.5
+# Cell dimensions (must match BlockRenderer3D) — true cube, 6m all axes
+const CELL_SIZE: float = 6.0
+const CUBE_WIDTH: float = CELL_SIZE   # Alias for compatibility
+const CUBE_DEPTH: float = CELL_SIZE   # Alias for compatibility
+const CUBE_HEIGHT: float = CELL_SIZE  # Alias for compatibility
 
 # Chunk coordinate (grid-space, not world-space)
 var chunk_coord: Vector3i = Vector3i.ZERO
