@@ -1,7 +1,7 @@
 #!/bin/bash
 # SESSION-START HOOK: Fires on every Claude Code session start
-# Shows active work, ready ticket count, and workflow reminder.
-# Must be fast (<2 seconds).
+# Shows active work, ready ticket count, recent commits, and workflow reminder.
+# Runs bd commands fresh (no caching) to get current data.
 
 set -euo pipefail
 
@@ -16,8 +16,8 @@ echo "╔═══════════════════════�
 echo "║  BEADS TICKET STATUS                                            ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 
-# Show in-progress tickets (active work)
-IN_PROGRESS=$(bd list --status in_progress --limit 10 --quiet 2>/dev/null) || true
+# Show in-progress tickets (active work) - run fresh
+IN_PROGRESS=$(bd list --status in_progress --limit 10 2>/dev/null | grep -v "^Showing" | grep -v "^$") || true
 if [ -n "$IN_PROGRESS" ]; then
     echo ""
     echo "IN-PROGRESS:"
@@ -27,10 +27,20 @@ else
     echo "IN-PROGRESS: (none)"
 fi
 
-# Count ready tickets
-READY_COUNT=$(bd ready --json 2>/dev/null | jq 'length' 2>/dev/null) || READY_COUNT="?"
+# Get ready count from bd ready output (parses "N issues" from header line)
+# Note: bd ready outputs to stderr, so we redirect stderr to stdout
+READY_COUNT=$(bd ready --limit 0 2>&1 | grep -oE '[0-9]+ issues' | head -1 | grep -oE '[0-9]+') || READY_COUNT="?"
 echo ""
 echo "READY TO WORK: $READY_COUNT ticket(s)"
+
+# Get total open tickets count
+TOTAL_OPEN=$(bd list --limit 0 2>/dev/null | grep -c '^arcology-') || TOTAL_OPEN="?"
+echo "TOTAL OPEN: $TOTAL_OPEN ticket(s)"
+
+# Show last 5 commits
+echo ""
+echo "RECENT COMMITS:"
+git log --oneline -5 2>/dev/null | sed 's/^/  /' || echo "  (no commits)"
 
 # Workflow reminder
 echo ""

@@ -13,6 +13,10 @@ Hey Dan! Here's where we are:
 
 **In-progress:** <list any in-progress tickets from the hook output, or "None">
 **Ready to work:** <count from hook output> ticket(s)
+**Total open:** <count from hook output> ticket(s)
+
+**Recent commits:**
+<list last 5 commits from hook output>
 
 <If there's an in-progress ticket, add a 1-sentence summary of what it is>
 ```
