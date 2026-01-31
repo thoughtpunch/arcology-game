@@ -16,6 +16,9 @@ var grid: Node = null
 # BlockRegistry reference for block type properties
 var block_registry = null
 
+# ScenarioConfig reference for structural rules
+var scenario_config: Resource = null
+
 
 ## Validation result class
 class ValidationResult:
@@ -51,9 +54,10 @@ class ValidationResult:
 		return "Valid"
 
 
-func _init(p_grid: Node = null, p_registry = null) -> void:
+func _init(p_grid: Node = null, p_registry = null, p_scenario_config: Resource = null) -> void:
 	grid = p_grid
 	block_registry = p_registry
+	scenario_config = p_scenario_config
 
 
 ## Validate placement at position for block type
@@ -117,9 +121,15 @@ func _check_structural_support(pos: Vector3i, block_type: String) -> ValidationR
 	## Check that the block has structural support
 	## Ground level (z=0) is always supported
 	## Above ground needs block below or adjacent cantilever support (within limit)
+	## If structural_integrity is disabled (via ScenarioConfig), always passes.
 
 	if grid == null:
 		return ValidationResult.success()  # Can't check without grid
+
+	# If structural integrity is disabled, skip all support checks
+	if scenario_config and scenario_config.has_method("is_within_cantilever_limit"):
+		if not scenario_config.structural_integrity:
+			return ValidationResult.success()
 
 	# Ground level is always supported
 	if pos.z <= 0:
@@ -129,6 +139,25 @@ func _check_structural_support(pos: Vector3i, block_type: String) -> ValidationR
 	var below_pos := pos + Vector3i(0, 0, -1)
 	if grid.has_block(below_pos):
 		return ValidationResult.success()
+
+	# Get cantilever limit from scenario config or use default
+	var max_cant: int = 2
+	if scenario_config and "max_cantilever" in scenario_config:
+		max_cant = scenario_config.max_cantilever
+	# -1 means unlimited cantilever (zero-g)
+	if max_cant < 0:
+		# Unlimited cantilever - just need any adjacent block
+		var horizontal_neighbors: Array[Vector3i] = [
+			pos + Vector3i(1, 0, 0),
+			pos + Vector3i(-1, 0, 0),
+			pos + Vector3i(0, 1, 0),
+			pos + Vector3i(0, -1, 0)
+		]
+		for i in range(horizontal_neighbors.size()):
+			var neighbor_pos: Vector3i = horizontal_neighbors[i]
+			if grid.has_block(neighbor_pos):
+				return ValidationResult.success()
+		return ValidationResult.invalid("No adjacent block (zero-g requires connectivity)")
 
 	# Check for cantilever support from adjacent blocks
 	# Adjacent blocks can provide support if they have vertical support
@@ -145,9 +174,8 @@ func _check_structural_support(pos: Vector3i, block_type: String) -> ValidationR
 		if grid.has_block(neighbor_pos):
 			# Check cantilever depth from this neighbor
 			var neighbor_depth := _calculate_cantilever_depth_from(neighbor_pos)
-			# If neighbor is within cantilever limit (0 or 1), we can extend from it
-			const MAX_CANTILEVER: int = 2
-			if neighbor_depth < MAX_CANTILEVER:
+			# If neighbor is within cantilever limit, we can extend from it
+			if neighbor_depth < max_cant:
 				return ValidationResult.success()
 
 	return ValidationResult.invalid("No structural support")
@@ -179,7 +207,7 @@ func _check_prerequisites(pos: Vector3i, block_type: String) -> ValidationResult
 
 
 func _check_floor_constraints(pos: Vector3i, block_type: String) -> ValidationResult:
-	## Check floor-specific constraints (ground_only, etc.)
+	## Check floor-specific constraints (ground_only, max height, ground depth)
 
 	# Check for known ground_only block types (hardcoded fallback)
 	const GROUND_ONLY_TYPES: Array[String] = ["entrance"]
@@ -192,10 +220,22 @@ func _check_floor_constraints(pos: Vector3i, block_type: String) -> ValidationRe
 	if block_data.get("ground_only", false) and pos.z != 0:
 		return ValidationResult.invalid("Block can only be placed at ground level")
 
-	# Check minimum floor
-	const MIN_FLOOR: int = -3
-	if pos.z < MIN_FLOOR:
+	# Check minimum floor (ground depth) from scenario config
+	var min_floor: int = -3  # Default fallback
+	if scenario_config and "ground_depth" in scenario_config:
+		min_floor = -scenario_config.ground_depth
+	if pos.z < min_floor:
 		return ValidationResult.invalid("Below minimum floor level")
+
+	# Check maximum build height from scenario config
+	if scenario_config and scenario_config.has_method("is_within_build_height"):
+		if not scenario_config.is_within_build_height(pos.z):
+			return ValidationResult.invalid("Above maximum build height")
+
+	# Check build zone from scenario config
+	if scenario_config and scenario_config.has_method("is_in_build_zone"):
+		if not scenario_config.is_in_build_zone(pos):
+			return ValidationResult.invalid("Outside build zone")
 
 	return ValidationResult.success()
 

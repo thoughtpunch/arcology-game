@@ -1,0 +1,14 @@
+{
+  "gravity": 0.16,
+  "max_build_height": -1,
+  "structural_integrity": true,
+  "day_length_minutes": 0,
+  "default_time_of_day": 12.0,
+  "sun_energy": 1.2,
+  "ambient_energy": 0.1,
+  "build_zone_origin": [-50, -50],
+  "build_zone_size": [100, 100],
+  "ground_depth": 5,
+  "ground_type": "lunar",
+  "mode": "sandbox"
+}

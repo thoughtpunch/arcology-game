@@ -23,6 +23,9 @@ const InputHandler3DClass := preload("res://src/core/input_handler_3d.gd")
 # Visibility controller for cutaway mode
 const VisibilityControllerClass := preload("res://src/core/visibility_controller.gd")
 
+# Scenario config resource
+const ScenarioConfigClass := preload("res://src/data/scenario_config.gd")
+
 @onready var world: Node3D = $World
 @onready var ui_layer: CanvasLayer = $UI
 
@@ -35,6 +38,7 @@ var terrain: Terrain  # 2D terrain - temporarily disabled for 3D refactor
 var camera_controller  # ArcologyCamera instance for 3D
 var construction_queue  # ConstructionQueue instance
 var visibility_controller  # VisibilityController for cutaway mode (3D only)
+var scenario_config: Resource  # ScenarioConfig for current session
 
 # Flag for 3D mode - will be removed once 3D refactor is complete
 var _is_3d_mode := true
@@ -106,6 +110,7 @@ func _initialize_game() -> void:
 		return
 
 	_game_initialized = true
+	_setup_scenario_config()
 	_setup_camera()
 	_setup_terrain()
 	_setup_grid()
@@ -117,6 +122,25 @@ func _initialize_game() -> void:
 	_setup_floor_selector()
 	_setup_camera_controls()
 	print("Game initialized")
+
+
+func _setup_scenario_config() -> void:
+	# Try to load scenario config from game config, or fall back to default
+	var scenario_name: String = _game_config.get("scenario_config", "")
+	if not scenario_name.is_empty():
+		scenario_config = ScenarioConfigClass.load_scenario(scenario_name)
+
+	if not scenario_config:
+		# Load earth_standard as default, fall back to programmatic default
+		scenario_config = ScenarioConfigClass.load_scenario("earth_standard")
+
+	if not scenario_config:
+		scenario_config = ScenarioConfigClass.create_default()
+
+	# Apply scenario config values to GameState
+	_apply_scenario_to_game_state()
+
+	print("Scenario config loaded: %s" % scenario_config.get_summary())
 
 
 func _setup_camera() -> void:
@@ -254,6 +278,10 @@ func _setup_input_handler() -> void:
 		input_handler_3d.block_placement_attempted.connect(_on_block_placed)
 		input_handler_3d.block_removal_attempted.connect(_on_block_removed)
 		input_handler_3d.block_selected.connect(_on_block_selected)
+
+		# Pass scenario config to placement validator
+		if scenario_config:
+			input_handler_3d.set_scenario_config(scenario_config)
 
 		# Connect to construction queue
 		call_deferred("_connect_input_handler_3d_to_queue")
@@ -578,6 +606,59 @@ func _on_config_applied(_config: Dictionary) -> void:
 	pass
 
 
+## Apply scenario config values to GameState constants
+func _apply_scenario_to_game_state() -> void:
+	if not scenario_config:
+		return
+
+	var game_state = get_tree().get_root().get_node_or_null("/root/GameState")
+	if game_state:
+		# Apply ground_depth as MIN_FLOOR (negative)
+		# GameState.MIN_FLOOR is const, so we can't change it directly.
+		# Instead, downstream systems should read from scenario_config.
+		pass
+
+	# Apply lighting from scenario config to scene environment
+	if _is_3d_mode:
+		_apply_scenario_lighting()
+
+
+## Apply scenario lighting values to the 3D scene
+func _apply_scenario_lighting() -> void:
+	if not scenario_config:
+		return
+
+	# Find DirectionalLight3D in scene
+	var light: DirectionalLight3D = null
+	for child in get_children():
+		if child is DirectionalLight3D:
+			light = child
+			break
+	if not light and world:
+		for child in world.get_children():
+			if child is DirectionalLight3D:
+				light = child
+				break
+	if light:
+		light.light_energy = scenario_config.sun_energy
+
+	# Find WorldEnvironment and apply ambient energy
+	var world_env: WorldEnvironment = null
+	for child in get_children():
+		if child is WorldEnvironment:
+			world_env = child
+			break
+	if world_env and world_env.environment:
+		world_env.environment.ambient_light_energy = scenario_config.ambient_energy
+
+
+## Get current scenario config. Returns default if none loaded.
+func get_scenario_config() -> Resource:
+	if scenario_config:
+		return scenario_config
+	return ScenarioConfigClass.create_default()
+
+
 # --- Save/Load System ---
 
 func _load_game(save_path: String) -> void:
@@ -633,6 +714,12 @@ func _apply_save_data(data: Dictionary) -> void:
 
 	# Load config
 	_game_config = data.get("config", {})
+
+	# Load scenario config from save data
+	var scenario_data: Dictionary = data.get("scenario_config", {})
+	if not scenario_data.is_empty():
+		scenario_config = ScenarioConfigClass.from_dict(scenario_data)
+		_apply_scenario_to_game_state()
 
 	# Load camera state
 	var camera_data: Dictionary = data.get("camera", {})
@@ -760,12 +847,18 @@ func _create_save_data(save_name: String, timestamp: float) -> Dictionary:
 		"playtime_seconds": _get_playtime_seconds()
 	}
 
+	# Get scenario config
+	var scenario_data := {}
+	if scenario_config and scenario_config.has_method("to_dict"):
+		scenario_data = scenario_config.to_dict()
+
 	return {
 		"name": save_name,
 		"timestamp": timestamp,
-		"version": "0.2.0",  # Upgraded version for new format
+		"version": "0.3.0",  # Upgraded: added scenario_config
 		"game_state": state_data,
 		"config": _game_config,
+		"scenario_config": scenario_data,
 		"blocks": blocks_data,
 		"camera": camera_data,
 		"terrain_seed": terrain_seed,

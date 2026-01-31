@@ -77,7 +77,7 @@ func _create_placement_validator() -> void:
 	## Create PlacementValidator instance
 	var PlacementValidatorClass = load("res://src/core/placement_validator.gd")
 	if PlacementValidatorClass:
-		placement_validator = PlacementValidatorClass.new(grid, null)
+		placement_validator = PlacementValidatorClass.new(grid, null, null)
 
 
 ## Setup with required dependencies
@@ -88,6 +88,12 @@ func setup(p_grid: Node, p_camera: Camera3D, p_renderer: Node3D = null) -> void:
 	# Update placement validator with grid reference
 	if placement_validator:
 		placement_validator.grid = grid
+
+
+## Set scenario config on the placement validator
+func set_scenario_config(config: Resource) -> void:
+	if placement_validator:
+		placement_validator.scenario_config = config
 	print("InputHandler3D: Setup complete (grid=%s, camera=%s, renderer=%s, ghost=%s, validator=%s)" % [
 		grid != null, camera != null, block_renderer_3d != null, ghost_preview != null, placement_validator != null
 	])

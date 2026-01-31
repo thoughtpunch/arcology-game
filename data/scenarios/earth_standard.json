@@ -1,0 +1,15 @@
+{
+  "gravity": 1.0,
+  "max_cantilever": 2,
+  "max_build_height": -1,
+  "structural_integrity": true,
+  "day_length_minutes": 0,
+  "default_time_of_day": 8.0,
+  "sun_energy": 1.0,
+  "ambient_energy": 0.3,
+  "build_zone_origin": [-50, -50],
+  "build_zone_size": [100, 100],
+  "ground_depth": 3,
+  "ground_type": "earth",
+  "mode": "sandbox"
+}
