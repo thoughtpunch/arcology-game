@@ -680,8 +680,9 @@ func _setup_ui() -> void:
 	_controls_label.text = (
 		"LMB: Place  |  RMB: Remove  |  Double-click: Focus  |  ,/.: Rotate\n"
 		+ "WASD: Pan  |  Q/E: Up/Down  |  Scroll: Zoom  |  Shift+LMB: Zoom  |  RMB: Orbit\n"
-		+ "Shift: Precision  |  Ctrl: Boost  |  F: Frame  |  H: Home  |  `: Hide UI\n"
-		+ "Tab: Cycle Category  |  1-9: Select Block  |  F1/?: Help  |  F3: Debug  |  ESC: Pause"
+		+ "Alt+LMB: Orbit around cursor  |  Shift: Precision  |  Ctrl: Boost\n"
+		+ "F: Frame  |  H: Home  |  `: Hide UI  |  Tab: Cycle Category  |  1-9: Select Block\n"
+		+ "F1/?: Help  |  F3: Debug  |  ESC: Pause"
 	)
 	canvas.add_child(_controls_label)
 
@@ -908,6 +909,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
+			# Alt+LMB is handled by the camera for orbit-around-cursor
+			if event.alt_pressed:
+				return
 			if event.pressed:
 				_log("LMB press at screen %s (double=%s)" % [event.position, event.double_click])
 				if event.double_click:

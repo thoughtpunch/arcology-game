@@ -7,6 +7,7 @@ extends Node3D
 ##   Middle-click + drag: Pan (truck in camera plane)
 ##   Scroll wheel: Zoom in/out (proportional to distance)
 ##   Shift + left-click + drag: Zoom (vertical drag, MacBook-friendly)
+##   Alt + left-click + drag: Orbit around point under cursor (3DS Max/Blender style)
 ##   Double-click: Handled by parent (focus on object)
 ##
 ## Keyboard — Movement:
@@ -96,6 +97,11 @@ var _middle_pressed: bool = false
 var _zoom_drag_pressed: bool = false
 var _zoom_drag_active: bool = false
 var _zoom_drag_press_pos: Vector2 = Vector2.ZERO
+var _alt_orbit_pressed: bool = false
+var _alt_orbit_active: bool = false
+var _alt_orbit_press_pos: Vector2 = Vector2.ZERO
+var _alt_orbit_pivot: Vector3 = Vector3.ZERO  # World-space raycast hit point
+var _alt_orbit_original_target: Vector3 = Vector3.ZERO  # Target before alt-orbit began
 var _last_mouse_pos: Vector2 = Vector2.ZERO
 
 # Speed modulation (recomputed each frame)
@@ -241,7 +247,30 @@ func _handle_keyboard(delta: float) -> void:
 func _handle_mouse_button(event: InputEventMouseButton) -> void:
 	match event.button_index:
 		MOUSE_BUTTON_LEFT:
-			if event.pressed and event.shift_pressed:
+			if event.pressed and event.alt_pressed:
+				# Alt + left-click: orbit around cursor raycast hit point
+				_alt_orbit_pressed = true
+				_alt_orbit_active = false
+				_alt_orbit_press_pos = event.position
+				_last_mouse_pos = event.position
+				# Raycast to find pivot point under cursor
+				var pivot = _raycast_pivot(event.position)
+				if pivot != null:
+					_alt_orbit_pivot = pivot
+					_alt_orbit_original_target = _target_target
+				else:
+					# No hit — fall back to current target as pivot
+					_alt_orbit_pivot = _target_target
+					_alt_orbit_original_target = _target_target
+				get_viewport().set_input_as_handled()
+			elif not event.pressed and _alt_orbit_pressed:
+				if _alt_orbit_active:
+					_push_history()
+					_log("Alt-orbit ended (pivot=%s)" % _alt_orbit_pivot)
+				_alt_orbit_pressed = false
+				_alt_orbit_active = false
+				get_viewport().set_input_as_handled()
+			elif event.pressed and event.shift_pressed:
 				_zoom_drag_pressed = true
 				_zoom_drag_active = false
 				_zoom_drag_press_pos = event.position
@@ -313,6 +342,29 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 	var delta := event.position - _last_mouse_pos
 	_last_mouse_pos = event.position
+
+	# Alt + left-click drag → orbit around raycast pivot
+	if _alt_orbit_pressed:
+		if not _alt_orbit_active:
+			if event.position.distance_to(_alt_orbit_press_pos) > DRAG_THRESHOLD:
+				_alt_orbit_active = true
+				# Snap target to pivot and recompute distance so orbit feels centered
+				_push_history()
+				var camera_pos := camera.global_position
+				_target_distance = camera_pos.distance_to(_alt_orbit_pivot)
+				_target_distance = clampf(_target_distance, MIN_DISTANCE, MAX_DISTANCE)
+				_target_target = _alt_orbit_pivot
+				# Immediately sync interpolated values to prevent drift
+				target = _target_target
+				distance = _target_distance
+				_update_camera_position()
+				_log("Alt-orbit started (pivot=%s dist=%.1f)" % [_alt_orbit_pivot, _target_distance])
+		if _alt_orbit_active:
+			_target_azimuth += delta.x * ORBIT_SENSITIVITY * _precision
+			var new_el := _target_elevation - delta.y * ORBIT_SENSITIVITY * _precision
+			_target_elevation = clampf(new_el, MIN_ELEVATION, MAX_ELEVATION)
+		get_viewport().set_input_as_handled()
+		return
 
 	# Shift + left-click drag → zoom
 	if _zoom_drag_pressed:
@@ -449,6 +501,34 @@ func _update_camera_position() -> void:
 
 	if camera.is_inside_tree():
 		camera.look_at(target, Vector3.UP)
+
+
+# --- Alt-Orbit Raycast ---
+
+
+func _raycast_pivot(screen_pos: Vector2):
+	## Cast a ray from the camera through screen_pos to find a pivot point.
+	## Returns Vector3 on hit, null on miss.
+	if not camera or not camera.is_inside_tree():
+		return null
+	var from := camera.project_ray_origin(screen_pos)
+	var dir := camera.project_ray_normal(screen_pos)
+	var to := from + dir * 2000.0
+
+	var world_3d := get_world_3d()
+	if not world_3d:
+		return null
+	var space_state := world_3d.direct_space_state
+	if not space_state:
+		return null
+
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	# Hit terrain (layer 1) and blocks (layer 2)
+	query.collision_mask = 0b11
+	var result := space_state.intersect_ray(query)
+	if result and result.has("position"):
+		return result.position as Vector3
+	return null
 
 
 # --- Public API ---
