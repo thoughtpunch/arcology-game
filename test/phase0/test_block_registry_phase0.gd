@@ -14,9 +14,9 @@ func before_test() -> void:
 
 # === JSON Loading ===
 
-func test_loads_21_block_definitions() -> void:
+func test_loads_130_block_definitions() -> void:
 	var defs: Array = _registry.get_all_definitions()
-	assert_int(defs.size()).is_equal(21)
+	assert_int(defs.size()).is_equal(130)
 
 
 func test_entrance_definition_exists() -> void:
@@ -145,44 +145,44 @@ func test_category_order() -> void:
 	assert_str(cats[7]).is_equal("entertainment")
 
 
-func test_transit_has_5_blocks() -> void:
+func test_transit_has_13_blocks() -> void:
 	var defs: Array = _registry.get_definitions_for_category("transit")
+	assert_int(defs.size()).is_equal(13)
+
+
+func test_residential_has_14_blocks() -> void:
+	var defs: Array = _registry.get_definitions_for_category("residential")
+	assert_int(defs.size()).is_equal(14)
+
+
+func test_commercial_has_21_blocks() -> void:
+	var defs: Array = _registry.get_definitions_for_category("commercial")
+	assert_int(defs.size()).is_equal(21)
+
+
+func test_industrial_has_21_blocks() -> void:
+	var defs: Array = _registry.get_definitions_for_category("industrial")
+	assert_int(defs.size()).is_equal(21)
+
+
+func test_civic_has_28_blocks() -> void:
+	var defs: Array = _registry.get_definitions_for_category("civic")
+	assert_int(defs.size()).is_equal(28)
+
+
+func test_infrastructure_has_13_blocks() -> void:
+	var defs: Array = _registry.get_definitions_for_category("infrastructure")
+	assert_int(defs.size()).is_equal(13)
+
+
+func test_green_has_5_blocks() -> void:
+	var defs: Array = _registry.get_definitions_for_category("green")
 	assert_int(defs.size()).is_equal(5)
 
 
-func test_residential_has_4_blocks() -> void:
-	var defs: Array = _registry.get_definitions_for_category("residential")
-	assert_int(defs.size()).is_equal(4)
-
-
-func test_commercial_has_3_blocks() -> void:
-	var defs: Array = _registry.get_definitions_for_category("commercial")
-	assert_int(defs.size()).is_equal(3)
-
-
-func test_industrial_has_1_block() -> void:
-	var defs: Array = _registry.get_definitions_for_category("industrial")
-	assert_int(defs.size()).is_equal(1)
-
-
-func test_civic_has_3_blocks() -> void:
-	var defs: Array = _registry.get_definitions_for_category("civic")
-	assert_int(defs.size()).is_equal(3)
-
-
-func test_infrastructure_has_2_blocks() -> void:
-	var defs: Array = _registry.get_definitions_for_category("infrastructure")
-	assert_int(defs.size()).is_equal(2)
-
-
-func test_green_has_2_blocks() -> void:
-	var defs: Array = _registry.get_definitions_for_category("green")
-	assert_int(defs.size()).is_equal(2)
-
-
-func test_entertainment_has_1_block() -> void:
+func test_entertainment_has_15_blocks() -> void:
 	var defs: Array = _registry.get_definitions_for_category("entertainment")
-	assert_int(defs.size()).is_equal(1)
+	assert_int(defs.size()).is_equal(15)
 
 
 func test_empty_category_returns_empty() -> void:
@@ -216,8 +216,8 @@ func test_residential_has_green_tint() -> void:
 
 # === Palette Order ===
 
-func test_palette_order_has_21_entries() -> void:
-	assert_int(_registry.palette_order.size()).is_equal(21)
+func test_palette_order_has_130_entries() -> void:
+	assert_int(_registry.palette_order.size()).is_equal(130)
 
 
 func test_palette_order_starts_with_transit() -> void:
