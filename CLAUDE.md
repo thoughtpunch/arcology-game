@@ -138,14 +138,16 @@ Your tools: Architecture, infrastructure, community spaces.
 | What | Choice |
 |------|--------|
 | Engine | Godot 4.x |
+| Renderer | Vulkan / Forward+ |
 | Language | GDScript (C# for performance-critical) |
-| Art | 3D blocks (procedural geometry, placeholder) |
+| Art | 3D blocks (procedural geometry, stylized realism) |
+| Camera | Free orbital + orthographic snap modes |
 | Data | JSON configs, Godot Resources |
 
 ## Key Concepts (Memorize These)
 
-### 1. Everything Is Blocks
-The world is a 3D voxel grid. Every structure = blocks snapped to grid.
+### 1. Everything Is Cells
+The world is a 3D orthogonal grid of **cells** (6m×6m×6m cubes). Every structure = blocks snapped to cell grid. Cells have 6 **faces** (TOP, BOTTOM, NORTH, SOUTH, EAST, WEST). Cells are grouped into 8×8×8 **chunks** for rendering. Coordinate system is Y-up (X = east, Y = up, Z = north).
 
 ### 2. Public vs Private Blocks
 - **Private** (apartment, restaurant): Pathfinding goes TO it
@@ -177,19 +179,35 @@ arcology/
 │   ├── INDEX.md           ← Searchable A-Z index
 │   ├── quick-reference/   ← Formulas, conventions, math
 │   ├── architecture/      ← Build milestones (0-10+)
+│   │   └── 3d-refactor/   ← 3D architecture spec (see specification.md)
 │   ├── game-design/       ← Blocks, environment, agents, economy
 │   ├── technical/         ← Data model, simulation tick
 │   ├── ui/                ← Views, overlays, narrative
 │   └── agents/            ← AI agent instructions (Ralph)
-├── src/                   ← Game code
-├── scenes/                ← Godot scenes
-├── assets/                ← Sprites, audio
-└── data/                  ← JSON configs (blocks, balance)
+├── src/
+│   ├── phase0/            ← Block stacking sandbox (current active code)
+│   ├── core/              ← Grid, blocks, placement, game state
+│   ├── rendering/         ← 3D block rendering, chunk manager
+│   ├── blocks/            ← Block type implementations
+│   ├── environment/       ← Light, air, noise, safety systems
+│   ├── agents/            ← Residents, needs, behavior trees
+│   ├── transit/           ← Pathfinding, elevators
+│   ├── economy/           ← Budget, rent
+│   └── ui/                ← HUD, overlays, menus, panels
+├── scenes/                ← Godot scenes (phase0_sandbox.tscn, main.tscn)
+├── shaders/               ← Ghost preview, face highlight, grid overlay
+├── test/                  ← Unit and integration tests (mirrors src/ structure)
+├── assets/                ← Audio, fonts, sprites
+└── data/                  ← JSON configs (blocks.json, scenarios/)
 ```
 
 ## Current Development Phase
 
-**Check [documentation/architecture/](./documentation/architecture/) for current milestone.**
+**3D Architecture Reference:** [documentation/architecture/3d-refactor/specification.md](./documentation/architecture/3d-refactor/specification.md)
+
+**Current Phase:** Phase 0 (Block Stacking Sandbox) — Code in `src/phase0/`, scene: `scenes/phase0_sandbox.tscn`
+
+**Check [documentation/architecture/](./documentation/architecture/) for all milestones.**
 
 Milestones 1-10 = Core game loop
 Milestones 11-22 = Depth features
@@ -197,18 +215,32 @@ Milestones 11-22 = Depth features
 ## Code Conventions
 
 ```gdscript
+# Coordinate system: Y-up (Godot default)
+# X = East-West, Y = Vertical (up), Z = North-South
+
+# Grid positions: always Vector3i
+var grid_pos: Vector3i = Vector3i(5, 2, 3)  # cell at x=5, y=2 (2 floors up), z=3
+
+# World positions: always Vector3 (grid_pos * CELL_SIZE)
+var world_pos: Vector3 = Vector3(30.0, 12.0, 18.0)
+
 # Classes: PascalCase
 class_name BlockRegistry
 
 # Functions/variables: snake_case
 func get_block_at(pos: Vector3i) -> Block:
-    
+func grid_to_world(grid_pos: Vector3i) -> Vector3:
+
 # Signals: past tense
 signal block_placed(block)
 signal resident_moved_in(resident)
 
 # Constants: UPPER_SNAKE
-const CELL_SIZE = 6.0
+const CELL_SIZE: float = 6.0    # 6m per cell (true cube)
+const CHUNK_SIZE: int = 8       # 8×8×8 cells per chunk
+
+# Face enum
+enum CubeFace { TOP, BOTTOM, NORTH, SOUTH, EAST, WEST }
 ```
 
 ## Common Tasks
