@@ -35,12 +35,15 @@ MSG="bd sync: $TIMESTAMP"
 if [ -n "$ACTIVITY" ] && [ "$ACTIVITY" != "[]" ] && [ "$ACTIVITY" != "null" ]; then
     CHANGELOG=$(echo "$ACTIVITY" | jq -r '
         .[] |
-        if .type == "create" then "+ \(.id) created — \(.title // "untitled")"
-        elif .type == "update" and .changes.status == "in_progress" then "→ \(.id) in_progress — \(.title // "untitled")"
-        elif .type == "update" and .changes.status == "closed" then "✓ \(.id) closed — \(.title // "untitled")"
-        elif .type == "delete" then "⊘ \(.id) deleted — \(.title // "untitled")"
-        elif .type == "update" then "~ \(.id) updated — \(.title // "untitled")"
-        else "  \(.id) \(.type) — \(.title // "untitled")"
+        # Extract short title from message (after " · ")
+        (.message // "" | split(" · ") | if length > 1 then .[1] else "untitled" end) as $title |
+        if .type == "create" then "+ \(.issue_id) created — \($title)"
+        elif .type == "status" and .new_status == "in_progress" then "→ \(.issue_id) in_progress — \($title)"
+        elif .type == "status" and .new_status == "closed" then "✓ \(.issue_id) closed — \($title)"
+        elif .type == "delete" then "⊘ \(.issue_id) deleted — \($title)"
+        elif .type == "comment" then empty
+        elif .type == "status" then "~ \(.issue_id) \(.new_status) — \($title)"
+        else "  \(.issue_id) \(.type) — \($title)"
         end
     ' 2>/dev/null) || true
 
