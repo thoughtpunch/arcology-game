@@ -9,12 +9,53 @@
 The world is a 3D voxel grid. Every structure = blocks snapped to grid.
 
 ```
-Grid: 3D array of cells
+Grid: 3D array of cells (orthogonal Y-up)
 Each cell: 1 block or empty
+Cell size: 6m x 6m x 6m (true cube)
+
 Coordinate system: Vector3i(x, y, z)
-  - x, y = horizontal position
-  - z = floor level (0 = ground, positive = up, negative = down)
+  - x = east-west (positive = east)
+  - y = vertical (0 = ground, positive = up, negative = excavation)
+  - z = north-south (positive = north)
 ```
+
+### The Cell
+
+The **cell** is the atomic unit of space. Every block occupies one or more cells.
+
+```
+CELL DIMENSIONS
+===============
+Width:  6m (X axis)
+Height: 6m (Y axis)
+Depth:  6m (Z axis)
+
+Internal floors: 2 residential floors at 3m each
+                 OR 1 double-height commercial/civic floor
+
+         +---------------+
+        /               /|
+       /       6m      / |
+      +---------------+  |
+      |               |  | 6m
+      |   1 CELL      |  |
+      |               | /
+      |               |/ 6m
+      +---------------+
+```
+
+### Cell Faces
+
+Each cell has **6 faces** for adjacency, panel generation, and pathfinding connections:
+
+| Face | Direction | Normal Vector | Notes |
+|------|-----------|---------------|-------|
+| TOP | Y+ | (0, 1, 0) | Roof/ceiling |
+| BOTTOM | Y- | (0, -1, 0) | Floor |
+| NORTH | Z+ | (0, 0, 1) | |
+| SOUTH | Z- | (0, 0, -1) | |
+| EAST | X+ | (1, 0, 0) | |
+| WEST | X- | (-1, 0, 0) | |
 
 ### Rectilinear Design
 
@@ -36,14 +77,16 @@ This enables:
 | **Private** | Routes TO/FROM | Apartments, shops, offices |
 | **Public** | Routes THROUGH | Corridors, atriums, food halls |
 
-### By Size
+### By Size (Cell Footprint)
 
-| Size | Footprint | Examples |
-|------|-----------|----------|
-| Small | 1×1 | Basic apartment, corridor |
-| Medium | 2×2 | Restaurant, clinic |
-| Large | 3×3 to 4×4 | Grocery, office floor |
-| Mega | 5×5+ | Food hall, arena, indoor forest |
+| Size | Cells | Examples |
+|------|-------|----------|
+| Small | 1×1×1 | Basic apartment (2 units), corridor |
+| Medium | 2×1×1 to 2×2×1 | Restaurant, clinic |
+| Large | 3×2×1 to 4×4×1 | Grocery, office floor |
+| Mega | 5×5×1+ | Food hall, arena, indoor forest |
+
+Multi-cell blocks can extend vertically too (2×2×2 for grand lobbies, etc.).
 
 ---
 
@@ -59,7 +102,7 @@ All blocks are made of **Carbonic Nano-Cement - Universal** (CNC-U):
 ### Cantilevers
 
 Blocks can extend:
-- **1-2 blocks** unsupported horizontally
+- **1-2 cells** unsupported horizontally
 - Unlimited if another block is below
 
 ### Vertical Limits
@@ -72,13 +115,25 @@ Blocks can extend:
 
 ## Emergent Envelope
 
-The building exterior is auto-generated from block placement:
+The building exterior is auto-generated from block placement. The **envelope** is the 3D volume boundary of the structure.
 
 ```
 ENVELOPE RULE:
-Any block face that borders "outside" (void at edge of structure)
-automatically gets a panel.
+Any cell face that borders "outside" (void at edge of structure)
+automatically gets a panel mesh generated on that face.
+
+This applies to all 6 face directions (TOP, BOTTOM, NORTH, SOUTH, EAST, WEST).
 ```
+
+### Panels
+
+Panels are **3D meshes** auto-generated on exterior-facing cell faces. They are not separate placed objects—they emerge from the boundary between occupied cells and void.
+
+**How it works:**
+1. Player places blocks
+2. System detects which cell faces touch exterior/void
+3. Panel meshes auto-generate on those faces
+4. Player can upgrade panel materials per face
 
 ### Panel Materials
 
@@ -157,7 +212,7 @@ Upper floors are naturally safer:
 
 ```
 Crime pressure decreases with height:
-  Ground floor: base crime pressure
+  Ground floor (Y=0): base crime pressure
   Each floor up: -5% crime propagation chance
 
 Result: crime concentrates on lower floors unless
@@ -188,3 +243,4 @@ See [environment/light-system.md](./environment/light-system.md) for details.
 - [human-simulation/](./human-simulation/) - Agent simulation
 - [transit/](./transit/) - Pathfinding and movement
 - [../quick-reference/glossary.md](../quick-reference/glossary.md) - Term definitions
+- [../architecture/3d-refactor/specification.md](../architecture/3d-refactor/specification.md) - Full 3D architecture spec
