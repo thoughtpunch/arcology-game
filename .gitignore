@@ -8,3 +8,4 @@ scripts/ralph/ralph.log
 .bv/
 .beads/.bv.lock
 reports/
+test_output/
