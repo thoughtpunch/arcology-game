@@ -2,6 +2,14 @@
 
 (Add patterns discovered during development here. Future iterations will read this first.)
 
+- ScenarioConfig extends Resource with class_name; use load() + callv() in headless tests (not preload + static methods)
+- Scenario presets stored as JSON in data/scenarios/; loaded via ScenarioConfig.load_scenario("name")
+- PlacementValidator accepts optional scenario_config for structural rules (cantilever, height, build zone)
+- "Vertically supported" = unbroken column of blocks ALL the way to ground (Z=0), not just one block below
+- Cantilever depth: BFS outward through horizontal neighbors to nearest vertically-supported column
+- max_cantilever = floor(BASE_CANTILEVER / gravity); -1 for zero-g (unlimited)
+- Zero-g structural: blocks must connect to anchor (entrance), uses 6-directional BFS
+- would_orphan_blocks() checks if removal would exceed cantilever limits for any remaining block
 - Use Vector3i for grid positions (x, y = horizontal, z = floor level)
 - All block types defined in data/blocks.json, not hardcoded
 - Sprites go in assets/sprites/blocks/{category}/
@@ -1593,3 +1601,113 @@ Learnings:
 - 500 blocks: add ~2-7ms, full rebuild ~17-25ms (well within budget)
 Followup Tickets Created:
 - None (LOD system arcology-m0v is now unblocked as dependent)
+
+## Iteration 68 - 2026-01-31
+Task: arcology-60z - Create ScenarioConfig resource with gravity, day cycle, structural rules
+Docs Consulted:
+- documentation/ideas_not_implemented/scenario-config.md (full spec)
+- CLAUDE.md (project conventions)
+Status: PASSED
+Changes:
+- src/data/scenario_config.gd: New ScenarioConfig Resource class
+  - Physics: gravity, max_cantilever, max_build_height, structural_integrity
+  - Environment: day_length_minutes, default_time_of_day, sun/ambient energy
+  - Build Zone: origin, size, ground_depth, ground_type
+  - Cantilever auto-calc: floor(BASE_CANTILEVER / gravity), -1 for zero-g
+  - JSON load/save, serialization round-trip
+- data/scenarios/*.json: 4 scenario presets (earth_standard, lunar_colony, zero_g_station, creative)
+- src/core/main.gd: Loads ScenarioConfig at game init, applies lighting, saves/restores
+- src/core/placement_validator.gd: Reads structural rules from ScenarioConfig
+- src/core/input_handler_3d.gd: set_scenario_config() passes config to validator
+- test/data/test_scenario_config.gd: 77 unit tests (positive + negative)
+Learnings:
+- Static methods on class_name scripts can't be called via preload() in headless mode
+- Use load() as GDScript then callv() for static method access in tests
+- Save format bumped 0.2.0 -> 0.3.0 for scenario_config inclusion
+- Phase 0 has its own scenario_config.gd (visual/terrain); this one is game-engine-level
+- GameState.MIN_FLOOR/MAX_FLOOR are const; downstream systems should read scenario_config
+Followup:
+- arcology-92o: Implement gravity-aware cantilever limits (Phase 2 structural rules engine)
+- Phase 3: Wire day cycle auto-advance from config
+- Phase 4: Custom Game UI with scenario picker
+
+## Iteration 69 - 2026-01-31
+Task: arcology-92o - Implement gravity-aware cantilever limits in structural integrity
+Docs Consulted:
+- documentation/ideas_not_implemented/scenario-config.md (cantilever physics spec)
+- src/data/scenario_config.gd (ScenarioConfig API)
+- src/core/placement_validator.gd (existing structural checks)
+- src/core/grid.gd (grid API)
+Status: PASSED
+Changes:
+- src/core/placement_validator.gd: Major refactor of structural integrity
+  - _has_vertical_support(): Now checks unbroken column to ground (not just one block below)
+  - _check_structural_support(): Uses gravity-aware cantilever BFS
+  - _get_max_cantilever(): Reads from ScenarioConfig or computes from gravity
+  - _calculate_cantilever_depth(): BFS to nearest supported column
+  - _calculate_cantilever_depth_excluding(): Same but simulates block removal
+  - _has_vertical_support_excluding(): Column check ignoring removed block
+  - would_orphan_blocks(): Checks if removal exceeds cantilever limits
+  - validate_removal(): Public API returning ValidationResult for removal
+  - _would_disconnect_from_anchor(): Zero-g connectivity check
+  - _get_structurally_dependent_positions(): Finds affected blocks on removal
+  - BASE_CANTILEVER and _HORIZONTAL_OFFSETS constants
+- test/core/test_placement_validator.gd: Updated 2 assertions for new error messages
+- test/core/test_cantilever_gravity.gd: New file with 41 tests
+Learnings:
+- "Vertically supported" must mean FULL column to ground — single block below is not enough
+- BFS cantilever depth: search outward through horizontal occupied neighbors at same Z
+- Zero-g removal check uses 6-directional BFS from all entrances excluding removed pos
+- _get_structurally_dependent_positions() expands via BFS into unsupported neighbors only
+- Phase 0 sandbox_main.gd has completely separate architecture — not modified
+- Error messages like "Exceeds cantilever limit (3 > 2)" are more helpful than generic "No support"
+Followup:
+- Phase 0 _is_supported() could be upgraded separately (different architecture)
+- Anchor point system for zero-g (beyond entrances) is future work
+- Grid.get_building_stats() returns {height, volume, footprint} dict — height = max(z)+1, volume = block count, footprint = unique (x,y) columns
+- BuildingStatsDisplay is a self-contained HBoxContainer; connect_to_grid() for reactive updates
+- HUD top bar order: Menu | Resources | BuildingStats | Spacer | TimeControls | NotificationTray
+- HUD components follow two patterns: (1) self-contained with signal connections, (2) external update methods
+
+## Iteration 70 - 2026-01-31
+Task: arcology-w04 - Add building stats to main HUD (height, volume, footprint)
+Docs Consulted:
+- src/phase0/sandbox_main.gd (reference implementation from arcology-g9w)
+- src/ui/hud.gd (HUD layout and component integration patterns)
+- src/core/main.gd (signal wiring patterns)
+Status: PASSED
+Changes:
+- src/core/grid.gd: Added get_building_stats() method returning {height, volume, footprint}
+- src/ui/building_stats_display.gd: New BuildingStatsDisplay component
+  - Self-contained HBoxContainer with H: | V: | FP: labels
+  - connect_to_grid() for reactive signal-based updates
+  - Auto-hides when no blocks exist
+  - Compact styling (font size 13, muted label colors)
+- src/ui/hud.gd: Integrated BuildingStatsDisplay into top bar
+  - Added update_building_stats() and get_building_stats_display() API
+- src/core/main.gd: Wired BuildingStatsDisplay to Grid in _setup_hud()
+- test/ui/test_building_stats_display.gd: 55 tests (all pass)
+Learnings:
+- Grid stats computation is simple: iterate _blocks dict for max Z, count, unique columns
+- BuildingStatsDisplay pattern: self-contained component with connect_to_grid() for signal wiring
+- HUD top bar uses HBoxContainer with named children for get_node_or_null() access
+- _make_block() helper returns Variant in tests — must use explicit Block type annotation
+- Tab key is used for camera mode toggle, not UI visibility toggle
+Followup:
+- None
+
+## Iteration 71 - 2026-01-31
+Task: arcology-0lw.1 - Rewrite CLAUDE.md — Remove isometric references, update tech stack to 3D, fix file map
+Status: PASSED
+Changes:
+- CLAUDE.md: Updated Tech Stack table (added Vulkan/Forward+ renderer, camera modes, stylized realism art)
+- CLAUDE.md: Rewrote Key Concept #1 from "Everything Is Blocks" to "Everything Is Cells" with cells/faces/chunks terminology
+- CLAUDE.md: Expanded File Map to show src/ subdirectories (phase0/, core/, rendering/, etc.), added shaders/, test/
+- CLAUDE.md: Added 3D architecture spec reference and current Phase 0 location to Current Development Phase
+- CLAUDE.md: Expanded Code Conventions with Y-up coordinate system, Vector3i/Vector3 convention, CubeFace enum
+Learnings:
+- Documentation-only tickets still need grep verification to catch stale terminology
+- The 3D refactor spec at documentation/architecture/3d-refactor/specification.md is the authoritative source for cell/face/chunk terminology
+- Key Formulas section is rendering-agnostic and doesn't need 3D updates
+Blockers:
+- None

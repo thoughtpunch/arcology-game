@@ -9,7 +9,7 @@ Use `bd` (Beads) for task tracking instead of prd.json.
 - `documentation/README.md` - Entry point
 - `documentation/INDEX.md` - Searchable A-Z index
 - `documentation/architecture/` - Build milestones
-- `documentation/quick-reference/` - Formulas, conventions, isometric math
+- `documentation/quick-reference/` - Formulas, conventions, 3D math
 - `documentation/game-design/` - Blocks, environment, agents, economy
 
 ## Your Task (One Iteration)
@@ -114,20 +114,21 @@ bd dep add bd-A bd-B
 ## Project Context
 
 **What is Arcology?**
-A 3D isometric city-builder in Godot 4 where players build vertical megastructures and cultivate human flourishing. Think SimCity + SimTower + Dwarf Fortress.
+A 3D city-builder in Godot 4 where players build vertical megastructures and cultivate human flourishing. Think SimCity + SimTower + Dwarf Fortress.
 
 **Key Files:**
 - `CLAUDE.md` - Quick project context
 - `documentation/` - Full wiki-style knowledge base
 - `documentation/architecture/` - Build milestones and patterns
-- `documentation/quick-reference/` - Formulas, conventions, isometric math
+- `documentation/quick-reference/` - Formulas, conventions, 3D math
 - `documentation/INDEX.md` - Searchable A-Z index
 - `scripts/ralph/progress.txt` - Learnings from previous iterations
 
 **Tech Stack:**
-- Godot 4.x
+- Godot 4.x with Vulkan / Forward+ renderer
 - GDScript (primary)
-- 16-bit isometric pixel art
+- 3D procedural geometry (meshes, not sprites)
+- Free orbital + orthographic snap camera
 
 ## ⚠️ MANDATORY: Commits Before Closing
 
@@ -140,7 +141,7 @@ This is non-negotiable. The post-task hook will BLOCK ticket closure if no commi
 Examples:
 ```bash
 git add src/core/grid.gd test/test_grid.gd
-git commit -m "feat: arcology-x0d.1 - Implement Grid class with isometric conversion"
+git commit -m "feat: arcology-x0d.1 - Implement Grid class with 3D coordinate conversion"
 ```
 
 Every commit MUST include the ticket ID (e.g., `arcology-x0d.1`) so work is traceable, just like Jira or GitHub issues.
@@ -220,18 +221,32 @@ This will ERROR if no commits reference the ticket.
 ## Codebase Conventions
 
 ```gdscript
+# Coordinate system: Y-up (Godot default)
+# X = East-West, Y = Vertical (up), Z = North-South
+
+# Grid positions: always Vector3i
+var grid_pos: Vector3i = Vector3i(5, 2, 3)  # cell at x=5, y=2 (2 floors up), z=3
+
+# World positions: always Vector3 (grid_pos * CELL_SIZE)
+var world_pos: Vector3 = Vector3(30.0, 12.0, 18.0)
+
 # Classes: PascalCase
 class_name BlockRegistry
 
-# Functions/variables: snake_case  
+# Functions/variables: snake_case
 func get_block_at(pos: Vector3i) -> Block:
+func grid_to_world(grid_pos: Vector3i) -> Vector3:
 
 # Signals: past tense
 signal block_placed(block)
 signal resident_moved_in(resident)
 
 # Constants: UPPER_SNAKE
-const TILE_WIDTH = 64
+const CELL_SIZE: float = 6.0    # 6m per cell (true cube)
+const CHUNK_SIZE: int = 8       # 8×8×8 cells per chunk
+
+# Face enum
+enum CubeFace { TOP, BOTTOM, NORTH, SOUTH, EAST, WEST }
 ```
 
 ## Directory Structure
@@ -243,43 +258,55 @@ arcology/
 │   ├── beads.db         # SQLite (local)
 │   └── issues.jsonl     # Git-synced
 ├── src/
-│   ├── core/            # Grid, blocks, game clock
+│   ├── phase0/          # Block stacking sandbox (current active code)
+│   ├── core/            # Grid, blocks, placement, game state
+│   ├── rendering/       # 3D block rendering, chunk manager
 │   ├── blocks/          # Block type implementations
 │   ├── environment/     # Light, air, noise, safety
-│   ├── agents/          # Residents, needs, relationships
+│   ├── agents/          # Residents, needs, behavior trees
 │   ├── transit/         # Pathfinding, elevators
 │   ├── economy/         # Budget, rent
-│   └── ui/              # HUD, overlays, menus
-├── scenes/
-├── assets/
-│   └── sprites/blocks/  # Isometric block sprites
+│   └── ui/              # HUD, overlays, menus, panels
+├── scenes/              # phase0_sandbox.tscn, main.tscn
+├── shaders/             # Ghost preview, face highlight, grid overlay
+├── test/                # Unit and integration tests (mirrors src/ structure)
+├── assets/              # Audio, fonts, sprites
 ├── data/
 │   ├── blocks.json      # Block definitions
-│   └── balance.json     # Tuning numbers
+│   ├── terrain.json     # Terrain configuration
+│   └── scenarios/       # Scenario presets
 └── scripts/ralph/
     ├── ralph-beads.sh   # The bash loop
     ├── CLAUDE.md        # This file
     └── progress.txt     # Learnings log
 ```
 
-## Isometric Math Reference
+## 3D Grid Math Reference
 
-Blocks are 3D cutaway cubes (top face + 2 walls) creating a hexagonal perimeter:
+Blocks are 6m×6m×6m cubes on an orthogonal Y-up grid. See `src/phase0/grid_utils.gd` for canonical implementation.
 
 ```gdscript
-const TILE_WIDTH: int = 64    # Hexagon width / diamond width
-const TILE_DEPTH: int = 32    # Diamond height (top face only)
-const WALL_HEIGHT: int = 32   # Height of side faces
-const FLOOR_HEIGHT: int = 32  # Visual offset per Z level (TILE_DEPTH + WALL_HEIGHT - overlap)
+const CELL_SIZE: float = 6.0  # 6m per cell in all axes
 
-func grid_to_screen(grid_pos: Vector3i) -> Vector2:
-    var x = (grid_pos.x - grid_pos.y) * (TILE_WIDTH / 2)
-    var y = (grid_pos.x + grid_pos.y) * (TILE_DEPTH / 2)
-    y -= grid_pos.z * FLOOR_HEIGHT
-    return Vector2(x, y)
+# Grid (integer cells) → World (meters)
+static func grid_to_world(grid_pos: Vector3i) -> Vector3:
+    return Vector3(grid_pos) * CELL_SIZE
+
+static func grid_to_world_center(grid_pos: Vector3i) -> Vector3:
+    return Vector3(grid_pos) * CELL_SIZE + Vector3.ONE * (CELL_SIZE / 2.0)
+
+# World (meters) → Grid (integer cells)
+static func world_to_grid(world_pos: Vector3) -> Vector3i:
+    return Vector3i(
+        int(floor(world_pos.x / CELL_SIZE)),
+        int(floor(world_pos.y / CELL_SIZE)),
+        int(floor(world_pos.z / CELL_SIZE))
+    )
 ```
 
-**Sprite dimensions:** 64x64 pixels (hexagonal with top diamond + left/right walls)
+**Cell faces:** TOP (Y+), BOTTOM (Y-), NORTH (Z+), SOUTH (Z-), EAST (X+), WEST (X-)
+**Chunks:** 8×8×8 cells grouped for rendering optimization
+**3D Architecture Spec:** `documentation/architecture/3d-refactor/specification.md`
 
 ## Progress Log Format
 
@@ -304,10 +331,11 @@ If you discover a reusable pattern, add it to **## Codebase Patterns** at TOP of
 
 ```
 ## Codebase Patterns
-- Use Vector3i for grid positions (x, y = horizontal, z = floor)
+- Use Vector3i for grid positions (Y-up: x = east, y = up, z = north)
+- CELL_SIZE = 6.0 (6m cubes), CHUNK_SIZE = 8 (8×8×8 cells)
 - Blocks emit signals, systems connect to them
 - Load balance numbers from data/balance.json, not hardcoded
-- Sprites go in assets/sprites/blocks/{category}/
+- 3D meshes via procedural geometry (BoxMesh, etc.)
 ```
 
 ## Important Reminders
