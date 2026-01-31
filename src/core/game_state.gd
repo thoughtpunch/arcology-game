@@ -20,22 +20,14 @@ const HOURS_PER_DAY: int = 24
 
 # Speed multipliers (real seconds per game hour)
 const SPEED_NORMAL: float = 2.0  # 1 game day = 48 real seconds
-const SPEED_FAST: float = 1.0    # 1 game day = 24 real seconds
-const SPEED_FASTEST: float = 0.5 # 1 game day = 12 real seconds
+const SPEED_FAST: float = 1.0  # 1 game day = 24 real seconds
+const SPEED_FASTEST: float = 0.5  # 1 game day = 12 real seconds
 
 # Entropy rate mappings
-const ENTROPY_RATES := {
-	"Fast": 1.5,
-	"Normal": 1.0,
-	"Slow": 0.5
-}
+const ENTROPY_RATES := {"Fast": 1.5, "Normal": 1.0, "Slow": 0.5}
 
 # Resident patience mappings
-const PATIENCE_RATES := {
-	"Impatient": 0.5,
-	"Normal": 1.0,
-	"Patient": 2.0
-}
+const PATIENCE_RATES := {"Impatient": 0.5, "Normal": 1.0, "Patient": 2.0}
 
 # Current floor state
 var current_floor: int = 0
@@ -122,10 +114,14 @@ func _process(delta: float) -> void:
 ## Get seconds per game hour based on current speed
 func _get_seconds_per_hour() -> float:
 	match game_speed:
-		1: return SPEED_NORMAL
-		2: return SPEED_FAST
-		3: return SPEED_FASTEST
-		_: return SPEED_NORMAL
+		1:
+			return SPEED_NORMAL
+		2:
+			return SPEED_FAST
+		3:
+			return SPEED_FASTEST
+		_:
+			return SPEED_NORMAL
 
 
 ## Advance time by one hour
@@ -196,34 +192,33 @@ func is_paused() -> bool:
 
 ## Get current time as dictionary
 func get_time() -> Dictionary:
-	return {
-		"year": year,
-		"month": month,
-		"day": day,
-		"hour": hour
-	}
+	return {"year": year, "month": month, "day": day, "hour": hour}
 
 
 ## Get time of day as string (morning/afternoon/evening/night)
 func get_time_of_day() -> String:
 	if hour >= 6 and hour < 12:
 		return "morning"
-	elif hour >= 12 and hour < 18:
+	if hour >= 12 and hour < 18:
 		return "afternoon"
-	elif hour >= 18 and hour < 22:
+	if hour >= 18 and hour < 22:
 		return "evening"
-	else:
-		return "night"
+	return "night"
 
 
 ## Get time of day icon
 func get_time_of_day_icon() -> String:
 	match get_time_of_day():
-		"morning": return "🌅"
-		"afternoon": return "☀️"
-		"evening": return "🌆"
-		"night": return "🌙"
-		_: return "☀️"
+		"morning":
+			return "🌅"
+		"afternoon":
+			return "☀️"
+		"evening":
+			return "🌆"
+		"night":
+			return "🌙"
+		_:
+			return "☀️"
 
 
 ## Get formatted date string
@@ -242,6 +237,7 @@ func set_time(p_year: int, p_month: int, p_day: int, p_hour: int = 8) -> void:
 
 
 # --- Economy ---
+
 
 ## Add or remove money. Returns false if insufficient funds (and not unlimited).
 func add_money(amount: int) -> bool:
@@ -280,6 +276,7 @@ func get_money() -> int:
 
 
 # --- New Game Config ---
+
 
 ## Apply configuration from NewGameMenu
 ## Called when starting a new game
@@ -328,12 +325,18 @@ func apply_new_game_config(config: Dictionary) -> void:
 	aei_score = 0.0
 	current_floor = 0
 
-	print("GameState: Applied config - %s, $%d, entropy=%.1fx, patience=%.1fx" % [
-		arcology_name, money, entropy_multiplier, resident_patience_multiplier
-	])
-	print("GameState: Sandbox - unlimited=$%s, instant=%s, unlocked=%s, no_fail=%s" % [
-		unlimited_money, instant_construction, all_blocks_unlocked, disable_failures
-	])
+	print(
+		(
+			"GameState: Applied config - %s, $%d, entropy=%.1fx, patience=%.1fx"
+			% [arcology_name, money, entropy_multiplier, resident_patience_multiplier]
+		)
+	)
+	print(
+		(
+			"GameState: Sandbox - unlimited=$%s, instant=%s, unlocked=%s, no_fail=%s"
+			% [unlimited_money, instant_construction, all_blocks_unlocked, disable_failures]
+		)
+	)
 
 	config_applied.emit(config)
 

@@ -64,6 +64,7 @@ const DRAG_THRESHOLD: float = 4.0  # Pixels before a click becomes a drag
 const HISTORY_MIN_DISTANCE: float = 20.0  # Min target movement to push history
 const HISTORY_MIN_ANGLE: float = 5.0  # Min azimuth change to push history
 const MAX_HISTORY: int = 50
+const LOG_PREFIX := "[Camera] "
 
 # --- State ---
 var target: Vector3 = Vector3.ZERO
@@ -129,9 +130,17 @@ func _ready() -> void:
 	_home_distance = distance
 
 	_push_history()
-	_log("Camera ready — home at %s, az=%.0f, el=%.0f, dist=%.0f" % [
-		target, azimuth, elevation, distance,
-	])
+	_log(
+		(
+			"Camera ready — home at %s, az=%.0f, el=%.0f, dist=%.0f"
+			% [
+				target,
+				azimuth,
+				elevation,
+				distance,
+			]
+		)
+	)
 
 
 func _process(delta: float) -> void:
@@ -152,7 +161,6 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # --- Logging ---
 
-const LOG_PREFIX := "[Camera] "
 
 static func _log(msg: String) -> void:
 	if OS.is_debug_build():
@@ -160,6 +168,7 @@ static func _log(msg: String) -> void:
 
 
 # --- Speed Modulation ---
+
 
 func _update_speed_factors() -> void:
 	var shift := Input.is_key_pressed(KEY_SHIFT)
@@ -184,6 +193,7 @@ func _update_speed_factors() -> void:
 
 
 # --- Keyboard (continuous, polled each frame) ---
+
 
 func _handle_keyboard(delta: float) -> void:
 	# Vertical movement (Q/Space = up, E/C = down)
@@ -210,11 +220,13 @@ func _handle_keyboard(delta: float) -> void:
 		pan_input = pan_input.normalized()
 		var speed := PAN_BASE_SPEED * (distance / 100.0) * _movement_speed * delta
 		var fwd := Vector3(
-			sin(deg_to_rad(azimuth)), 0,
+			sin(deg_to_rad(azimuth)),
+			0,
 			cos(deg_to_rad(azimuth)),
 		)
 		var right := Vector3(
-			cos(deg_to_rad(azimuth)), 0,
+			cos(deg_to_rad(azimuth)),
+			0,
 			-sin(deg_to_rad(azimuth)),
 		)
 		_target_target += fwd * pan_input.y * speed
@@ -224,6 +236,7 @@ func _handle_keyboard(delta: float) -> void:
 
 
 # --- Mouse Buttons ---
+
 
 func _handle_mouse_button(event: InputEventMouseButton) -> void:
 	match event.button_index:
@@ -275,7 +288,8 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 			else:
 				_target_distance = clampf(
 					_target_distance * factor,
-					MIN_DISTANCE, MAX_DISTANCE,
+					MIN_DISTANCE,
+					MAX_DISTANCE,
 				)
 				_log("Zoom in → dist=%.1f" % _target_distance)
 
@@ -287,12 +301,14 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 			else:
 				_target_distance = clampf(
 					_target_distance * factor,
-					MIN_DISTANCE, MAX_DISTANCE,
+					MIN_DISTANCE,
+					MAX_DISTANCE,
 				)
 				_log("Zoom out → dist=%.1f" % _target_distance)
 
 
 # --- Mouse Motion ---
+
 
 func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 	var delta := event.position - _last_mouse_pos
@@ -311,7 +327,8 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 			else:
 				_target_distance = clampf(
 					_target_distance * (1.0 + zoom_delta),
-					MIN_DISTANCE, MAX_DISTANCE,
+					MIN_DISTANCE,
+					MAX_DISTANCE,
 				)
 		get_viewport().set_input_as_handled()
 		return
@@ -332,11 +349,13 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 	if _middle_pressed:
 		var pan_scale := PAN_MOUSE_SENSITIVITY * (distance / 100.0) * _movement_speed
 		var fwd := Vector3(
-			sin(deg_to_rad(azimuth)), 0,
+			sin(deg_to_rad(azimuth)),
+			0,
 			cos(deg_to_rad(azimuth)),
 		)
 		var right := Vector3(
-			cos(deg_to_rad(azimuth)), 0,
+			cos(deg_to_rad(azimuth)),
+			0,
 			-sin(deg_to_rad(azimuth)),
 		)
 		_target_target -= right * delta.x * pan_scale
@@ -345,6 +364,7 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 
 
 # --- Special Keys (single-press) ---
+
 
 func _handle_key(event: InputEventKey) -> void:
 	match event.keycode:
@@ -398,6 +418,7 @@ func _handle_key(event: InputEventKey) -> void:
 
 # --- Interpolation ---
 
+
 func _smooth_interpolate(delta: float) -> void:
 	var t := 1.0 - exp(-LERP_FACTOR * delta)
 	azimuth = lerpf(azimuth, _target_azimuth, t)
@@ -411,11 +432,14 @@ func _update_camera_position() -> void:
 	var azimuth_rad := deg_to_rad(azimuth)
 	var elevation_rad := deg_to_rad(elevation)
 
-	var offset := Vector3(
-		sin(azimuth_rad) * cos(elevation_rad),
-		sin(elevation_rad),
-		cos(azimuth_rad) * cos(elevation_rad),
-	) * distance
+	var offset := (
+		Vector3(
+			sin(azimuth_rad) * cos(elevation_rad),
+			sin(elevation_rad),
+			cos(azimuth_rad) * cos(elevation_rad),
+		)
+		* distance
+	)
 
 	camera.global_position = target + offset
 	camera.fov = fov
@@ -428,6 +452,7 @@ func _update_camera_position() -> void:
 
 
 # --- Public API ---
+
 
 func focus_on(world_pos: Vector3) -> void:
 	## Smoothly move camera to frame a world position.
@@ -450,6 +475,7 @@ func go_home() -> void:
 
 # --- Orthographic Views ---
 
+
 func _snap_to_view(az: float, el: float) -> void:
 	_push_history()
 	_target_azimuth = az
@@ -469,6 +495,7 @@ func _toggle_orthographic() -> void:
 
 # --- History ---
 
+
 func _push_history() -> void:
 	var state := {
 		"target": _target_target,
@@ -479,8 +506,10 @@ func _push_history() -> void:
 	# Skip if barely moved from current top
 	if _history.size() > 0 and _history_index >= 0:
 		var last: Dictionary = _history[_history_index]
-		if (last.target.distance_to(state.target) < HISTORY_MIN_DISTANCE
-				and absf(last.azimuth - state.azimuth) < HISTORY_MIN_ANGLE):
+		if (
+			last.target.distance_to(state.target) < HISTORY_MIN_DISTANCE
+			and absf(last.azimuth - state.azimuth) < HISTORY_MIN_ANGLE
+		):
 			return
 
 	# Truncate forward history when pushing after going back

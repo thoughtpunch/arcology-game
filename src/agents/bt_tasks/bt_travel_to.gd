@@ -16,9 +16,10 @@ extends BTAction
 
 func _generate_name() -> String:
 	if fixed_destination.x >= 0:
-		return "TravelTo: (%d,%d,%d)" % [fixed_destination.x, fixed_destination.y, fixed_destination.z]
-	else:
-		return "TravelTo: $%s" % target_var
+		return (
+			"TravelTo: (%d,%d,%d)" % [fixed_destination.x, fixed_destination.y, fixed_destination.z]
+		)
+	return "TravelTo: $%s" % target_var
 
 
 func _enter() -> void:

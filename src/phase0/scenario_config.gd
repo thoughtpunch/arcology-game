@@ -19,11 +19,11 @@ var description: String = ""
 var ground_size: int = 100
 var ground_depth: int = 5
 var strata_colors: Array[Color] = [
-	Color(0.3, 0.55, 0.2),   # y=-1: Grass/topsoil
+	Color(0.3, 0.55, 0.2),  # y=-1: Grass/topsoil
 	Color(0.55, 0.35, 0.2),  # y=-2: Soil
 	Color(0.4, 0.25, 0.15),  # y=-3: Clay
-	Color(0.5, 0.5, 0.5),    # y=-4: Rock
-	Color(0.3, 0.3, 0.3),    # y=-5: Bedrock
+	Color(0.5, 0.5, 0.5),  # y=-4: Rock
+	Color(0.3, 0.3, 0.3),  # y=-5: Bedrock
 ]
 
 # --- Build Zone ---
@@ -51,7 +51,8 @@ var river_enabled: bool = false
 var river_width: float = 30.0
 var river_color: Color = Color(0.2, 0.4, 0.65, 0.7)
 var river_flow_angle: float = 30.0
-var river_offset: float = 0.0  # Perpendicular offset from ground center (keeps river out of build zone)
+# Perpendicular offset from ground center (keeps river out of build zone)
+var river_offset: float = 0.0
 
 # --- Sky ---
 var sky_top_color: Color = Color(0.35, 0.55, 0.85)
@@ -67,14 +68,15 @@ var ambient_energy: float = 0.5
 var fog_density: float = 0.001
 var fog_color: Color = Color(0.55, 0.62, 0.72)
 
-
 # --- Factory Methods ---
+
 
 static func blank_slate() -> RefCounted:
 	var cfg = new()
 	cfg.id = "blank_slate"
 	cfg.display_name = "Blank Slate"
-	cfg.description = "Open terrain with distant mountains and a river. A pastoral canvas for your first structure."
+	cfg.description = "Open terrain with distant mountains and a river. "\
+		+ "A pastoral canvas for your first structure."
 
 	# Skyline
 	cfg.skyline_type = SkylineType.NONE

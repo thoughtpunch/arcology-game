@@ -95,7 +95,10 @@ func setup(aei_data: Dictionary) -> void:
 
 	_target_label = Label.new()
 	if points_needed > 0:
-		_target_label.text = "Target: %d for %s (%d points away)" % [next_tier, _get_tier_name(next_tier), points_needed]
+		_target_label.text = (
+			"Target: %d for %s (%d points away)"
+			% [next_tier, _get_tier_name(next_tier), points_needed]
+		)
 	else:
 		_target_label.text = "Platinum achieved!"
 	_target_label.add_theme_color_override("font_color", COLOR_TEXT_SECONDARY)
@@ -110,23 +113,47 @@ func setup(aei_data: Dictionary) -> void:
 
 	# Individual Wellbeing (40%)
 	var individual: float = components.get("individual", 0.0)
-	_add_component(comp_section, "individual", "Individual Wellbeing", individual, WEIGHT_INDIVIDUAL,
-		"Avg flourishing, needs met")
+	_add_component(
+		comp_section,
+		"individual",
+		"Individual Wellbeing",
+		individual,
+		WEIGHT_INDIVIDUAL,
+		"Avg flourishing, needs met"
+	)
 
 	# Community Cohesion (25%)
 	var community: float = components.get("community", 0.0)
-	_add_component(comp_section, "community", "Community Cohesion", community, WEIGHT_COMMUNITY,
-		"Relationships, civic participation")
+	_add_component(
+		comp_section,
+		"community",
+		"Community Cohesion",
+		community,
+		WEIGHT_COMMUNITY,
+		"Relationships, civic participation"
+	)
 
 	# Sustainability (20%)
 	var sustainability: float = components.get("sustainability", 0.0)
-	_add_component(comp_section, "sustainability", "Sustainability", sustainability, WEIGHT_SUSTAINABILITY,
-		"Resource efficiency, environment")
+	_add_component(
+		comp_section,
+		"sustainability",
+		"Sustainability",
+		sustainability,
+		WEIGHT_SUSTAINABILITY,
+		"Resource efficiency, environment"
+	)
 
 	# Resilience (15%)
 	var resilience: float = components.get("resilience", 0.0)
-	_add_component(comp_section, "resilience", "Resilience", resilience, WEIGHT_RESILIENCE,
-		"Emergency readiness, diversity")
+	_add_component(
+		comp_section,
+		"resilience",
+		"Resilience",
+		resilience,
+		WEIGHT_RESILIENCE,
+		"Emergency readiness, diversity"
+	)
 
 	# Achievements section
 	var achievements_section := add_section("Achievements", "ACHIEVEMENTS")
@@ -155,8 +182,14 @@ func setup(aei_data: Dictionary) -> void:
 
 
 ## Add a component display
-func _add_component(container: VBoxContainer, comp_name: String, title: String,
-					value: float, weight: float, description: String) -> void:
+func _add_component(
+	container: VBoxContainer,
+	comp_name: String,
+	title: String,
+	value: float,
+	weight: float,
+	description: String
+) -> void:
 	var comp_container := VBoxContainer.new()
 	comp_container.add_theme_constant_override("separation", 2)
 
@@ -198,10 +231,7 @@ func _add_component(container: VBoxContainer, comp_name: String, title: String,
 	container.add_child(comp_container)
 
 	# Cache for updates
-	_component_bars[comp_name] = {
-		"bar": bar,
-		"label": value_label
-	}
+	_component_bars[comp_name] = {"bar": bar, "label": value_label}
 
 
 ## Add an achievement row
@@ -242,14 +272,13 @@ func _add_achievement(container: VBoxContainer, achievement: Dictionary) -> void
 func _get_tier_color(score: float) -> Color:
 	if score >= TIER_PLATINUM:
 		return Color("#e0e0e0")  # Platinum - silvery white
-	elif score >= TIER_GOLD:
+	if score >= TIER_GOLD:
 		return Color("#ffd700")  # Gold
-	elif score >= TIER_SILVER:
+	if score >= TIER_SILVER:
 		return Color("#c0c0c0")  # Silver
-	elif score >= TIER_BRONZE:
+	if score >= TIER_BRONZE:
 		return Color("#cd7f32")  # Bronze
-	else:
-		return get_bar_color_by_value(score)
+	return get_bar_color_by_value(score)
 
 
 ## Get tier name from threshold
@@ -270,11 +299,11 @@ func _get_tier_name(threshold: int) -> String:
 func _get_next_tier(score: float) -> int:
 	if score < TIER_BRONZE:
 		return TIER_BRONZE
-	elif score < TIER_SILVER:
+	if score < TIER_SILVER:
 		return TIER_SILVER
-	elif score < TIER_GOLD:
+	if score < TIER_GOLD:
 		return TIER_GOLD
-	elif score < TIER_PLATINUM:
+	if score < TIER_PLATINUM:
 		return TIER_PLATINUM
 	return TIER_PLATINUM
 
@@ -299,7 +328,10 @@ func update_overall(score: float) -> void:
 		var points_needed := _get_points_to_tier(score, next_tier)
 
 		if points_needed > 0:
-			_target_label.text = "Target: %d for %s (%d points away)" % [next_tier, _get_tier_name(next_tier), points_needed]
+			_target_label.text = (
+				"Target: %d for %s (%d points away)"
+				% [next_tier, _get_tier_name(next_tier), points_needed]
+			)
 		else:
 			_target_label.text = "Platinum achieved!"
 

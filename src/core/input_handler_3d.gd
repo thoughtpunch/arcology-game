@@ -1,5 +1,5 @@
-extends Node3D
 class_name InputHandler3D
+extends Node3D
 
 ## 3D raycast-based input handler for block placement and selection
 ##
@@ -14,7 +14,6 @@ class_name InputHandler3D
 ## - Layer 3: Blocks (transparent) - future use
 ## - Layer 4: Ghost (excluded from raycasts)
 
-# Signals
 signal block_placement_attempted(pos: Vector3i, type: String, success: bool)
 signal block_removal_attempted(pos: Vector3i, success: bool)
 signal selection_changed(block_type: String)
@@ -25,7 +24,15 @@ enum CubeFace { TOP, BOTTOM, NORTH, SOUTH, EAST, WEST }
 
 # Mode
 enum Mode { BUILD, SELECT, DEMOLISH }
-var current_mode := Mode.BUILD
+
+# Raycast settings
+const RAY_LENGTH: float = 2000.0
+const COLLISION_MASK_TERRAIN: int = 1  # Layer 1
+const COLLISION_MASK_BLOCKS: int = 2  # Layer 2
+const COLLISION_MASK_ALL: int = 0b11  # Layers 1 and 2
+
+# Placement cooldown
+const PLACEMENT_COOLDOWN := 0.15  # seconds
 
 # Dependencies
 var grid: Node = null  # Grid class
@@ -37,26 +44,17 @@ var placement_validator: RefCounted = null  # PlacementValidator
 var ghost_preview: Node3D = null  # GhostPreview3D instance
 
 # State
+var current_mode := Mode.BUILD
 var selected_block_type: String = "corridor"
-var _rotation_index: int = 0  # Block rotation (0-3)
-
-# Raycast settings
-const RAY_LENGTH: float = 2000.0
-const COLLISION_MASK_TERRAIN: int = 1  # Layer 1
-const COLLISION_MASK_BLOCKS: int = 2   # Layer 2
-const COLLISION_MASK_ALL: int = 0b11   # Layers 1 and 2
-
-# Placement cooldown
-const PLACEMENT_COOLDOWN := 0.15  # seconds
-var _last_placement_time := 0.0
-
-# Ghost state
-var _ghost_visible := false
-var _ghost_grid_pos := Vector3i.ZERO
-var _ghost_valid := false
 
 # Construction queue reference (optional)
 var construction_queue = null
+
+var _rotation_index: int = 0  # Block rotation (0-3)
+var _last_placement_time := 0.0
+var _ghost_visible := false
+var _ghost_grid_pos := Vector3i.ZERO
+var _ghost_valid := false
 
 
 func _ready() -> void:
@@ -94,9 +92,18 @@ func setup(p_grid: Node, p_camera: Camera3D, p_renderer: Node3D = null) -> void:
 func set_scenario_config(config: Resource) -> void:
 	if placement_validator:
 		placement_validator.scenario_config = config
-	print("InputHandler3D: Setup complete (grid=%s, camera=%s, renderer=%s, ghost=%s, validator=%s)" % [
-		grid != null, camera != null, block_renderer_3d != null, ghost_preview != null, placement_validator != null
-	])
+	print(
+		(
+			"InputHandler3D: Setup complete (grid=%s, camera=%s, renderer=%s, ghost=%s, validator=%s)"
+			% [
+				grid != null,
+				camera != null,
+				block_renderer_3d != null,
+				ghost_preview != null,
+				placement_validator != null
+			]
+		)
+	)
 
 
 func _process(_delta: float) -> void:
@@ -132,6 +139,7 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 
 # --- Raycasting ---
 
+
 func _raycast_from_mouse() -> Dictionary:
 	## Cast ray from camera through mouse position
 	## Returns raycast result dictionary or empty dict
@@ -161,7 +169,7 @@ func get_world_hit_at_cursor() -> Dictionary:
 	var result := _raycast_from_mouse()
 
 	if result.is_empty():
-		return { "hit": false }
+		return {"hit": false}
 
 	var hit_pos: Vector3 = result.position
 	var hit_normal: Vector3 = result.normal
@@ -195,24 +203,16 @@ func get_placement_position(hit: Dictionary) -> Vector3i:
 	var normal: Vector3 = hit.normal
 
 	# Offset by normal direction to place adjacent to hit surface
-	var offset := Vector3i(
-		roundi(normal.x),
-		roundi(normal.z),  # normal Y -> grid Z (floor level)
-		roundi(normal.y)   # normal Y -> grid Z
-	)
+	# normal Y -> grid Z (floor level)
+	var offset := Vector3i(roundi(normal.x), roundi(normal.z), roundi(normal.y))
 
 	# For ground plane (Y+ normal), place at Z=0
 	# For block faces, place adjacent
 	if absf(normal.y) > 0.5:
 		# Hit top or bottom face - adjust floor level
 		return Vector3i(grid_pos.x, grid_pos.y, grid_pos.z + roundi(normal.y))
-	else:
-		# Hit side face - adjust X or Y (grid horizontal)
-		return Vector3i(
-			grid_pos.x + roundi(normal.x),
-			grid_pos.y + roundi(normal.z),
-			grid_pos.z
-		)
+	# Hit side face - adjust X or Y (grid horizontal)
+	return Vector3i(grid_pos.x + roundi(normal.x), grid_pos.y + roundi(normal.z), grid_pos.z)
 
 
 func _normal_to_face(normal: Vector3) -> CubeFace:
@@ -232,6 +232,7 @@ func _normal_to_face(normal: Vector3) -> CubeFace:
 
 # --- Grid Coordinate Conversion ---
 
+
 func _world_to_grid(world_pos: Vector3) -> Vector3i:
 	## Convert world position to grid coordinates
 	## Uses BlockRenderer3D constants for consistency
@@ -249,13 +250,12 @@ func _grid_to_world_center(grid_pos: Vector3i) -> Vector3:
 	const CELL_SIZE: float = 6.0  # True cube — 6m all axes
 
 	return Vector3(
-		grid_pos.x * CELL_SIZE,
-		grid_pos.z * CELL_SIZE + CELL_SIZE / 2.0,
-		grid_pos.y * CELL_SIZE
+		grid_pos.x * CELL_SIZE, grid_pos.z * CELL_SIZE + CELL_SIZE / 2.0, grid_pos.y * CELL_SIZE
 	)
 
 
 # --- Ghost Preview ---
+
 
 func _update_ghost_position() -> void:
 	## Update ghost preview based on cursor raycast
@@ -310,6 +310,7 @@ func _hide_ghost() -> void:
 
 
 # --- Placement Logic ---
+
 
 func _try_place_block() -> void:
 	## Attempt to place block at ghost position
@@ -384,6 +385,7 @@ func _get_validation_result(pos: Vector3i):
 
 # --- Removal Logic ---
 
+
 func _try_remove_block() -> void:
 	## Attempt to remove block at cursor position
 	var hit := get_world_hit_at_cursor()
@@ -402,6 +404,7 @@ func _try_remove_block() -> void:
 
 
 # --- Selection Logic ---
+
 
 func _try_select_block() -> void:
 	## Select block at cursor position
@@ -430,6 +433,7 @@ func _try_select_block() -> void:
 
 # --- Block Data ---
 
+
 func _get_block_data(block_type: String) -> Dictionary:
 	## Get block definition from BlockRegistry
 	var tree := get_tree()
@@ -442,6 +446,7 @@ func _get_block_data(block_type: String) -> Dictionary:
 
 
 # --- Public API ---
+
 
 func _is_ready() -> bool:
 	return grid != null and camera != null

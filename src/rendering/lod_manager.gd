@@ -1,5 +1,5 @@
-extends Node
 class_name LODManager
+extends Node
 
 ## Manages Level of Detail (LOD) for 3D block rendering.
 ##
@@ -20,6 +20,9 @@ class_name LODManager
 ##
 ## The manager automatically updates LOD levels each frame based on camera position.
 
+signal lod_level_changed(chunk: Node3D, old_level: LODLevel, new_level: LODLevel)
+signal config_changed
+
 # LOD level enumeration
 enum LODLevel {
 	LOD0 = 0,  # Full detail (0-50m)
@@ -39,10 +42,6 @@ const LOD_HYSTERESIS: float = 5.0
 
 # Update frequency (process every N frames to reduce overhead)
 const UPDATE_INTERVAL_FRAMES: int = 2
-
-# Signals
-signal lod_level_changed(chunk: Node3D, old_level: LODLevel, new_level: LODLevel)
-signal config_changed()
 
 # Distance thresholds (configurable)
 var lod0_max_distance: float = DEFAULT_LOD0_MAX_DISTANCE
@@ -110,12 +109,11 @@ func clear() -> void:
 func get_lod_for_distance(distance: float) -> LODLevel:
 	if distance <= lod0_max_distance:
 		return LODLevel.LOD0
-	elif distance <= lod1_max_distance:
+	if distance <= lod1_max_distance:
 		return LODLevel.LOD1
-	elif distance <= lod2_max_distance:
+	if distance <= lod2_max_distance:
 		return LODLevel.LOD2
-	else:
-		return LODLevel.LOD3
+	return LODLevel.LOD3
 
 
 ## Get the LOD level for a given distance with hysteresis
@@ -144,12 +142,11 @@ func get_lod_for_distance_with_hysteresis(distance: float, current_lod: LODLevel
 
 	if distance <= lod0_threshold:
 		return LODLevel.LOD0
-	elif distance <= lod1_threshold:
+	if distance <= lod1_threshold:
 		return LODLevel.LOD1
-	elif distance <= lod2_threshold:
+	if distance <= lod2_threshold:
 		return LODLevel.LOD2
-	else:
-		return LODLevel.LOD3
+	return LODLevel.LOD3
 
 
 ## Get the current LOD level for a chunk
@@ -226,6 +223,7 @@ func force_update() -> void:
 
 
 # --- Internal Methods ---
+
 
 ## Update LOD levels for all registered chunks
 func _update_all_lods(force: bool = false) -> void:

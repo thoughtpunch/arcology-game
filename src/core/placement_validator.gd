@@ -1,5 +1,5 @@
-extends RefCounted
 class_name PlacementValidator
+extends RefCounted
 
 ## Validates block placement according to structural and gameplay rules.
 ##
@@ -14,6 +14,13 @@ class_name PlacementValidator
 ## 3. Cantilever limit - max_cantilever cells from a supported column
 ## 4. Prerequisites - some blocks require adjacent infrastructure
 ## 5. Warnings - non-blocking issues (light blocking, dead ends, etc.)
+
+const BASE_CANTILEVER: int = 2
+
+# Shared horizontal offsets for BFS
+const _HORIZONTAL_OFFSETS: Array[Vector3i] = [
+	Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 1, 0), Vector3i(0, -1, 0)
+]
 
 # Grid reference for checking existing blocks
 var grid: Node = null
@@ -57,17 +64,6 @@ class ValidationResult:
 		if has_warnings():
 			return "Valid with warnings: %s" % ", ".join(warnings)
 		return "Valid"
-
-
-# Shared horizontal offsets for BFS
-const _HORIZONTAL_OFFSETS: Array[Vector3i] = [
-	Vector3i(1, 0, 0),
-	Vector3i(-1, 0, 0),
-	Vector3i(0, 1, 0),
-	Vector3i(0, -1, 0)
-]
-
-const BASE_CANTILEVER: int = 2
 
 
 func _init(p_grid: Node = null, p_registry = null, p_scenario_config: Resource = null) -> void:
@@ -122,6 +118,7 @@ func validate_placement(pos: Vector3i, block_type: String) -> ValidationResult:
 
 # --- Core Validation Checks ---
 
+
 func _check_space_empty(pos: Vector3i) -> ValidationResult:
 	## Check that the target position is not already occupied
 	if grid == null:
@@ -133,7 +130,7 @@ func _check_space_empty(pos: Vector3i) -> ValidationResult:
 	return ValidationResult.success()
 
 
-func _check_structural_support(pos: Vector3i, block_type: String) -> ValidationResult:
+func _check_structural_support(pos: Vector3i, _block_type: String) -> ValidationResult:
 	## Check that the block has structural support using gravity-aware cantilever BFS.
 	##
 	## Every cell must be within max_cantilever horizontal (Manhattan) distance of a
@@ -236,7 +233,7 @@ func _check_floor_constraints(pos: Vector3i, block_type: String) -> ValidationRe
 	return ValidationResult.success()
 
 
-func _check_excavation(pos: Vector3i) -> ValidationResult:
+func _check_excavation(_pos: Vector3i) -> ValidationResult:
 	## Check if underground position is excavated
 	## Grid auto-excavates on placement, so this is mostly a future concern
 
@@ -252,6 +249,7 @@ func _check_excavation(pos: Vector3i) -> ValidationResult:
 
 
 # --- Warnings (non-blocking) ---
+
 
 func _collect_warnings(pos: Vector3i, block_type: String) -> Array[String]:
 	## Collect non-blocking warnings about the placement
@@ -285,6 +283,7 @@ func _collect_warnings(pos: Vector3i, block_type: String) -> Array[String]:
 
 
 # --- Helper Methods ---
+
 
 func _has_vertical_support(pos: Vector3i) -> bool:
 	## Check if position has a vertically-supported column: an unbroken chain
@@ -337,7 +336,7 @@ func _calculate_cantilever_depth(pos: Vector3i) -> int:
 
 	# BFS outward through horizontal neighbors to find nearest supported column
 	var visited: Dictionary = {}
-	var queue: Array[Dictionary] = [{ "pos": pos, "depth": 0 }]
+	var queue: Array[Dictionary] = [{"pos": pos, "depth": 0}]
 	visited[pos] = true
 
 	while not queue.is_empty():
@@ -356,7 +355,7 @@ func _calculate_cantilever_depth(pos: Vector3i) -> int:
 			if not visited.has(neighbor):
 				visited[neighbor] = true
 				if grid.has_block(neighbor):
-					queue.append({ "pos": neighbor, "depth": current_depth + 1 })
+					queue.append({"pos": neighbor, "depth": current_depth + 1})
 
 	return 999  # No support path found
 
@@ -376,7 +375,7 @@ func _calculate_cantilever_depth_excluding(pos: Vector3i, excluded_pos: Vector3i
 		return 0
 
 	var visited: Dictionary = {}
-	var queue: Array[Dictionary] = [{ "pos": pos, "depth": 0 }]
+	var queue: Array[Dictionary] = [{"pos": pos, "depth": 0}]
 	visited[pos] = true
 	visited[excluded_pos] = true  # Pretend excluded doesn't exist
 
@@ -385,7 +384,11 @@ func _calculate_cantilever_depth_excluding(pos: Vector3i, excluded_pos: Vector3i
 		var current_pos: Vector3i = current.pos
 		var current_depth: int = current.depth
 
-		if current_depth > 0 and grid.has_block(current_pos) and _has_vertical_support_excluding(current_pos, excluded_pos):
+		if (
+			current_depth > 0
+			and grid.has_block(current_pos)
+			and _has_vertical_support_excluding(current_pos, excluded_pos)
+		):
 			return current_depth
 
 		for j in range(_HORIZONTAL_OFFSETS.size()):
@@ -394,7 +397,7 @@ func _calculate_cantilever_depth_excluding(pos: Vector3i, excluded_pos: Vector3i
 			if not visited.has(neighbor):
 				visited[neighbor] = true
 				if grid.has_block(neighbor):
-					queue.append({ "pos": neighbor, "depth": current_depth + 1 })
+					queue.append({"pos": neighbor, "depth": current_depth + 1})
 
 	return 999
 
@@ -550,6 +553,7 @@ func _get_block_data(block_type: String) -> Dictionary:
 
 # --- Public API ---
 
+
 func is_valid_placement(pos: Vector3i, block_type: String) -> bool:
 	## Quick check if placement is valid (no details)
 	var result := validate_placement(pos, block_type)
@@ -651,9 +655,12 @@ func _would_disconnect_from_anchor(removal_pos: Vector3i) -> bool:
 			visited[entrance_pos] = true
 
 	var all_offsets: Array[Vector3i] = [
-		Vector3i(1, 0, 0), Vector3i(-1, 0, 0),
-		Vector3i(0, 1, 0), Vector3i(0, -1, 0),
-		Vector3i(0, 0, 1), Vector3i(0, 0, -1)
+		Vector3i(1, 0, 0),
+		Vector3i(-1, 0, 0),
+		Vector3i(0, 1, 0),
+		Vector3i(0, -1, 0),
+		Vector3i(0, 0, 1),
+		Vector3i(0, 0, -1)
 	]
 
 	while not queue.is_empty():

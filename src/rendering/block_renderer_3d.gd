@@ -1,5 +1,5 @@
-extends Node3D
 class_name BlockRenderer3D
+extends Node3D
 
 ## 3D block renderer for the arcology
 ##
@@ -12,31 +12,26 @@ class_name BlockRenderer3D
 ## - Contains 2 internal residential floors at 3m each
 ## - Or 1 double-height commercial/civic floor
 
+signal block_added_visual(grid_pos: Vector3i, mesh: MeshInstance3D)
+signal block_removed_visual(grid_pos: Vector3i)
+signal state_changed(grid_pos: Vector3i, new_state: BlockState)
+
+# Block visual states
+enum BlockState {
+	NORMAL, SELECTED, GHOST_VALID, GHOST_WARNING, GHOST_INVALID, CONSTRUCTING, DAMAGED, DISCONNECTED
+}
+
 # Cell dimensions in meters (Godot units) — true cube
-const CELL_SIZE: float = 6.0    # All axes (X, Y, Z)
-const CUBE_WIDTH: float = CELL_SIZE   # X axis (alias for compatibility)
-const CUBE_DEPTH: float = CELL_SIZE   # Z axis (alias for compatibility)
+const CELL_SIZE: float = 6.0  # All axes (X, Y, Z)
+const CUBE_WIDTH: float = CELL_SIZE  # X axis (alias for compatibility)
+const CUBE_DEPTH: float = CELL_SIZE  # Z axis (alias for compatibility)
 const CUBE_HEIGHT: float = CELL_SIZE  # Y axis (alias for compatibility)
 
 # Collision layers
 const COLLISION_LAYER_BLOCKS: int = 2
 
-# Block visual states
-enum BlockState {
-	NORMAL,
-	SELECTED,
-	GHOST_VALID,
-	GHOST_WARNING,
-	GHOST_INVALID,
-	CONSTRUCTING,
-	DAMAGED,
-	DISCONNECTED
-}
-
-# Signals
-signal block_added_visual(grid_pos: Vector3i, mesh: MeshInstance3D)
-signal block_removed_visual(grid_pos: Vector3i)
-signal state_changed(grid_pos: Vector3i, new_state: BlockState)
+# Chunk manager for geometry batching (optional)
+const ChunkManagerClass := preload("res://src/rendering/chunk_manager.gd")
 
 # Storage
 var _block_meshes: Dictionary = {}  # Vector3i -> MeshInstance3D
@@ -54,9 +49,6 @@ var _block_shader: Shader = null
 var _ghost_mesh: MeshInstance3D = null
 var _ghost_grid_pos: Vector3i = Vector3i.ZERO
 var _ghost_state: BlockState = BlockState.GHOST_VALID
-
-# Chunk manager for geometry batching (optional)
-const ChunkManagerClass := preload("res://src/rendering/chunk_manager.gd")
 var _chunk_manager: Node3D = null  # ChunkManager instance
 var _chunking_enabled: bool = false
 
@@ -187,7 +179,9 @@ static func world_to_grid(world_pos: Vector3) -> Vector3i:
 
 
 ## Show ghost preview at position
-func show_ghost(grid_pos: Vector3i, block_type: String, state: BlockState = BlockState.GHOST_VALID) -> void:
+func show_ghost(
+	grid_pos: Vector3i, block_type: String, state: BlockState = BlockState.GHOST_VALID
+) -> void:
 	if not _ghost_mesh:
 		_ghost_mesh = MeshInstance3D.new()
 		_ghost_mesh.name = "GhostPreview"
@@ -277,6 +271,7 @@ func is_chunking_enabled() -> bool:
 
 # --- Grid Signal Handlers ---
 
+
 func _on_block_added(grid_pos: Vector3i, block) -> void:
 	var block_type: String = "corridor"
 	if block is Object and "block_type" in block:
@@ -329,16 +324,20 @@ func _on_connectivity_changed() -> void:
 
 # --- Shader Management ---
 
+
 func _load_shader() -> void:
 	# Load the block material shader for cutaway support
 	var shader_path := "res://shaders/block_material.gdshader"
 	if ResourceLoader.exists(shader_path):
 		_block_shader = load(shader_path)
 	else:
-		push_warning("BlockRenderer3D: Shader not found at %s, using fallback materials" % shader_path)
+		push_warning(
+			"BlockRenderer3D: Shader not found at %s, using fallback materials" % shader_path
+		)
 
 
 # --- Material Management ---
+
 
 func _init_materials() -> void:
 	# Base materials for each block type (using ShaderMaterial if shader available)

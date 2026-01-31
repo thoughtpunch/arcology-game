@@ -7,21 +7,21 @@
 enum Dir { TOP, BOTTOM, NORTH, SOUTH, EAST, WEST }
 
 const _NORMALS := {
-	Dir.TOP:    Vector3i( 0,  1,  0),
-	Dir.BOTTOM: Vector3i( 0, -1,  0),
-	Dir.NORTH:  Vector3i( 0,  0, -1),
-	Dir.SOUTH:  Vector3i( 0,  0,  1),
-	Dir.EAST:   Vector3i( 1,  0,  0),
-	Dir.WEST:   Vector3i(-1,  0,  0),
+	Dir.TOP: Vector3i(0, 1, 0),
+	Dir.BOTTOM: Vector3i(0, -1, 0),
+	Dir.NORTH: Vector3i(0, 0, -1),
+	Dir.SOUTH: Vector3i(0, 0, 1),
+	Dir.EAST: Vector3i(1, 0, 0),
+	Dir.WEST: Vector3i(-1, 0, 0),
 }
 
 const _LABELS := {
-	Dir.TOP:    "Top",
+	Dir.TOP: "Top",
 	Dir.BOTTOM: "Bottom",
-	Dir.NORTH:  "North",
-	Dir.SOUTH:  "South",
-	Dir.EAST:   "East",
-	Dir.WEST:   "West",
+	Dir.NORTH: "North",
+	Dir.SOUTH: "South",
+	Dir.EAST: "East",
+	Dir.WEST: "West",
 }
 
 

@@ -4,6 +4,13 @@ extends Control
 ## Provides navigation to New Game, Load Game, Settings, Credits, Quit
 ## See: documentation/ui/menus.md
 
+signal new_game_pressed
+signal continue_pressed
+signal load_game_pressed
+signal settings_pressed
+signal credits_pressed
+signal quit_pressed
+
 # Color scheme (same as HUD)
 const COLOR_BACKGROUND := Color("#1a1a2e")
 const COLOR_PANEL := Color("#16213e")
@@ -12,14 +19,6 @@ const COLOR_BUTTON_HOVER := Color("#e94560")
 const COLOR_TEXT := Color("#ffffff")
 const COLOR_TEXT_SECONDARY := Color("#e0e0e0")
 const COLOR_ACCENT := Color("#e94560")
-
-# Signals
-signal new_game_pressed
-signal continue_pressed
-signal load_game_pressed
-signal settings_pressed
-signal credits_pressed
-signal quit_pressed
 
 # UI components
 var _title_label: Label
@@ -267,10 +266,10 @@ func _update_continue_tooltip() -> void:
 
 	# Format timestamp to human-readable date
 	var date_dict := Time.get_datetime_dict_from_unix_time(int(timestamp))
-	var date_str := "%04d-%02d-%02d %02d:%02d" % [
-		date_dict.year, date_dict.month, date_dict.day,
-		date_dict.hour, date_dict.minute
-	]
+	var date_str := (
+		"%04d-%02d-%02d %02d:%02d"
+		% [date_dict.year, date_dict.month, date_dict.day, date_dict.hour, date_dict.minute]
+	)
 
 	_continue_button.tooltip_text = "Continue: %s\nSaved: %s" % [save_name, date_str]
 

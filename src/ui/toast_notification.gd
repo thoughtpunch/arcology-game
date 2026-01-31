@@ -3,6 +3,9 @@ extends Control
 ## Toast notification manager - shows slide-in notifications from top-right
 ## See: documentation/ui/sidebars.md#notification-tray
 
+signal toast_clicked(notification_id: int)
+signal toast_dismissed(notification_id: int)
+
 # Notification types (mirrored from NotificationSystem autoload)
 const TYPE_INFO := 0
 const TYPE_POSITIVE := 1
@@ -12,11 +15,7 @@ const TYPE_EMERGENCY := 4
 
 # Type icons
 const TYPE_ICONS := {
-	TYPE_INFO: "ℹ️",
-	TYPE_POSITIVE: "✅",
-	TYPE_NEWS: "📰",
-	TYPE_WARNING: "⚠",
-	TYPE_EMERGENCY: "🔴"
+	TYPE_INFO: "ℹ️", TYPE_POSITIVE: "✅", TYPE_NEWS: "📰", TYPE_WARNING: "⚠", TYPE_EMERGENCY: "🔴"
 }
 
 # Type colors
@@ -30,11 +29,7 @@ const TYPE_COLORS := {
 
 # Auto-dismiss times (in seconds, 0 = never auto-dismiss)
 const TYPE_AUTO_DISMISS := {
-	TYPE_INFO: 5.0,
-	TYPE_POSITIVE: 5.0,
-	TYPE_NEWS: 5.0,
-	TYPE_WARNING: 0.0,
-	TYPE_EMERGENCY: 0.0
+	TYPE_INFO: 5.0, TYPE_POSITIVE: 5.0, TYPE_NEWS: 5.0, TYPE_WARNING: 0.0, TYPE_EMERGENCY: 0.0
 }
 
 # Toast constants
@@ -50,10 +45,6 @@ const COLOR_PANEL_BG := Color("#1a1a2e")
 const COLOR_PANEL_BORDER := Color("#0f3460")
 const COLOR_TEXT := Color("#ffffff")
 const COLOR_TEXT_SECONDARY := Color("#a0a0a0")
-
-# Signals
-signal toast_clicked(notification_id: int)
-signal toast_dismissed(notification_id: int)
 
 # State
 var _active_toasts: Array[Control] = []

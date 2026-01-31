@@ -3,6 +3,12 @@ extends Control
 ## New game menu with scenario selection and game settings
 ## See: documentation/ui/menus.md
 
+signal back_pressed
+signal start_game_pressed(config: Dictionary)
+
+# Screens
+enum Screen { SCENARIO_SELECT, GAME_SETTINGS }
+
 # Color scheme
 const COLOR_BACKGROUND := Color("#1a1a2e")
 const COLOR_PANEL := Color("#16213e")
@@ -14,18 +20,8 @@ const COLOR_TEXT := Color("#ffffff")
 const COLOR_TEXT_SECONDARY := Color("#e0e0e0")
 const COLOR_ACCENT := Color("#e94560")
 
-# Signals
-signal back_pressed
-signal start_game_pressed(config: Dictionary)
-
-# Screens
-enum Screen {
-	SCENARIO_SELECT,
-	GAME_SETTINGS
-}
-
 # Scenarios
-var SCENARIOS := [
+const SCENARIOS := [
 	{
 		"id": "fresh_start",
 		"name": "Fresh Start",
@@ -303,16 +299,19 @@ func _create_settings_screen() -> VBoxContainer:
 	settings_vbox.add_child(diff_header)
 
 	# Starting funds
-	settings_vbox.add_child(_create_dropdown_row("Starting Funds",
-		["$25,000 (Hard)", "$50,000 (Normal)", "$100,000 (Easy)"], 1))
+	settings_vbox.add_child(
+		_create_dropdown_row(
+			"Starting Funds", ["$25,000 (Hard)", "$50,000 (Normal)", "$100,000 (Easy)"], 1
+		)
+	)
 
 	# Entropy rate
-	settings_vbox.add_child(_create_dropdown_row("Entropy Rate",
-		["Fast", "Normal", "Slow"], 1))
+	settings_vbox.add_child(_create_dropdown_row("Entropy Rate", ["Fast", "Normal", "Slow"], 1))
 
 	# Resident patience
-	settings_vbox.add_child(_create_dropdown_row("Resident Patience",
-		["Impatient", "Normal", "Patient"], 1))
+	settings_vbox.add_child(
+		_create_dropdown_row("Resident Patience", ["Impatient", "Normal", "Patient"], 1)
+	)
 
 	# Disasters
 	settings_vbox.add_child(_create_toggle_row("Disasters", true))
@@ -329,8 +328,12 @@ func _create_settings_screen() -> VBoxContainer:
 
 	# Sandbox toggles
 	settings_vbox.add_child(_create_checkbox_row("Unlimited Money", false, "unlimited_money"))
-	settings_vbox.add_child(_create_checkbox_row("Instant Construction", false, "instant_construction"))
-	settings_vbox.add_child(_create_checkbox_row("All Blocks Unlocked", false, "all_blocks_unlocked"))
+	settings_vbox.add_child(
+		_create_checkbox_row("Instant Construction", false, "instant_construction")
+	)
+	settings_vbox.add_child(
+		_create_checkbox_row("All Blocks Unlocked", false, "all_blocks_unlocked")
+	)
 	settings_vbox.add_child(_create_checkbox_row("Disable Failures", false, "disable_failures"))
 
 	# Footer with action buttons
@@ -396,7 +399,9 @@ func _create_toggle_row(label_text: String, default_value: bool) -> HBoxContaine
 	return hbox
 
 
-func _create_checkbox_row(label_text: String, default_value: bool, config_key: String) -> HBoxContainer:
+func _create_checkbox_row(
+	label_text: String, default_value: bool, config_key: String
+) -> HBoxContainer:
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 12)
 	hbox.name = "%sRow" % config_key.to_pascal_case()

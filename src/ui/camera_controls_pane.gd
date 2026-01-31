@@ -4,6 +4,12 @@ extends Control
 ## Shows rotation compass, zoom controls, and view mode toggle
 ## Hotkeys: Q/E rotate, +/- zoom, I/T view mode, H toggle pane
 
+signal rotation_requested(direction: int)  # -1 = CCW, 1 = CW
+signal zoom_requested(direction: int)  # -1 = out, 1 = in
+signal zoom_reset_requested
+signal view_mode_changed(mode: String)  # "iso" or "top"
+signal pane_toggled(visible: bool)
+
 # Color constants
 const COLOR_PANEL_BG := Color("#1a1a2e")
 const COLOR_PANEL_BORDER := Color("#0f3460")
@@ -16,13 +22,6 @@ const COLOR_TEXT := Color("#ffffff")
 const PANE_WIDTH := 180
 const BUTTON_SIZE := Vector2(40, 40)
 const COMPASS_SIZE := 80
-
-# Signals
-signal rotation_requested(direction: int)  # -1 = CCW, 1 = CW
-signal zoom_requested(direction: int)      # -1 = out, 1 = in
-signal zoom_reset_requested
-signal view_mode_changed(mode: String)     # "iso" or "top"
-signal pane_toggled(visible: bool)
 
 # References
 var _camera_controller: CameraController
@@ -132,10 +131,10 @@ func _create_compass() -> CenterContainer:
 	_compass.add_child(compass_bg)
 
 	# Cardinal direction labels
-	var n_label := _create_direction_label("N", Vector2(COMPASS_SIZE/2 - 6, 2))
-	var s_label := _create_direction_label("S", Vector2(COMPASS_SIZE/2 - 6, COMPASS_SIZE - 18))
-	var e_label := _create_direction_label("E", Vector2(COMPASS_SIZE - 14, COMPASS_SIZE/2 - 8))
-	var w_label := _create_direction_label("W", Vector2(2, COMPASS_SIZE/2 - 8))
+	var n_label := _create_direction_label("N", Vector2(COMPASS_SIZE / 2 - 6, 2))
+	var s_label := _create_direction_label("S", Vector2(COMPASS_SIZE / 2 - 6, COMPASS_SIZE - 18))
+	var e_label := _create_direction_label("E", Vector2(COMPASS_SIZE - 14, COMPASS_SIZE / 2 - 8))
+	var w_label := _create_direction_label("W", Vector2(2, COMPASS_SIZE / 2 - 8))
 	_compass.add_child(n_label)
 	_compass.add_child(s_label)
 	_compass.add_child(e_label)
@@ -145,8 +144,8 @@ func _create_compass() -> CenterContainer:
 	_compass_needle = ColorRect.new()
 	_compass_needle.color = COLOR_BUTTON_ACTIVE
 	_compass_needle.size = Vector2(4, 25)
-	_compass_needle.position = Vector2(COMPASS_SIZE/2 - 2, 15)
-	_compass_needle.pivot_offset = Vector2(2, COMPASS_SIZE/2 - 15)
+	_compass_needle.position = Vector2(COMPASS_SIZE / 2 - 2, 15)
+	_compass_needle.pivot_offset = Vector2(2, COMPASS_SIZE / 2 - 15)
 	_compass.add_child(_compass_needle)
 
 	return container

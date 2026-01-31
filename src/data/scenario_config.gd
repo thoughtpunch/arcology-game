@@ -1,5 +1,5 @@
-extends Resource
 class_name ScenarioConfig
+extends Resource
 
 ## Data-driven scenario configuration resource.
 ##
@@ -7,6 +7,9 @@ class_name ScenarioConfig
 ## for each game session. Loaded from JSON files in data/scenarios/.
 ##
 ## See documentation/ideas_not_implemented/scenario-config.md for full spec.
+
+const BASE_CANTILEVER: int = 2
+const JSON_PATH_PREFIX: String = "res://data/scenarios/"
 
 # --- Physics & Structure ---
 
@@ -56,11 +59,6 @@ class_name ScenarioConfig
 
 ## Game mode: "sandbox", "scenario", "custom".
 @export var mode: String = "sandbox"
-
-# --- Constants ---
-
-const BASE_CANTILEVER: int = 2
-const JSON_PATH_PREFIX: String = "res://data/scenarios/"
 
 
 ## Calculate max_cantilever from gravity.
@@ -165,19 +163,13 @@ static func from_dict(data: Dictionary) -> ScenarioConfig:
 	if origin is Array and origin.size() >= 2:
 		config.build_zone_origin = Vector2i(int(origin[0]), int(origin[1]))
 	elif origin is Dictionary:
-		config.build_zone_origin = Vector2i(
-			int(origin.get("x", -50)),
-			int(origin.get("y", -50))
-		)
+		config.build_zone_origin = Vector2i(int(origin.get("x", -50)), int(origin.get("y", -50)))
 
 	var bz_size: Variant = data.get("build_zone_size", null)
 	if bz_size is Array and bz_size.size() >= 2:
 		config.build_zone_size = Vector2i(int(bz_size[0]), int(bz_size[1]))
 	elif bz_size is Dictionary:
-		config.build_zone_size = Vector2i(
-			int(bz_size.get("x", 100)),
-			int(bz_size.get("y", 100))
-		)
+		config.build_zone_size = Vector2i(int(bz_size.get("x", 100)), int(bz_size.get("y", 100)))
 
 	config.ground_depth = data.get("ground_depth", 3)
 	config.ground_type = data.get("ground_type", "earth")
@@ -227,6 +219,7 @@ func get_summary() -> String:
 	var cantilever_str := "unlimited" if max_cantilever < 0 else str(max_cantilever)
 	var height_str := "unlimited" if max_build_height < 0 else str(max_build_height)
 
-	return "Scenario: %s | Gravity: %.2f (%s) | Cantilever: %s | Height: %s | Terrain: %s" % [
-		mode, gravity, gravity_name, cantilever_str, height_str, ground_type
-	]
+	return (
+		"Scenario: %s | Gravity: %.2f (%s) | Cantilever: %s | Height: %s | Terrain: %s"
+		% [mode, gravity, gravity_name, cantilever_str, height_str, ground_type]
+	)

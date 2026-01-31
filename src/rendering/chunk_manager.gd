@@ -1,5 +1,5 @@
-extends Node3D
 class_name ChunkManager
+extends Node3D
 
 ## Manages spatial chunks for geometry batching in the 3D arcology.
 ##
@@ -18,6 +18,12 @@ class_name ChunkManager
 ##   manager.add_block(Vector3i(0, 0, 0), "corridor")
 ##   # Chunks rebuild automatically during _process
 
+signal chunk_created(chunk_coord: Vector3i)
+signal chunk_removed(chunk_coord: Vector3i)
+signal chunk_rebuilt(chunk_coord: Vector3i)
+signal lod_enabled
+signal lod_disabled
+
 const ChunkClass := preload("res://src/rendering/chunk.gd")
 const LODManagerClass := preload("res://src/rendering/lod_manager.gd")
 
@@ -29,13 +35,6 @@ const MAX_REBUILDS_PER_FRAME: int = 2
 
 # Maximum rebuild time budget per frame in microseconds
 const REBUILD_TIME_BUDGET_USEC: int = 4000  # 4ms budget
-
-# Signals
-signal chunk_created(chunk_coord: Vector3i)
-signal chunk_removed(chunk_coord: Vector3i)
-signal chunk_rebuilt(chunk_coord: Vector3i)
-signal lod_enabled()
-signal lod_disabled()
 
 # Chunk storage: Vector3i (chunk coord) -> Chunk node
 var _chunks: Dictionary = {}
@@ -80,7 +79,9 @@ func set_camera(camera: Camera3D) -> void:
 
 
 ## Add a block to the appropriate chunk
-func add_block(grid_pos: Vector3i, block_type: String, rotation: int = 0, material: Material = null) -> void:
+func add_block(
+	grid_pos: Vector3i, block_type: String, rotation: int = 0, material: Material = null
+) -> void:
 	var chunk_coord := get_chunk_coord(grid_pos)
 	var chunk := _get_or_create_chunk(chunk_coord)
 	chunk.add_block(grid_pos, block_type, rotation, material)
@@ -216,6 +217,7 @@ func get_visible_chunks() -> Array:
 
 # --- Internal Methods ---
 
+
 ## Get or create a chunk at the given coordinate
 func _get_or_create_chunk(chunk_coord: Vector3i) -> Node3D:
 	if _chunks.has(chunk_coord):
@@ -299,14 +301,15 @@ func _sort_dirty_by_priority() -> void:
 
 	var cam_pos := _camera.global_position
 
-	_dirty_queue.sort_custom(func(a: Vector3i, b: Vector3i) -> bool:
-		var chunk_a: Node3D = _chunks.get(a, null)
-		var chunk_b: Node3D = _chunks.get(b, null)
-		if not chunk_a or not chunk_b:
-			return false
-		var dist_a := cam_pos.distance_squared_to(chunk_a.position)
-		var dist_b := cam_pos.distance_squared_to(chunk_b.position)
-		return dist_a < dist_b
+	_dirty_queue.sort_custom(
+		func(a: Vector3i, b: Vector3i) -> bool:
+			var chunk_a: Node3D = _chunks.get(a, null)
+			var chunk_b: Node3D = _chunks.get(b, null)
+			if not chunk_a or not chunk_b:
+				return false
+			var dist_a := cam_pos.distance_squared_to(chunk_a.position)
+			var dist_b := cam_pos.distance_squared_to(chunk_b.position)
+			return dist_a < dist_b
 	)
 
 
@@ -331,8 +334,7 @@ func _floor_div(a: int, b: int) -> int:
 	# We need floor division (toward negative infinity)
 	if a >= 0:
 		return a / b
-	else:
-		return (a - b + 1) / b
+	return (a - b + 1) / b
 
 
 ## Load shader for chunk materials
@@ -343,6 +345,7 @@ func _load_shader() -> void:
 
 
 # --- LOD System Methods ---
+
 
 ## Enable the LOD system for distance-based detail reduction
 func enable_lod() -> Node:

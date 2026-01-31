@@ -6,6 +6,12 @@ extends Node
 
 # Default keybindings (action -> InputEvent data)
 # These represent the project.godot defaults as a fallback
+signal invert_scroll_zoom_changed(inverted: bool)
+signal mouse_sensitivity_changed(sensitivity: float)
+signal keybind_changed(action: String, events: Array[InputEvent])
+
+# Default keybindings (action -> InputEvent data)
+# These represent the project.godot defaults as a fallback
 const DEFAULT_KEYBINDINGS := {
 	"move_up": {"key": KEY_W, "alt_key": KEY_UP},
 	"move_down": {"key": KEY_S, "alt_key": KEY_DOWN},
@@ -15,10 +21,9 @@ const DEFAULT_KEYBINDINGS := {
 	"zoom_out": {"mouse": MOUSE_BUTTON_WHEEL_DOWN, "key": KEY_MINUS}
 }
 
-# Signals for systems that need to react
-signal invert_scroll_zoom_changed(inverted: bool)
-signal mouse_sensitivity_changed(sensitivity: float)
-signal keybind_changed(action: String, events: Array[InputEvent])
+# State
+var _invert_scroll_zoom: bool = false
+var _mouse_sensitivity: float = 0.5
 
 
 func _ready() -> void:
@@ -126,11 +131,6 @@ func _create_events_from_binding(binding: Dictionary) -> Array[InputEvent]:
 		events.append(mouse_event)
 
 	return events
-
-
-# State
-var _invert_scroll_zoom: bool = false
-var _mouse_sensitivity: float = 0.5
 
 
 ## Check if scroll zoom is inverted
@@ -242,7 +242,7 @@ func check_conflict(action: String, event: InputEvent) -> String:
 func _events_match(a: InputEvent, b: InputEvent) -> bool:
 	if a is InputEventKey and b is InputEventKey:
 		return a.keycode == b.keycode
-	elif a is InputEventMouseButton and b is InputEventMouseButton:
+	if a is InputEventMouseButton and b is InputEventMouseButton:
 		return a.button_index == b.button_index
 	return false
 
@@ -251,12 +251,18 @@ func _events_match(a: InputEvent, b: InputEvent) -> bool:
 static func event_to_string(event: InputEvent) -> String:
 	if event is InputEventKey:
 		return OS.get_keycode_string(event.keycode)
-	elif event is InputEventMouseButton:
+	if event is InputEventMouseButton:
 		match event.button_index:
-			MOUSE_BUTTON_LEFT: return "Mouse Left"
-			MOUSE_BUTTON_RIGHT: return "Mouse Right"
-			MOUSE_BUTTON_MIDDLE: return "Mouse Middle"
-			MOUSE_BUTTON_WHEEL_UP: return "Mouse Wheel Up"
-			MOUSE_BUTTON_WHEEL_DOWN: return "Mouse Wheel Down"
-			_: return "Mouse %d" % event.button_index
+			MOUSE_BUTTON_LEFT:
+				return "Mouse Left"
+			MOUSE_BUTTON_RIGHT:
+				return "Mouse Right"
+			MOUSE_BUTTON_MIDDLE:
+				return "Mouse Middle"
+			MOUSE_BUTTON_WHEEL_UP:
+				return "Mouse Wheel Up"
+			MOUSE_BUTTON_WHEEL_DOWN:
+				return "Mouse Wheel Down"
+			_:
+				return "Mouse %d" % event.button_index
 	return "Unknown"

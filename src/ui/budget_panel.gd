@@ -112,7 +112,9 @@ func setup(budget_data: Dictionary) -> void:
 	var total_income: int = budget_data.get("total_income", 0)
 
 	# Income header with total
-	var income_total := create_stat_row("Total", format_money(total_income) + "/mo", COLOR_TEXT_POSITIVE)
+	var income_total := create_stat_row(
+		"Total", format_money(total_income) + "/mo", COLOR_TEXT_POSITIVE
+	)
 	income_section.add_child(income_total)
 
 	# Income breakdown
@@ -126,7 +128,9 @@ func setup(budget_data: Dictionary) -> void:
 	var total_expenses: int = budget_data.get("total_expenses", 0)
 
 	# Expense header with total
-	var expense_total := create_stat_row("Total", format_money(total_expenses) + "/mo", COLOR_TEXT_NEGATIVE)
+	var expense_total := create_stat_row(
+		"Total", format_money(total_expenses) + "/mo", COLOR_TEXT_NEGATIVE
+	)
 	expense_section.add_child(expense_total)
 
 	# Expense breakdown
@@ -166,17 +170,23 @@ func setup(budget_data: Dictionary) -> void:
 	var next_month: int = projections.get("next_month", 0)
 	var next_prefix: String = "+" if next_month >= 0 else ""
 	var next_color: Color = COLOR_TEXT_POSITIVE if next_month >= 0 else COLOR_TEXT_NEGATIVE
-	var next_row := create_stat_row("Next month", next_prefix + format_money(next_month) + " (estimate)", next_color)
+	var next_row := create_stat_row(
+		"Next month", next_prefix + format_money(next_month) + " (estimate)", next_color
+	)
 	proj_section.add_child(next_row)
 
 	var construction_pending: int = projections.get("construction_pending", 0)
 	if construction_pending != 0:
-		var constr_row := create_stat_row("Construction pending", format_money(-abs(construction_pending)), COLOR_TEXT_NEGATIVE)
+		var constr_row := create_stat_row(
+			"Construction pending", format_money(-abs(construction_pending)), COLOR_TEXT_NEGATIVE
+		)
 		proj_section.add_child(constr_row)
 
 	var loans_available: int = projections.get("loans_available", 0)
 	if loans_available > 0:
-		var loans_row := create_stat_row("Loans available", format_money(loans_available), COLOR_TEXT)
+		var loans_row := create_stat_row(
+			"Loans available", format_money(loans_available), COLOR_TEXT
+		)
 		proj_section.add_child(loans_row)
 
 	# Actions

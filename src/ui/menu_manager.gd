@@ -3,24 +3,17 @@ extends CanvasLayer
 ## Handles menu navigation, game state, and auto-save integration
 ## See: documentation/ui/menus.md
 
-# Menu states
-enum MenuState {
-	NONE,           # In gameplay
-	MAIN_MENU,      # Main menu (startup)
-	PAUSE,          # Pause menu overlay
-	SETTINGS,       # Settings menu
-	NEW_GAME,       # New game menu
-	SAVE,           # Save menu
-	LOAD,           # Load menu
-	CREDITS,        # Credits screen
-	HELP            # Help screen
-}
-
-# Signals
 signal game_started(config: Dictionary)
 signal game_loaded(save_path: String)
 signal game_resumed
 signal quit_requested
+
+# Menu states: In gameplay, Main menu (startup), Pause menu overlay, Settings menu,
+# New game menu, Save menu, Load menu, Credits screen, Help screen
+enum MenuState { NONE, MAIN_MENU, PAUSE, SETTINGS, NEW_GAME, SAVE, LOAD, CREDITS, HELP }
+
+# Pending confirmation state
+enum PendingConfirmation { NONE, DELETE_SAVE, UNSAVED_CHANGES }
 
 # Menu instances
 var main_menu: MainMenu
@@ -38,9 +31,6 @@ var _current_state := MenuState.MAIN_MENU
 var _previous_state := MenuState.NONE
 var _game_running := false
 var _has_unsaved_changes := false
-
-# Pending confirmation state
-enum PendingConfirmation { NONE, DELETE_SAVE, UNSAVED_CHANGES }
 var _pending_confirmation := PendingConfirmation.NONE
 
 
@@ -289,6 +279,7 @@ func _resume_game() -> void:
 
 # Signal handlers
 
+
 func _on_new_game_pressed() -> void:
 	show_new_game_menu()
 
@@ -468,8 +459,7 @@ func _on_confirmation_cancelled() -> void:
 func _on_delete_confirmation_requested(save_name: String, _save_path: String) -> void:
 	_pending_confirmation = PendingConfirmation.DELETE_SAVE
 	confirmation_dialog.show_confirm(
-		"DELETE SAVE",
-		"Are you sure you want to delete \"%s\"?\n\nThis cannot be undone." % save_name
+		"DELETE SAVE", 'Are you sure you want to delete "%s"?\n\nThis cannot be undone.' % save_name
 	)
 
 

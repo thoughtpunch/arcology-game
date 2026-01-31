@@ -6,23 +6,6 @@ extends Node2D
 
 signal view_mode_changed(show_all_floors: bool)
 
-# References
-var grid: Grid
-var construction_queue  # ConstructionQueue reference
-var _sprites: Dictionary = {}  # Vector3i -> Sprite2D
-
-# Construction visualization
-var _construction_sprites: Dictionary = {}  # Vector3i -> construction sprite data
-var _construction_scaffold_texture: Texture2D
-
-# Preloaded textures cache
-var _texture_cache: Dictionary = {}
-
-# Audio
-var _place_sound: AudioStreamPlayer
-var _construction_complete_sound: AudioStreamPlayer
-var _snap_sound: AudioStreamPlayer  # Sound when block connects to neighbors
-
 # Floor visibility settings
 const FLOORS_BELOW_VISIBLE: int = 2
 const OPACITY_FALLOFF: float = 0.3  # Opacity reduction per floor below
@@ -37,8 +20,33 @@ const CONNECTION_FLASH_DURATION: float = 0.1  # White flash duration in seconds
 const CONNECTION_PULSE_SCALE: float = 1.05  # Scale factor for neighbor pulse
 const CONNECTION_PULSE_DURATION: float = 0.15  # Duration of pulse animation
 
+# Color for disconnected blocks (red tint)
+const DISCONNECTED_TINT := Color(1.0, 0.5, 0.5)
+const CONNECTED_TINT := Color.WHITE
+
+## Construction sprite color (blue tint for "under construction")
+const CONSTRUCTION_TINT := Color(0.6, 0.8, 1.0)  # Light blue
+
+# References
+var grid: Grid
+var construction_queue  # ConstructionQueue reference
+
 # Visibility mode
 var show_all_floors: bool = false  # When true, show entire structure
+
+var _sprites: Dictionary = {}  # Vector3i -> Sprite2D
+
+# Construction visualization
+var _construction_sprites: Dictionary = {}  # Vector3i -> construction sprite data
+var _construction_scaffold_texture: Texture2D
+
+# Preloaded textures cache
+var _texture_cache: Dictionary = {}
+
+# Audio
+var _place_sound: AudioStreamPlayer
+var _construction_complete_sound: AudioStreamPlayer
+var _snap_sound: AudioStreamPlayer  # Sound when block connects to neighbors
 
 
 func _ready() -> void:
@@ -302,10 +310,6 @@ func _apply_visibility_to_sprite(pos: Vector3i) -> void:
 
 # --- Connectivity Visual Feedback ---
 
-# Color for disconnected blocks (red tint)
-const DISCONNECTED_TINT := Color(1.0, 0.5, 0.5)
-const CONNECTED_TINT := Color.WHITE
-
 
 ## Update connectivity visuals for all blocks
 func _on_connectivity_changed() -> void:
@@ -385,16 +389,32 @@ func _animate_block_placement(pos: Vector3i) -> void:
 	tween.set_parallel(true)
 
 	# Phase 1: Drop with acceleration (ease in = accelerate)
-	tween.tween_property(sprite, "position", final_pos + Vector2(0, IMPACT_OVERSHOOT), DROP_DURATION).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tween.tween_property(sprite, "scale", Vector2(SQUASH_X, SQUASH_Y), DROP_DURATION).set_ease(Tween.EASE_IN)
+	(
+		tween
+		. tween_property(
+			sprite, "position", final_pos + Vector2(0, IMPACT_OVERSHOOT), DROP_DURATION
+		)
+		. set_ease(Tween.EASE_IN)
+		. set_trans(Tween.TRANS_QUAD)
+	)
+	tween.tween_property(sprite, "scale", Vector2(SQUASH_X, SQUASH_Y), DROP_DURATION).set_ease(
+		Tween.EASE_IN
+	)
 	tween.tween_property(sprite, "modulate:a", 1.0, DROP_DURATION * 0.6)
 	tween.tween_property(sprite, "rotation_degrees", 0.0, DROP_DURATION).set_ease(Tween.EASE_OUT)
 
 	# Phase 2: Bounce back and settle (ease out = decelerate)
 	tween.chain()
 	tween.set_parallel(true)
-	tween.tween_property(sprite, "position", final_pos, BOUNCE_DURATION).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BOUNCE)
-	tween.tween_property(sprite, "scale", Vector2(1.0, 1.0), BOUNCE_DURATION).set_ease(Tween.EASE_OUT)
+	(
+		tween
+		. tween_property(sprite, "position", final_pos, BOUNCE_DURATION)
+		. set_ease(Tween.EASE_OUT)
+		. set_trans(Tween.TRANS_BOUNCE)
+	)
+	tween.tween_property(sprite, "scale", Vector2(1.0, 1.0), BOUNCE_DURATION).set_ease(
+		Tween.EASE_OUT
+	)
 
 
 ## Update connectivity visual for a single block
@@ -406,14 +426,19 @@ func _update_connectivity_visual(block) -> void:
 	var current_alpha: float = block.sprite.modulate.a
 
 	if block.connected:
-		block.sprite.modulate = Color(CONNECTED_TINT.r, CONNECTED_TINT.g, CONNECTED_TINT.b, current_alpha)
+		block.sprite.modulate = Color(
+			CONNECTED_TINT.r, CONNECTED_TINT.g, CONNECTED_TINT.b, current_alpha
+		)
 	else:
-		block.sprite.modulate = Color(DISCONNECTED_TINT.r, DISCONNECTED_TINT.g, DISCONNECTED_TINT.b, current_alpha)
+		block.sprite.modulate = Color(
+			DISCONNECTED_TINT.r, DISCONNECTED_TINT.g, DISCONNECTED_TINT.b, current_alpha
+		)
 
 
 # =============================================================================
 # Connection Snap Feedback
 # =============================================================================
+
 
 ## Check if block connects to neighbors and trigger feedback
 func _check_connection_feedback(pos: Vector3i) -> void:
@@ -462,8 +487,23 @@ func _pulse_neighbor(pos: Vector3i) -> void:
 
 	# Create pulse animation
 	var tween := create_tween()
-	tween.tween_property(sprite, "scale", original_scale * CONNECTION_PULSE_SCALE, CONNECTION_PULSE_DURATION / 2.0).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	tween.tween_property(sprite, "scale", original_scale, CONNECTION_PULSE_DURATION / 2.0).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	(
+		tween
+		. tween_property(
+			sprite,
+			"scale",
+			original_scale * CONNECTION_PULSE_SCALE,
+			CONNECTION_PULSE_DURATION / 2.0
+		)
+		. set_ease(Tween.EASE_OUT)
+		. set_trans(Tween.TRANS_QUAD)
+	)
+	(
+		tween
+		. tween_property(sprite, "scale", original_scale, CONNECTION_PULSE_DURATION / 2.0)
+		. set_ease(Tween.EASE_IN)
+		. set_trans(Tween.TRANS_QUAD)
+	)
 
 
 ## Generate a snap/click sound for block connections
@@ -505,9 +545,6 @@ func _play_snap_sound() -> void:
 # =============================================================================
 # Construction Visualization
 # =============================================================================
-
-## Construction sprite color (blue tint for "under construction")
-const CONSTRUCTION_TINT := Color(0.6, 0.8, 1.0)  # Light blue
 
 ## Called when construction starts at a position
 func _on_construction_started(pos: Vector3i, block_type: String, total_hours: int) -> void:
@@ -554,7 +591,9 @@ func _create_construction_sprite(pos: Vector3i, block_type: String, total_hours:
 	sprite.z_index = _calculate_z_index(pos)
 
 	# Apply construction tint and initial alpha
-	sprite.modulate = Color(CONSTRUCTION_TINT.r, CONSTRUCTION_TINT.g, CONSTRUCTION_TINT.b, CONSTRUCTION_MIN_ALPHA)
+	sprite.modulate = Color(
+		CONSTRUCTION_TINT.r, CONSTRUCTION_TINT.g, CONSTRUCTION_TINT.b, CONSTRUCTION_MIN_ALPHA
+	)
 
 	add_child(sprite)
 

@@ -5,9 +5,9 @@ extends Control
 ## Custom Game opens a scrollable parameter editor with sliders/checkboxes.
 ## Emits scenario_selected(config) when the player clicks START.
 
-const ScenarioConfigScript = preload("res://src/phase0/scenario_config.gd")
-
 signal scenario_selected(config: RefCounted)
+
+const ScenarioConfigScript = preload("res://src/phase0/scenario_config.gd")
 
 # Reuse color scheme from sandbox_pause_menu.gd
 const COLOR_OVERLAY := Color(0.04, 0.06, 0.12, 0.95)
@@ -132,7 +132,9 @@ func _setup_layout() -> void:
 	_select_scenario("megastructure")
 
 
-func _add_card(parent: HBoxContainer, id: String, title_text: String, subtitle_text: String) -> void:
+func _add_card(
+	parent: HBoxContainer, id: String, title_text: String, subtitle_text: String
+) -> void:
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(180, 140)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -239,20 +241,33 @@ func _build_custom_editor() -> void:
 	var back_row := HBoxContainer.new()
 	var back_btn := _create_menu_button("< BACK")
 	back_btn.custom_minimum_size = Vector2(100, 32)
-	back_btn.pressed.connect(func():
-		_main_screen.visible = true
-		_custom_screen.visible = false
+	back_btn.pressed.connect(
+		func():
+			_main_screen.visible = true
+			_custom_screen.visible = false
 	)
 	back_row.add_child(back_btn)
 	content.add_child(back_row)
 
 	# --- TERRAIN ---
 	_add_section_header(content, "TERRAIN")
-	_add_slider_row(content, "Ground Size", 20.0, 200.0, cfg.ground_size, 1.0, func(v: float):
-		cfg.ground_size = int(v)
+	_add_slider_row(
+		content,
+		"Ground Size",
+		20.0,
+		200.0,
+		cfg.ground_size,
+		1.0,
+		func(v: float): cfg.ground_size = int(v)
 	)
-	_add_slider_row(content, "Ground Depth", 1.0, 10.0, cfg.ground_depth, 1.0, func(v: float):
-		cfg.ground_depth = int(v)
+	_add_slider_row(
+		content,
+		"Ground Depth",
+		1.0,
+		10.0,
+		cfg.ground_depth,
+		1.0,
+		func(v: float): cfg.ground_depth = int(v)
 	)
 
 	# --- SKYLINE ---
@@ -270,66 +285,119 @@ func _build_custom_editor() -> void:
 	skyline_option.add_item("None", 0)
 	skyline_option.add_item("City Buildings", 1)
 	skyline_option.selected = cfg.skyline_type
-	skyline_option.item_selected.connect(func(idx: int):
-		cfg.skyline_type = idx
-	)
+	skyline_option.item_selected.connect(func(idx: int): cfg.skyline_type = idx)
 	skyline_type_row.add_child(skyline_option)
 	content.add_child(skyline_type_row)
 
-	_add_slider_row(content, "Building Count", 0.0, 600.0, cfg.skyline_building_count, 10.0, func(v: float):
-		cfg.skyline_building_count = int(v)
+	_add_slider_row(
+		content,
+		"Building Count",
+		0.0,
+		600.0,
+		cfg.skyline_building_count,
+		10.0,
+		func(v: float): cfg.skyline_building_count = int(v)
 	)
-	_add_slider_row(content, "Skyline Seed", 0.0, 999.0, cfg.skyline_seed, 1.0, func(v: float):
-		cfg.skyline_seed = int(v)
+	_add_slider_row(
+		content,
+		"Skyline Seed",
+		0.0,
+		999.0,
+		cfg.skyline_seed,
+		1.0,
+		func(v: float): cfg.skyline_seed = int(v)
 	)
 
 	# --- MOUNTAINS ---
 	_add_section_header(content, "MOUNTAINS")
-	_add_checkbox_row(content, "Enable Mountains", cfg.mountains_enabled, func(v: bool):
-		cfg.mountains_enabled = v
+	_add_checkbox_row(
+		content, "Enable Mountains", cfg.mountains_enabled, func(v: bool): cfg.mountains_enabled = v
 	)
-	_add_slider_row(content, "Count", 0.0, 200.0, cfg.mountain_count, 1.0, func(v: float):
-		cfg.mountain_count = int(v)
+	_add_slider_row(
+		content,
+		"Count",
+		0.0,
+		200.0,
+		cfg.mountain_count,
+		1.0,
+		func(v: float): cfg.mountain_count = int(v)
 	)
-	_add_slider_row(content, "Min Height", 10.0, 200.0, cfg.mountain_min_height, 5.0, func(v: float):
-		cfg.mountain_min_height = v
+	_add_slider_row(
+		content,
+		"Min Height",
+		10.0,
+		200.0,
+		cfg.mountain_min_height,
+		5.0,
+		func(v: float): cfg.mountain_min_height = v
 	)
-	_add_slider_row(content, "Max Height", 50.0, 600.0, cfg.mountain_max_height, 10.0, func(v: float):
-		cfg.mountain_max_height = v
+	_add_slider_row(
+		content,
+		"Max Height",
+		50.0,
+		600.0,
+		cfg.mountain_max_height,
+		10.0,
+		func(v: float): cfg.mountain_max_height = v
 	)
-	_add_slider_row(content, "Mountain Seed", 0.0, 999.0, cfg.mountain_seed, 1.0, func(v: float):
-		cfg.mountain_seed = int(v)
+	_add_slider_row(
+		content,
+		"Mountain Seed",
+		0.0,
+		999.0,
+		cfg.mountain_seed,
+		1.0,
+		func(v: float): cfg.mountain_seed = int(v)
 	)
 
 	# --- RIVER ---
 	_add_section_header(content, "RIVER")
-	_add_checkbox_row(content, "Enable River", cfg.river_enabled, func(v: bool):
-		cfg.river_enabled = v
+	_add_checkbox_row(
+		content, "Enable River", cfg.river_enabled, func(v: bool): cfg.river_enabled = v
 	)
-	_add_slider_row(content, "Width", 5.0, 100.0, cfg.river_width, 1.0, func(v: float):
-		cfg.river_width = v
+	_add_slider_row(
+		content, "Width", 5.0, 100.0, cfg.river_width, 1.0, func(v: float): cfg.river_width = v
 	)
-	_add_slider_row(content, "Flow Angle", 0.0, 180.0, cfg.river_flow_angle, 5.0, func(v: float):
-		cfg.river_flow_angle = v
+	_add_slider_row(
+		content,
+		"Flow Angle",
+		0.0,
+		180.0,
+		cfg.river_flow_angle,
+		5.0,
+		func(v: float): cfg.river_flow_angle = v
 	)
-	_add_slider_row(content, "Offset", 0.0, 300.0, cfg.river_offset, 10.0, func(v: float):
-		cfg.river_offset = v
+	_add_slider_row(
+		content, "Offset", 0.0, 300.0, cfg.river_offset, 10.0, func(v: float): cfg.river_offset = v
 	)
 
 	# --- ENVIRONMENT ---
 	_add_section_header(content, "ENVIRONMENT")
-	_add_slider_row(content, "Sun Energy", 0.0, 3.0, cfg.sun_energy, 0.1, func(v: float):
-		cfg.sun_energy = v
+	_add_slider_row(
+		content, "Sun Energy", 0.0, 3.0, cfg.sun_energy, 0.1, func(v: float): cfg.sun_energy = v
 	)
-	_add_slider_row(content, "Ambient Energy", 0.0, 2.0, cfg.ambient_energy, 0.05, func(v: float):
-		cfg.ambient_energy = v
+	_add_slider_row(
+		content,
+		"Ambient Energy",
+		0.0,
+		2.0,
+		cfg.ambient_energy,
+		0.05,
+		func(v: float): cfg.ambient_energy = v
 	)
-	_add_slider_row(content, "Fog Density", 0.0, 0.01, cfg.fog_density, 0.0001, func(v: float):
-		cfg.fog_density = v
+	_add_slider_row(
+		content,
+		"Fog Density",
+		0.0,
+		0.01,
+		cfg.fog_density,
+		0.0001,
+		func(v: float): cfg.fog_density = v
 	)
 
 
 # --- UI Helper Methods ---
+
 
 func _add_section_header(parent: VBoxContainer, title: String) -> void:
 	var sep := HSeparator.new()
@@ -343,7 +411,15 @@ func _add_section_header(parent: VBoxContainer, title: String) -> void:
 	parent.add_child(lbl)
 
 
-func _add_slider_row(parent: VBoxContainer, label_text: String, min_val: float, max_val: float, default_val: float, step_val: float, callback: Callable) -> void:
+func _add_slider_row(
+	parent: VBoxContainer,
+	label_text: String,
+	min_val: float,
+	max_val: float,
+	default_val: float,
+	step_val: float,
+	callback: Callable
+) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 
@@ -372,15 +448,18 @@ func _add_slider_row(parent: VBoxContainer, label_text: String, min_val: float, 
 	val_lbl.custom_minimum_size = Vector2(60, 0)
 	row.add_child(val_lbl)
 
-	slider.value_changed.connect(func(v: float):
-		val_lbl.text = _format_value(v, step_val)
-		callback.call(v)
+	slider.value_changed.connect(
+		func(v: float):
+			val_lbl.text = _format_value(v, step_val)
+			callback.call(v)
 	)
 
 	parent.add_child(row)
 
 
-func _add_checkbox_row(parent: VBoxContainer, label_text: String, default_val: bool, callback: Callable) -> void:
+func _add_checkbox_row(
+	parent: VBoxContainer, label_text: String, default_val: bool, callback: Callable
+) -> void:
 	var cb := CheckBox.new()
 	cb.text = label_text
 	cb.button_pressed = default_val
@@ -394,10 +473,9 @@ func _add_checkbox_row(parent: VBoxContainer, label_text: String, default_val: b
 func _format_value(val: float, step: float) -> String:
 	if step >= 1.0:
 		return "%d" % int(val)
-	elif step >= 0.01:
+	if step >= 0.01:
 		return "%.2f" % val
-	else:
-		return "%.4f" % val
+	return "%.4f" % val
 
 
 func _on_start_pressed() -> void:

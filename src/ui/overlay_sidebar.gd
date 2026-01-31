@@ -4,17 +4,12 @@ extends Control
 ## Provides collapsed icon strip and expanded view with labels and legend
 ## See: documentation/ui/sidebars.md
 
+signal overlay_changed(overlay_type: int)
+signal expanded_changed(is_expanded: bool)
+
 # Overlay types enum for type safety
 enum OverlayType {
-	NONE,
-	LIGHT,
-	AIR_QUALITY,
-	NOISE,
-	SAFETY,
-	VIBES,
-	CONNECTIVITY,
-	BLOCK_TYPE,
-	FOOT_TRAFFIC
+	NONE, LIGHT, AIR_QUALITY, NOISE, SAFETY, VIBES, CONNECTIVITY, BLOCK_TYPE, FOOT_TRAFFIC
 }
 
 # Overlay configuration
@@ -25,51 +20,87 @@ const OVERLAY_CONFIG := {
 	OverlayType.NOISE: {"name": "Noise", "icon": "🔊", "key": KEY_F4, "key_label": "F4"},
 	OverlayType.SAFETY: {"name": "Safety", "icon": "🛡", "key": KEY_F5, "key_label": "F5"},
 	OverlayType.VIBES: {"name": "Vibes", "icon": "✨", "key": KEY_F6, "key_label": "F6"},
-	OverlayType.CONNECTIVITY: {"name": "Connectivity", "icon": "🔗", "key": KEY_F7, "key_label": "F7"},
+	OverlayType.CONNECTIVITY:
+	{"name": "Connectivity", "icon": "🔗", "key": KEY_F7, "key_label": "F7"},
 	OverlayType.BLOCK_TYPE: {"name": "Block Type", "icon": "🏠", "key": KEY_F8, "key_label": "F8"},
-	OverlayType.FOOT_TRAFFIC: {"name": "Foot Traffic", "icon": "👣", "key": KEY_F9, "key_label": "F9"}
+	OverlayType.FOOT_TRAFFIC:
+	{"name": "Foot Traffic", "icon": "👣", "key": KEY_F9, "key_label": "F9"}
 }
 
 # Legend configurations per overlay type
 const LEGEND_CONFIG := {
-	OverlayType.LIGHT: {
+	OverlayType.LIGHT:
+	{
 		"title": "Light Level",
-		"colors": [Color("#ffff00"), Color("#cccc00"), Color("#999900"), Color("#666600"), Color("#333300")],
-		"labels": ["Bright (80%+)", "Good (60-80%)", "Fair (40-60%)", "Poor (20-40%)", "Dark (<20%)"]
+		"colors":
+		[Color("#ffff00"), Color("#cccc00"), Color("#999900"), Color("#666600"), Color("#333300")],
+		"labels":
+		["Bright (80%+)", "Good (60-80%)", "Fair (40-60%)", "Poor (20-40%)", "Dark (<20%)"]
 	},
-	OverlayType.AIR_QUALITY: {
+	OverlayType.AIR_QUALITY:
+	{
 		"title": "Air Quality",
-		"colors": [Color("#00ff00"), Color("#88ff00"), Color("#ffff00"), Color("#ff8800"), Color("#ff0000")],
-		"labels": ["Excellent (80%+)", "Good (60-80%)", "Fair (40-60%)", "Poor (20-40%)", "Bad (<20%)"]
+		"colors":
+		[Color("#00ff00"), Color("#88ff00"), Color("#ffff00"), Color("#ff8800"), Color("#ff0000")],
+		"labels":
+		["Excellent (80%+)", "Good (60-80%)", "Fair (40-60%)", "Poor (20-40%)", "Bad (<20%)"]
 	},
-	OverlayType.NOISE: {
+	OverlayType.NOISE:
+	{
 		"title": "Noise Level",
-		"colors": [Color("#00ff00"), Color("#88ff00"), Color("#ffff00"), Color("#ff8800"), Color("#ff0000")],
-		"labels": ["Quiet (80%+)", "Calm (60-80%)", "Moderate (40-60%)", "Noisy (20-40%)", "Loud (<20%)"]
+		"colors":
+		[Color("#00ff00"), Color("#88ff00"), Color("#ffff00"), Color("#ff8800"), Color("#ff0000")],
+		"labels":
+		["Quiet (80%+)", "Calm (60-80%)", "Moderate (40-60%)", "Noisy (20-40%)", "Loud (<20%)"]
 	},
-	OverlayType.SAFETY: {
+	OverlayType.SAFETY:
+	{
 		"title": "Safety Rating",
-		"colors": [Color("#00ff00"), Color("#88ff00"), Color("#ffff00"), Color("#ff8800"), Color("#ff0000")],
-		"labels": ["Very Safe (80%+)", "Safe (60-80%)", "Moderate (40-60%)", "Risky (20-40%)", "Dangerous (<20%)"]
+		"colors":
+		[Color("#00ff00"), Color("#88ff00"), Color("#ffff00"), Color("#ff8800"), Color("#ff0000")],
+		"labels":
+		[
+			"Very Safe (80%+)",
+			"Safe (60-80%)",
+			"Moderate (40-60%)",
+			"Risky (20-40%)",
+			"Dangerous (<20%)"
+		]
 	},
-	OverlayType.VIBES: {
+	OverlayType.VIBES:
+	{
 		"title": "Vibes Score",
-		"colors": [Color("#ff00ff"), Color("#cc00cc"), Color("#990099"), Color("#660066"), Color("#330033")],
+		"colors":
+		[Color("#ff00ff"), Color("#cc00cc"), Color("#990099"), Color("#660066"), Color("#330033")],
 		"labels": ["Amazing (80%+)", "Good (60-80%)", "Okay (40-60%)", "Meh (20-40%)", "Bad (<20%)"]
 	},
-	OverlayType.CONNECTIVITY: {
+	OverlayType.CONNECTIVITY:
+	{
 		"title": "Connectivity",
 		"colors": [Color("#00ff00"), Color("#ff0000")],
 		"labels": ["Connected", "Disconnected"]
 	},
-	OverlayType.BLOCK_TYPE: {
+	OverlayType.BLOCK_TYPE:
+	{
 		"title": "Block Categories",
-		"colors": [Color("#4488ff"), Color("#ff8844"), Color("#888888"), Color("#00cc88"), Color("#88ff00"), Color("#ff44ff"), Color("#ffff00")],
-		"labels": ["Residential", "Commercial", "Industrial", "Transit", "Green", "Civic", "Infrastructure"]
+		"colors":
+		[
+			Color("#4488ff"),
+			Color("#ff8844"),
+			Color("#888888"),
+			Color("#00cc88"),
+			Color("#88ff00"),
+			Color("#ff44ff"),
+			Color("#ffff00")
+		],
+		"labels":
+		["Residential", "Commercial", "Industrial", "Transit", "Green", "Civic", "Infrastructure"]
 	},
-	OverlayType.FOOT_TRAFFIC: {
+	OverlayType.FOOT_TRAFFIC:
+	{
 		"title": "Foot Traffic",
-		"colors": [Color("#ff0000"), Color("#ff8800"), Color("#ffff00"), Color("#88ff00"), Color("#00ff00")],
+		"colors":
+		[Color("#ff0000"), Color("#ff8800"), Color("#ffff00"), Color("#88ff00"), Color("#00ff00")],
 		"labels": ["Very High", "High", "Medium", "Low", "None"]
 	}
 }
@@ -88,10 +119,6 @@ const EXPANDED_WIDTH := 240
 const BUTTON_SIZE := 48
 const EXPAND_DELAY := 0.3  # seconds before hover expand
 const ANIM_DURATION := 0.15
-
-# Signals
-signal overlay_changed(overlay_type: int)
-signal expanded_changed(is_expanded: bool)
 
 # State
 var _current_overlay: int = OverlayType.NONE
@@ -375,7 +402,9 @@ func _update_visual_state() -> void:
 
 	# Update radio indicators and labels
 	for overlay_type in OVERLAY_CONFIG.keys():
-		var radio: Label = _vbox.get_node_or_null("ButtonContainer/Row_%d/Radio_%d" % [overlay_type, overlay_type])
+		var radio: Label = _vbox.get_node_or_null(
+			"ButtonContainer/Row_%d/Radio_%d" % [overlay_type, overlay_type]
+		)
 		if radio:
 			radio.visible = _expanded
 			radio.text = "●" if overlay_type == _current_overlay else "○"
@@ -408,7 +437,9 @@ func _update_button_styles() -> void:
 
 		# Hover style
 		var hover_style := StyleBoxFlat.new()
-		hover_style.bg_color = COLOR_BUTTON_ACTIVE.lightened(0.2) if is_active else COLOR_BUTTON.lightened(0.2)
+		hover_style.bg_color = (
+			COLOR_BUTTON_ACTIVE.lightened(0.2) if is_active else COLOR_BUTTON.lightened(0.2)
+		)
 		hover_style.corner_radius_top_left = 4
 		hover_style.corner_radius_top_right = 4
 		hover_style.corner_radius_bottom_left = 4

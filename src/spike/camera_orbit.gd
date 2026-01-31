@@ -1,5 +1,5 @@
-extends Camera3D
 class_name CameraOrbit
+extends Camera3D
 
 ## Orbital camera controller for 3D spike
 ##
@@ -10,20 +10,6 @@ class_name CameraOrbit
 ## - Scroll: Zoom in/out
 ## - Middle mouse drag: Orbit
 ## - Shift+middle mouse: Pan
-
-# Target point the camera orbits around
-var target: Vector3 = Vector3.ZERO
-
-# Spherical coordinates relative to target
-var azimuth: float = 0.0  # Rotation around Y axis (degrees)
-var elevation: float = 45.0  # Angle from horizontal (degrees)
-var distance: float = 50.0  # Distance from target
-
-# Smooth movement targets
-var _target_azimuth: float = 0.0
-var _target_elevation: float = 45.0
-var _target_distance: float = 50.0
-var _target_target: Vector3 = Vector3.ZERO
 
 # Limits
 const MIN_ELEVATION: float = 5.0
@@ -40,11 +26,26 @@ const PAN_SPEED: float = 30.0  # Units per second
 const ZOOM_SPEED: float = 0.1  # Multiplier per scroll
 const LERP_FACTOR: float = 10.0  # Smoothing factor
 
+const MOUSE_SENSITIVITY: float = 0.3
+
+# Target point the camera orbits around
+var target: Vector3 = Vector3.ZERO
+
+# Spherical coordinates relative to target
+var azimuth: float = 0.0  # Rotation around Y axis (degrees)
+var elevation: float = 45.0  # Angle from horizontal (degrees)
+var distance: float = 50.0  # Distance from target
+
+# Smooth movement targets
+var _target_azimuth: float = 0.0
+var _target_elevation: float = 45.0
+var _target_distance: float = 50.0
+var _target_target: Vector3 = Vector3.ZERO
+
 # Mouse drag state
 var _is_dragging: bool = false
 var _is_panning: bool = false
 var _last_mouse_pos: Vector2 = Vector2.ZERO
-const MOUSE_SENSITIVITY: float = 0.3
 
 
 func _ready() -> void:
@@ -77,9 +78,13 @@ func _handle_keyboard_input(delta: float) -> void:
 
 	# Tilt (R/F)
 	if Input.is_key_pressed(KEY_R):
-		_target_elevation = clampf(_target_elevation + TILT_SPEED * delta, MIN_ELEVATION, MAX_ELEVATION)
+		_target_elevation = clampf(
+			_target_elevation + TILT_SPEED * delta, MIN_ELEVATION, MAX_ELEVATION
+		)
 	if Input.is_key_pressed(KEY_F):
-		_target_elevation = clampf(_target_elevation - TILT_SPEED * delta, MIN_ELEVATION, MAX_ELEVATION)
+		_target_elevation = clampf(
+			_target_elevation - TILT_SPEED * delta, MIN_ELEVATION, MAX_ELEVATION
+		)
 
 	# Pan (WASD) - relative to camera facing
 	var pan_input := Vector2.ZERO
@@ -136,7 +141,9 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 	else:
 		# Orbit with middle mouse
 		_target_azimuth += delta.x * MOUSE_SENSITIVITY
-		_target_elevation = clampf(_target_elevation - delta.y * MOUSE_SENSITIVITY, MIN_ELEVATION, MAX_ELEVATION)
+		_target_elevation = clampf(
+			_target_elevation - delta.y * MOUSE_SENSITIVITY, MIN_ELEVATION, MAX_ELEVATION
+		)
 
 
 func _zoom(amount: float) -> void:
@@ -162,11 +169,14 @@ func _update_camera_position() -> void:
 	var azimuth_rad := deg_to_rad(azimuth)
 	var elevation_rad := deg_to_rad(elevation)
 
-	var offset := Vector3(
-		sin(azimuth_rad) * cos(elevation_rad),
-		sin(elevation_rad),
-		cos(azimuth_rad) * cos(elevation_rad)
-	) * distance
+	var offset := (
+		Vector3(
+			sin(azimuth_rad) * cos(elevation_rad),
+			sin(elevation_rad),
+			cos(azimuth_rad) * cos(elevation_rad)
+		)
+		* distance
+	)
 
 	# Use position instead of global_position when not in tree
 	position = target + offset
@@ -180,6 +190,7 @@ func _update_camera_position() -> void:
 
 
 # Public API for programmatic control
+
 
 func set_target(new_target: Vector3, immediate: bool = false) -> void:
 	_target_target = new_target

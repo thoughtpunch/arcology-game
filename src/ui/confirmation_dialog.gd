@@ -3,6 +3,13 @@ extends Control
 ## Modal confirmation dialog for destructive actions, errors, and warnings
 ## See: documentation/ui/menus.md
 
+signal confirmed
+signal cancelled
+signal save_and_quit  # For CONFIRM_SAVE type
+
+# Dialog types: Standard yes/no, Save & quit / Quit / Cancel, OK only variations
+enum DialogType { CONFIRM, CONFIRM_SAVE, ERROR, WARNING, INFO }
+
 # Color scheme
 const COLOR_OVERLAY := Color(0, 0, 0, 0.6)
 const COLOR_PANEL := Color("#16213e")
@@ -17,22 +24,8 @@ const COLOR_WARNING := Color("#ff9800")
 const COLOR_ERROR := Color("#f44336")
 const COLOR_INFO := Color("#4a90d9")
 
-# Dialog types
-enum DialogType {
-	CONFIRM,       # Standard yes/no
-	CONFIRM_SAVE,  # Save & quit / Quit / Cancel
-	ERROR,         # OK only
-	WARNING,       # OK only with warning icon
-	INFO           # OK only with info icon
-}
-
 # Animation
 const FADE_DURATION := 0.15
-
-# Signals
-signal confirmed
-signal cancelled
-signal save_and_quit  # For CONFIRM_SAVE type
 
 # UI components
 var _overlay: ColorRect
@@ -264,7 +257,10 @@ func show_confirm(title: String, message: String, details: Array = []) -> void:
 
 
 ## Show an unsaved changes dialog
-func show_unsaved_changes(title: String = "UNSAVED CHANGES", message: String = "You have unsaved progress.\nAre you sure you want to quit?") -> void:
+func show_unsaved_changes(
+	title: String = "UNSAVED CHANGES",
+	message: String = "You have unsaved progress.\nAre you sure you want to quit?"
+) -> void:
 	_dialog_type = DialogType.CONFIRM_SAVE
 	_title_label.text = title
 	_message_label.text = message

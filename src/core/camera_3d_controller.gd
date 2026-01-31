@@ -1,5 +1,5 @@
-extends Node3D
 class_name ArcologyCamera
+extends Node3D
 ## 3D Orbital camera controller with free rotation and orthographic snap views
 ##
 ## Controls:
@@ -12,23 +12,45 @@ class_name ArcologyCamera
 ## - Tab: Toggle between FREE and ORTHO modes
 ## - 1-7 in ORTHO mode: Snap to view (TOP, NORTH, EAST, SOUTH, WEST, BOTTOM, ISO)
 
+signal mode_changed(new_mode: Mode)
+signal ortho_view_changed(new_view: OrthoView)
+
 ## Camera mode
 enum Mode { FREE, ORTHO }
 
 ## Orthographic snap views
-enum OrthoView {
-	TOP,      # Looking down (Y-)
-	NORTH,    # Looking south (Z+)
-	EAST,     # Looking west (X-)
-	SOUTH,    # Looking north (Z-)
-	WEST,     # Looking east (X+)
-	BOTTOM,   # Looking up (Y+) - rare but useful
-	ISO       # 45° isometric (traditional arcology view)
-}
+# Looking down (Y-), Looking south (Z+), Looking west (X-), Looking north (Z-)
+# Looking east (X+), Looking up (Y+) - rare but useful, 45deg isometric (traditional arcology view)
+enum OrthoView { TOP, NORTH, EAST, SOUTH, WEST, BOTTOM, ISO }
 
-# Signals
-signal mode_changed(new_mode: Mode)
-signal ortho_view_changed(new_view: OrthoView)
+# Constraints
+const MIN_DISTANCE: float = 10.0
+const MAX_DISTANCE: float = 2000.0
+const MIN_ELEVATION: float = 5.0
+const MAX_ELEVATION: float = 89.0
+const MIN_ORTHO_SIZE: float = 10.0
+const MAX_ORTHO_SIZE: float = 500.0
+
+# Speed settings
+const ROTATION_SPEED: float = 90.0  # Degrees per second
+const TILT_SPEED: float = 45.0  # Degrees per second
+const PAN_SPEED: float = 50.0  # Units per second (scales with zoom)
+const ZOOM_SPEED: float = 0.1  # Multiplier per scroll
+const LERP_FACTOR: float = 10.0  # Smoothing factor
+
+const MOUSE_SENSITIVITY: float = 0.3
+
+# Ortho view presets: [azimuth, elevation, distance_multiplier]
+# arctan(1/sqrt(2)) = 35.264deg for ISO
+const ORTHO_PRESETS := {
+	OrthoView.TOP: {"azimuth": 0.0, "elevation": 89.0, "label": "Top"},
+	OrthoView.NORTH: {"azimuth": 0.0, "elevation": 0.0, "label": "North"},
+	OrthoView.EAST: {"azimuth": 90.0, "elevation": 0.0, "label": "East"},
+	OrthoView.SOUTH: {"azimuth": 180.0, "elevation": 0.0, "label": "South"},
+	OrthoView.WEST: {"azimuth": 270.0, "elevation": 0.0, "label": "West"},
+	OrthoView.BOTTOM: {"azimuth": 0.0, "elevation": -89.0, "label": "Bottom"},
+	OrthoView.ISO: {"azimuth": 45.0, "elevation": 35.264, "label": "Isometric"}
+}
 
 # Current state
 var mode: Mode = Mode.FREE
@@ -52,40 +74,13 @@ var _target_distance: float = 100.0
 var _target_target: Vector3 = Vector3.ZERO
 var _target_ortho_size: float = 50.0
 
-# Constraints
-const MIN_DISTANCE: float = 10.0
-const MAX_DISTANCE: float = 2000.0
-const MIN_ELEVATION: float = 5.0
-const MAX_ELEVATION: float = 89.0
-const MIN_ORTHO_SIZE: float = 10.0
-const MAX_ORTHO_SIZE: float = 500.0
-
-# Speed settings
-const ROTATION_SPEED: float = 90.0  # Degrees per second
-const TILT_SPEED: float = 45.0  # Degrees per second
-const PAN_SPEED: float = 50.0  # Units per second (scales with zoom)
-const ZOOM_SPEED: float = 0.1  # Multiplier per scroll
-const LERP_FACTOR: float = 10.0  # Smoothing factor
-
 # Mouse drag state
 var _is_dragging: bool = false
 var _is_panning: bool = false
 var _last_mouse_pos: Vector2 = Vector2.ZERO
-const MOUSE_SENSITIVITY: float = 0.3
 
 # Camera node reference (created as child)
 var _camera: Camera3D
-
-# Ortho view presets: [azimuth, elevation, distance_multiplier]
-const ORTHO_PRESETS := {
-	OrthoView.TOP: { "azimuth": 0.0, "elevation": 89.0, "label": "Top" },
-	OrthoView.NORTH: { "azimuth": 0.0, "elevation": 0.0, "label": "North" },
-	OrthoView.EAST: { "azimuth": 90.0, "elevation": 0.0, "label": "East" },
-	OrthoView.SOUTH: { "azimuth": 180.0, "elevation": 0.0, "label": "South" },
-	OrthoView.WEST: { "azimuth": 270.0, "elevation": 0.0, "label": "West" },
-	OrthoView.BOTTOM: { "azimuth": 0.0, "elevation": -89.0, "label": "Bottom" },
-	OrthoView.ISO: { "azimuth": 45.0, "elevation": 35.264, "label": "Isometric" }  # arctan(1/sqrt(2)) ≈ 35.264°
-}
 
 
 func _ready() -> void:
@@ -135,9 +130,13 @@ func _handle_keyboard_input(delta: float) -> void:
 
 		# Tilt (R/F) - only in FREE mode
 		if Input.is_key_pressed(KEY_R):
-			_target_elevation = clampf(_target_elevation + TILT_SPEED * delta, MIN_ELEVATION, MAX_ELEVATION)
+			_target_elevation = clampf(
+				_target_elevation + TILT_SPEED * delta, MIN_ELEVATION, MAX_ELEVATION
+			)
 		if Input.is_key_pressed(KEY_F):
-			_target_elevation = clampf(_target_elevation - TILT_SPEED * delta, MIN_ELEVATION, MAX_ELEVATION)
+			_target_elevation = clampf(
+				_target_elevation - TILT_SPEED * delta, MIN_ELEVATION, MAX_ELEVATION
+			)
 
 	# Pan (WASD) - relative to camera facing (works in both modes)
 	var pan_input := Vector2.ZERO
@@ -240,7 +239,9 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 		# Orbit with middle mouse - only in FREE mode
 		if mode == Mode.FREE:
 			_target_azimuth += delta_motion.x * MOUSE_SENSITIVITY
-			_target_elevation = clampf(_target_elevation - delta_motion.y * MOUSE_SENSITIVITY, MIN_ELEVATION, MAX_ELEVATION)
+			_target_elevation = clampf(
+				_target_elevation - delta_motion.y * MOUSE_SENSITIVITY, MIN_ELEVATION, MAX_ELEVATION
+			)
 		else:
 			# In ORTHO mode, dragging cycles through views based on direction
 			# (Could implement this as a view cube interaction later)
@@ -251,7 +252,9 @@ func zoom(amount: float) -> void:
 	## Zoom in/out. Positive amount = zoom out, negative = zoom in.
 	if mode == Mode.ORTHO or _camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
 		# Orthographic: adjust size
-		_target_ortho_size = clampf(_target_ortho_size * (1.0 + amount), MIN_ORTHO_SIZE, MAX_ORTHO_SIZE)
+		_target_ortho_size = clampf(
+			_target_ortho_size * (1.0 + amount), MIN_ORTHO_SIZE, MAX_ORTHO_SIZE
+		)
 	else:
 		# Perspective: adjust distance
 		_target_distance = clampf(_target_distance * (1.0 + amount), MIN_DISTANCE, MAX_DISTANCE)
@@ -276,11 +279,14 @@ func _update_camera_transform() -> void:
 	var elevation_rad := deg_to_rad(elevation)
 
 	# Convert spherical to Cartesian coordinates
-	var offset := Vector3(
-		sin(azimuth_rad) * cos(elevation_rad),
-		sin(elevation_rad),
-		cos(azimuth_rad) * cos(elevation_rad)
-	) * distance
+	var offset := (
+		Vector3(
+			sin(azimuth_rad) * cos(elevation_rad),
+			sin(elevation_rad),
+			cos(azimuth_rad) * cos(elevation_rad)
+		)
+		* distance
+	)
 
 	# Position camera
 	if _camera:
@@ -297,6 +303,7 @@ func _update_camera_transform() -> void:
 
 
 # --- Public API ---
+
 
 func orbit(delta_azimuth: float, delta_elevation: float) -> void:
 	## Orbit camera by given amounts (degrees)
@@ -335,7 +342,12 @@ func snap_to_ortho(view: OrthoView) -> void:
 		_target_elevation = MAX_ELEVATION  # Look straight down
 	elif view == OrthoView.BOTTOM:
 		_target_elevation = MIN_ELEVATION  # Look straight up (clamped to min)
-	elif view == OrthoView.NORTH or view == OrthoView.SOUTH or view == OrthoView.EAST or view == OrthoView.WEST:
+	elif (
+		view == OrthoView.NORTH
+		or view == OrthoView.SOUTH
+		or view == OrthoView.EAST
+		or view == OrthoView.WEST
+	):
 		# Side views - use a slight elevation to avoid looking exactly horizontal
 		_target_elevation = 15.0
 	else:
@@ -392,6 +404,7 @@ func reset_view(immediate: bool = false) -> void:
 
 
 # --- Getters and Setters ---
+
 
 func get_camera() -> Camera3D:
 	## Get the Camera3D node

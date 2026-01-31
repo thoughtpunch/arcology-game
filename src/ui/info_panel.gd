@@ -4,6 +4,10 @@ extends VBoxContainer
 ## Provides common styling, sections, and behavior
 ## See: documentation/ui/info-panels.md
 
+signal close_requested
+signal pin_toggled(pinned: bool)
+signal action_pressed(action_name: String)
+
 # Color constants (match HUD color scheme)
 const COLOR_SECTION_BG := Color("#1a1a2e")
 const COLOR_SECTION_BORDER := Color("#0f3460")
@@ -19,15 +23,10 @@ const COLOR_TEXT_NEGATIVE := Color("#e94560")
 
 # Status colors (from documentation)
 const STATUS_OCCUPIED := Color("#4ecdc4")  # Green
-const STATUS_VACANT := Color("#f9ca24")    # Yellow
+const STATUS_VACANT := Color("#f9ca24")  # Yellow
 const STATUS_CONSTRUCTION := Color("#3498db")  # Blue
-const STATUS_DAMAGED := Color("#e67e22")   # Orange
-const STATUS_CONDEMNED := Color("#e94560") # Red
-
-# Signals
-signal close_requested
-signal pin_toggled(pinned: bool)
-signal action_pressed(action_name: String)
+const STATUS_DAMAGED := Color("#e67e22")  # Orange
+const STATUS_CONDEMNED := Color("#e94560")  # Red
 
 # Panel state
 var _pinned := false
@@ -39,7 +38,9 @@ func _init() -> void:
 
 
 ## Create a section with a title header
-func add_section(section_name: String, title: String = "", collapsible: bool = false) -> VBoxContainer:
+func add_section(
+	section_name: String, title: String = "", collapsible: bool = false
+) -> VBoxContainer:
 	var section := VBoxContainer.new()
 	section.name = section_name
 	section.add_theme_constant_override("separation", 4)
@@ -103,8 +104,13 @@ func _toggle_section(section_name: String) -> void:
 
 
 ## Create a progress bar with label
-func create_bar(label_text: String, value: float, max_value: float = 100.0,
-				bar_color: Color = COLOR_BAR_FILL, show_percent: bool = true) -> HBoxContainer:
+func create_bar(
+	label_text: String,
+	value: float,
+	max_value: float = 100.0,
+	bar_color: Color = COLOR_BAR_FILL,
+	show_percent: bool = true
+) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 
@@ -157,8 +163,9 @@ func create_bar(label_text: String, value: float, max_value: float = 100.0,
 
 
 ## Create a stat row with label and value
-func create_stat_row(label_text: String, value_text: String,
-					value_color: Color = COLOR_TEXT) -> HBoxContainer:
+func create_stat_row(
+	label_text: String, value_text: String, value_color: Color = COLOR_TEXT
+) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 
@@ -178,8 +185,7 @@ func create_stat_row(label_text: String, value_text: String,
 
 
 ## Create an action button
-func create_action_button(text: String, action_name: String,
-						tooltip: String = "") -> Button:
+func create_action_button(text: String, action_name: String, tooltip: String = "") -> Button:
 	var btn := Button.new()
 	btn.text = text
 	btn.tooltip_text = tooltip
@@ -196,9 +202,7 @@ func create_action_bar(actions: Array[Dictionary]) -> HBoxContainer:
 
 	for action in actions:
 		var btn := create_action_button(
-			action.get("text", "Action"),
-			action.get("action", ""),
-			action.get("tooltip", "")
+			action.get("text", "Action"), action.get("action", ""), action.get("tooltip", "")
 		)
 		bar.add_child(btn)
 
@@ -206,8 +210,13 @@ func create_action_bar(actions: Array[Dictionary]) -> HBoxContainer:
 
 
 ## Update a progress bar value
-func update_bar(bar_row: HBoxContainer, value: float, max_value: float = 100.0,
-				bar_color: Color = COLOR_BAR_FILL, show_percent: bool = true) -> void:
+func update_bar(
+	bar_row: HBoxContainer,
+	value: float,
+	max_value: float = 100.0,
+	bar_color: Color = COLOR_BAR_FILL,
+	show_percent: bool = true
+) -> void:
 	# Find the bar container (second child)
 	if bar_row.get_child_count() >= 3:
 		var bar_container := bar_row.get_child(1) as Control
@@ -227,15 +236,14 @@ func update_bar(bar_row: HBoxContainer, value: float, max_value: float = 100.0,
 
 
 ## Get bar color based on value threshold
-func get_bar_color_by_value(value: float,
-							low_threshold: float = 40.0,
-							high_threshold: float = 70.0) -> Color:
+func get_bar_color_by_value(
+	value: float, low_threshold: float = 40.0, high_threshold: float = 70.0
+) -> Color:
 	if value >= high_threshold:
 		return COLOR_BAR_FILL_GREEN
-	elif value >= low_threshold:
+	if value >= low_threshold:
 		return COLOR_BAR_FILL_YELLOW
-	else:
-		return COLOR_BAR_FILL_RED
+	return COLOR_BAR_FILL_RED
 
 
 ## Get status color
@@ -256,8 +264,13 @@ func get_status_color(status: String) -> Color:
 
 
 ## Create header with sprite, name, and close button
-func create_header(sprite_texture: Texture2D, title: String, subtitle: String,
-					show_pin: bool = true, show_close: bool = true) -> Control:
+func create_header(
+	sprite_texture: Texture2D,
+	title: String,
+	subtitle: String,
+	show_pin: bool = true,
+	show_close: bool = true
+) -> Control:
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 8)
 

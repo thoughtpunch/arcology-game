@@ -11,12 +11,12 @@ extends Node3D
 ##
 ## Supports themes: EARTH (grass), MARS (regolith), SPACE (metal deck)
 
-const GridUtilsScript = preload("res://src/phase0/grid_utils.gd")
-
-const CELL_SIZE: float = 6.0
+signal cell_removed(grid_pos: Vector3i)
 
 enum TerrainTheme { EARTH, MARS, SPACE }
 
+const GridUtilsScript = preload("res://src/phase0/grid_utils.gd")
+const CELL_SIZE: float = 6.0
 
 # --- Configuration ---
 var theme: TerrainTheme = TerrainTheme.EARTH
@@ -31,9 +31,6 @@ var _ground_layers: Array[MultiMeshInstance3D] = []
 var _ground_cell_indices: Array[Dictionary] = []  # per-layer Vector2i(x,z) -> int
 var _collision_body: StaticBody3D
 var _cell_occupancy: Dictionary = {}  # Vector3i -> bool (true = exists)
-
-
-signal cell_removed(grid_pos: Vector3i)
 
 
 func _ready() -> void:
@@ -141,11 +138,7 @@ func _generate_collision() -> void:
 	var col_box := BoxShape3D.new()
 	col_box.size = Vector3(total_size_x, total_depth, total_size_z)
 	col_shape.shape = col_box
-	col_shape.position = Vector3(
-		total_size_x / 2.0,
-		-total_depth / 2.0,
-		total_size_z / 2.0
-	)
+	col_shape.position = Vector3(total_size_x / 2.0, -total_depth / 2.0, total_size_z / 2.0)
 	_collision_body.add_child(col_shape)
 	add_child(_collision_body)
 
@@ -176,11 +169,11 @@ func _get_strata_colors() -> Array[Color]:
 func _get_earth_colors() -> Array[Color]:
 	## Earth theme: grass -> soil -> clay -> rock -> bedrock
 	var colors: Array[Color] = [
-		Color(0.3, 0.55, 0.2),   # y=-1: Grass/topsoil
+		Color(0.3, 0.55, 0.2),  # y=-1: Grass/topsoil
 		Color(0.55, 0.35, 0.2),  # y=-2: Soil
 		Color(0.4, 0.25, 0.15),  # y=-3: Clay
-		Color(0.5, 0.5, 0.5),    # y=-4: Rock
-		Color(0.3, 0.3, 0.3),    # y=-5: Bedrock
+		Color(0.5, 0.5, 0.5),  # y=-4: Rock
+		Color(0.3, 0.3, 0.3),  # y=-5: Bedrock
 	]
 	# Extend if more depth needed
 	while colors.size() < ground_depth:
@@ -191,10 +184,10 @@ func _get_earth_colors() -> Array[Color]:
 func _get_mars_colors() -> Array[Color]:
 	## Mars theme: red-brown regolith with rocky underlayers
 	var colors: Array[Color] = [
-		Color(0.6, 0.3, 0.2),    # y=-1: Surface regolith (rust red)
+		Color(0.6, 0.3, 0.2),  # y=-1: Surface regolith (rust red)
 		Color(0.5, 0.28, 0.18),  # y=-2: Subsurface (darker red-brown)
-		Color(0.45, 0.25, 0.15), # y=-3: Deep regolith
-		Color(0.4, 0.35, 0.3),   # y=-4: Rocky layer (grey-brown)
+		Color(0.45, 0.25, 0.15),  # y=-3: Deep regolith
+		Color(0.4, 0.35, 0.3),  # y=-4: Rocky layer (grey-brown)
 		Color(0.35, 0.3, 0.28),  # y=-5: Bedrock (dark grey)
 	]
 	while colors.size() < ground_depth:
@@ -242,6 +235,7 @@ func _get_metallic_for_theme() -> float:
 
 # --- Cell Query API ---
 
+
 func is_cell_occupied(grid_pos: Vector3i) -> bool:
 	## Returns true if a terrain cell exists at the given position.
 	return _cell_occupancy.has(grid_pos)
@@ -272,14 +266,11 @@ func get_world_size() -> Vector3:
 
 func get_world_center() -> Vector3:
 	## Returns the world-space center of the terrain surface (at Y=0).
-	return Vector3(
-		float(grid_size.x) * CELL_SIZE / 2.0,
-		0.0,
-		float(grid_size.y) * CELL_SIZE / 2.0
-	)
+	return Vector3(float(grid_size.x) * CELL_SIZE / 2.0, 0.0, float(grid_size.y) * CELL_SIZE / 2.0)
 
 
 # --- Cell Removal (Excavation) ---
+
 
 func remove_cell(grid_pos: Vector3i) -> bool:
 	## Remove a terrain cell (for excavation). Returns true if removed.

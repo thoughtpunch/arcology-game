@@ -3,6 +3,14 @@ extends Control
 ## Settings menu with tabbed interface for Game, Graphics, Audio, Controls, Accessibility
 ## See: documentation/ui/menus.md
 
+signal settings_changed(setting_name: String, value)
+signal back_pressed
+signal apply_pressed
+signal reset_defaults_pressed
+
+# Tab identifiers
+enum Tab { GAME, GRAPHICS, AUDIO, CONTROLS, ACCESSIBILITY }
+
 # Color scheme
 const COLOR_BACKGROUND := Color("#1a1a2e")
 const COLOR_PANEL := Color("#16213e")
@@ -12,21 +20,6 @@ const COLOR_BUTTON_ACTIVE := Color("#e94560")
 const COLOR_TEXT := Color("#ffffff")
 const COLOR_TEXT_SECONDARY := Color("#e0e0e0")
 const COLOR_ACCENT := Color("#e94560")
-
-# Tab identifiers
-enum Tab {
-	GAME,
-	GRAPHICS,
-	AUDIO,
-	CONTROLS,
-	ACCESSIBILITY
-}
-
-# Signals
-signal settings_changed(setting_name: String, value)
-signal back_pressed
-signal apply_pressed
-signal reset_defaults_pressed
 
 # UI components
 var _panel: PanelContainer
@@ -229,8 +222,13 @@ func _create_game_tab() -> void:
 
 	# Gameplay section
 	vbox.add_child(_create_section_header("GAMEPLAY"))
-	vbox.add_child(_create_dropdown_setting("Auto-Save Interval", "auto_save_interval",
-		["5 minutes", "10 minutes", "15 minutes", "30 minutes", "Disabled"]))
+	vbox.add_child(
+		_create_dropdown_setting(
+			"Auto-Save Interval",
+			"auto_save_interval",
+			["5 minutes", "10 minutes", "15 minutes", "30 minutes", "Disabled"]
+		)
+	)
 	vbox.add_child(_create_toggle_setting("Edge Scrolling", "edge_scrolling"))
 	vbox.add_child(_create_slider_setting("Scroll Speed", "scroll_speed", 0, 100))
 	vbox.add_child(_create_toggle_setting("Pause on Lost Focus", "pause_on_lost_focus"))
@@ -257,22 +255,38 @@ func _create_graphics_tab() -> void:
 
 	# Display section
 	vbox.add_child(_create_section_header("DISPLAY"))
-	vbox.add_child(_create_dropdown_setting("Resolution", "resolution",
-		["1280x720", "1920x1080", "2560x1440", "3840x2160"]))
-	vbox.add_child(_create_dropdown_setting("Display Mode", "display_mode",
-		["Windowed", "Fullscreen", "Borderless"]))
+	vbox.add_child(
+		_create_dropdown_setting(
+			"Resolution", "resolution", ["1280x720", "1920x1080", "2560x1440", "3840x2160"]
+		)
+	)
+	vbox.add_child(
+		_create_dropdown_setting(
+			"Display Mode", "display_mode", ["Windowed", "Fullscreen", "Borderless"]
+		)
+	)
 	vbox.add_child(_create_toggle_setting("VSync", "vsync"))
-	vbox.add_child(_create_dropdown_setting("Frame Rate Limit", "frame_rate_limit",
-		["30 FPS", "60 FPS", "120 FPS", "Unlimited"]))
+	vbox.add_child(
+		_create_dropdown_setting(
+			"Frame Rate Limit", "frame_rate_limit", ["30 FPS", "60 FPS", "120 FPS", "Unlimited"]
+		)
+	)
 
 	# Quality section
 	vbox.add_child(_create_section_header("QUALITY"))
-	vbox.add_child(_create_dropdown_setting("Sprite Quality", "sprite_quality",
-		["Low", "Medium", "High"]))
-	vbox.add_child(_create_dropdown_setting("Shadow Quality", "shadow_quality",
-		["Off", "Low", "Medium", "High"]))
-	vbox.add_child(_create_dropdown_setting("Animation Quality", "animation_quality",
-		["Low", "Medium", "High"]))
+	vbox.add_child(
+		_create_dropdown_setting("Sprite Quality", "sprite_quality", ["Low", "Medium", "High"])
+	)
+	vbox.add_child(
+		_create_dropdown_setting(
+			"Shadow Quality", "shadow_quality", ["Off", "Low", "Medium", "High"]
+		)
+	)
+	vbox.add_child(
+		_create_dropdown_setting(
+			"Animation Quality", "animation_quality", ["Low", "Medium", "High"]
+		)
+	)
 	vbox.add_child(_create_toggle_setting("Particle Effects", "particle_effects"))
 
 	# UI section
@@ -363,16 +377,24 @@ func _create_accessibility_tab() -> void:
 
 	# Visual section
 	vbox.add_child(_create_section_header("VISUAL"))
-	vbox.add_child(_create_dropdown_setting("Color Blind Mode", "colorblind_mode",
-		["Off", "Deuteranopia", "Protanopia", "Tritanopia"]))
+	vbox.add_child(
+		_create_dropdown_setting(
+			"Color Blind Mode",
+			"colorblind_mode",
+			["Off", "Deuteranopia", "Protanopia", "Tritanopia"]
+		)
+	)
 	vbox.add_child(_create_toggle_setting("High Contrast UI", "high_contrast_ui"))
 	vbox.add_child(_create_toggle_setting("Reduce Motion", "reduce_motion"))
 	vbox.add_child(_create_toggle_setting("Screen Flash Effects", "screen_flash_effects"))
 
 	# Text section
 	vbox.add_child(_create_section_header("TEXT"))
-	vbox.add_child(_create_dropdown_setting("Font Size", "font_size",
-		["Small", "Medium", "Large", "Extra Large"]))
+	vbox.add_child(
+		_create_dropdown_setting(
+			"Font Size", "font_size", ["Small", "Medium", "Large", "Extra Large"]
+		)
+	)
 	vbox.add_child(_create_toggle_setting("Dyslexia-Friendly Font", "dyslexia_font"))
 
 	# Gameplay section
@@ -409,7 +431,9 @@ func _create_toggle_setting(label_text: String, setting_key: String) -> HBoxCont
 	return hbox
 
 
-func _create_slider_setting(label_text: String, setting_key: String, min_val: float, max_val: float) -> HBoxContainer:
+func _create_slider_setting(
+	label_text: String, setting_key: String, min_val: float, max_val: float
+) -> HBoxContainer:
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 12)
 	hbox.name = "%sSetting" % setting_key.to_pascal_case()
@@ -443,7 +467,9 @@ func _create_slider_setting(label_text: String, setting_key: String, min_val: fl
 	return hbox
 
 
-func _create_dropdown_setting(label_text: String, setting_key: String, options: Array) -> HBoxContainer:
+func _create_dropdown_setting(
+	label_text: String, setting_key: String, options: Array
+) -> HBoxContainer:
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 12)
 	hbox.name = "%sSetting" % setting_key.to_pascal_case()

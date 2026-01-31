@@ -1,5 +1,5 @@
-extends Node3D
 class_name Chunk
+extends Node3D
 
 ## A spatial chunk of 8x8x8 cells (48m x 48m x 48m) containing merged block geometry.
 ##
@@ -18,14 +18,7 @@ class_name Chunk
 ##   LOD2 (150-400m): Block silhouette only
 ##   LOD3 (400m+):    Merged chunks, impostors
 
-# Chunk size in grid cells per axis
-const CHUNK_SIZE: int = 8
-
-# Cell dimensions (must match BlockRenderer3D) — true cube, 6m all axes
-const CELL_SIZE: float = 6.0
-const CUBE_WIDTH: float = CELL_SIZE   # Alias for compatibility
-const CUBE_DEPTH: float = CELL_SIZE   # Alias for compatibility
-const CUBE_HEIGHT: float = CELL_SIZE  # Alias for compatibility
+signal lod_changed(old_level: LODLevel, new_level: LODLevel)
 
 # LOD level enumeration (matches LODManager.LODLevel)
 enum LODLevel {
@@ -35,16 +28,25 @@ enum LODLevel {
 	LOD3 = 3,  # Merged/impostor (400m+)
 }
 
+# Chunk size in grid cells per axis
+const CHUNK_SIZE: int = 8
+
+# Cell dimensions (must match BlockRenderer3D) — true cube, 6m all axes
+const CELL_SIZE: float = 6.0
+const CUBE_WIDTH: float = CELL_SIZE  # Alias for compatibility
+const CUBE_DEPTH: float = CELL_SIZE  # Alias for compatibility
+const CUBE_HEIGHT: float = CELL_SIZE  # Alias for compatibility
+
 # LOD mesh reduction factors (triangle reduction per LOD)
 const LOD_FACE_REDUCTION: Dictionary = {
-	LODLevel.LOD0: 1.0,   # Full detail: all 6 faces
-	LODLevel.LOD1: 1.0,   # Simplified: all faces but simpler material
-	LODLevel.LOD2: 0.5,   # Silhouette: only visible faces (roughly half)
+	LODLevel.LOD0: 1.0,  # Full detail: all 6 faces
+	LODLevel.LOD1: 1.0,  # Simplified: all faces but simpler material
+	LODLevel.LOD2: 0.5,  # Silhouette: only visible faces (roughly half)
 	LODLevel.LOD3: 0.25,  # Impostor: single quad or merged bounding box
 }
 
-# Signal emitted when LOD level changes
-signal lod_changed(old_level: LODLevel, new_level: LODLevel)
+# Collision layer for blocks
+const COLLISION_LAYER_BLOCKS: int = 2
 
 # Chunk coordinate (grid-space, not world-space)
 var chunk_coord: Vector3i = Vector3i.ZERO
@@ -72,9 +74,6 @@ var _current_lod: LODLevel = LODLevel.LOD0
 
 # AABB for frustum culling (world space)
 var _aabb: AABB = AABB()
-
-# Collision layer for blocks
-const COLLISION_LAYER_BLOCKS: int = 2
 
 # Shader reference (passed from manager)
 var _block_shader: Shader = null
@@ -132,19 +131,15 @@ func _grid_to_local(grid_pos: Vector3i) -> Vector3:
 ## Get the grid origin of this chunk (minimum grid coordinate)
 func _chunk_grid_origin() -> Vector3i:
 	return Vector3i(
-		chunk_coord.x * CHUNK_SIZE,
-		chunk_coord.y * CHUNK_SIZE,
-		chunk_coord.z * CHUNK_SIZE
+		chunk_coord.x * CHUNK_SIZE, chunk_coord.y * CHUNK_SIZE, chunk_coord.z * CHUNK_SIZE
 	)
 
 
 ## Add a block to this chunk
-func add_block(grid_pos: Vector3i, block_type: String, rotation: int = 0, material: Material = null) -> void:
-	_blocks[grid_pos] = {
-		"type": block_type,
-		"rotation": rotation,
-		"material": material
-	}
+func add_block(
+	grid_pos: Vector3i, block_type: String, rotation: int = 0, material: Material = null
+) -> void:
+	_blocks[grid_pos] = {"type": block_type, "rotation": rotation, "material": material}
 	_block_count = _blocks.size()
 	_dirty = true
 
@@ -221,7 +216,9 @@ func rebuild() -> void:
 		var color := _get_color_for_type(block_type)
 
 		# Create box vertices for this block
-		_add_box_to_surface(surface_tool, local_pos, Vector3(CUBE_WIDTH, CUBE_HEIGHT, CUBE_DEPTH), color, rotation)
+		_add_box_to_surface(
+			surface_tool, local_pos, Vector3(CUBE_WIDTH, CUBE_HEIGHT, CUBE_DEPTH), color, rotation
+		)
 
 		# Track collision shapes
 		var box_shape := BoxShape3D.new()
@@ -264,7 +261,9 @@ func _clear_meshes() -> void:
 
 
 ## Add a box's triangles to the SurfaceTool
-func _add_box_to_surface(st: SurfaceTool, center: Vector3, size: Vector3, color: Color, rotation: int = 0) -> void:
+func _add_box_to_surface(
+	st: SurfaceTool, center: Vector3, size: Vector3, color: Color, rotation: int = 0
+) -> void:
 	var half := size / 2.0
 	st.set_color(color)
 
@@ -276,13 +275,13 @@ func _add_box_to_surface(st: SurfaceTool, center: Vector3, size: Vector3, color:
 	# Define the 8 corners of the box (before rotation)
 	var corners := [
 		Vector3(-half.x, -half.y, -half.z),  # 0: left-bottom-back
-		Vector3( half.x, -half.y, -half.z),  # 1: right-bottom-back
-		Vector3( half.x,  half.y, -half.z),  # 2: right-top-back
-		Vector3(-half.x,  half.y, -half.z),  # 3: left-top-back
-		Vector3(-half.x, -half.y,  half.z),  # 4: left-bottom-front
-		Vector3( half.x, -half.y,  half.z),  # 5: right-bottom-front
-		Vector3( half.x,  half.y,  half.z),  # 6: right-top-front
-		Vector3(-half.x,  half.y,  half.z),  # 7: left-top-front
+		Vector3(half.x, -half.y, -half.z),  # 1: right-bottom-back
+		Vector3(half.x, half.y, -half.z),  # 2: right-top-back
+		Vector3(-half.x, half.y, -half.z),  # 3: left-top-back
+		Vector3(-half.x, -half.y, half.z),  # 4: left-bottom-front
+		Vector3(half.x, -half.y, half.z),  # 5: right-bottom-front
+		Vector3(half.x, half.y, half.z),  # 6: right-top-front
+		Vector3(-half.x, half.y, half.z),  # 7: left-top-front
 	]
 
 	# Apply rotation and offset
@@ -367,9 +366,7 @@ func _update_aabb() -> void:
 
 	var origin := _chunk_to_world_origin()
 	var chunk_world_size := Vector3(
-		CHUNK_SIZE * CUBE_WIDTH,
-		CHUNK_SIZE * CUBE_HEIGHT,
-		CHUNK_SIZE * CUBE_DEPTH
+		CHUNK_SIZE * CUBE_WIDTH, CHUNK_SIZE * CUBE_HEIGHT, CHUNK_SIZE * CUBE_DEPTH
 	)
 
 	_aabb = AABB(origin, chunk_world_size)
@@ -412,6 +409,7 @@ func set_material_cache(cache: Dictionary) -> void:
 
 
 # --- LOD Methods ---
+
 
 ## Set the LOD level for this chunk
 func set_lod(lod: LODLevel) -> void:
@@ -553,11 +551,7 @@ func _get_average_block_color() -> Color:
 		count += 1
 
 	if count > 0:
-		return Color(
-			total_color.r / count,
-			total_color.g / count,
-			total_color.b / count
-		)
+		return Color(total_color.r / count, total_color.g / count, total_color.b / count)
 
 	return Color(0.6, 0.6, 0.6)
 

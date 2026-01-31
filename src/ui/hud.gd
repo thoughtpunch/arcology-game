@@ -4,6 +4,10 @@ extends Control
 ## Manages screen regions: top bar, left sidebar, right panel, bottom bar
 ## See: documentation/ui/hud-layout.md
 
+signal left_sidebar_toggled(expanded: bool)
+signal right_panel_toggled(visible: bool)
+signal viewport_clicked(event: InputEventMouseButton)
+
 # Color scheme constants (from documentation)
 const COLOR_TOP_BAR := Color("#1a1a2e")
 const COLOR_SIDEBAR := Color("#16213e")
@@ -23,11 +27,6 @@ const RIGHT_PANEL_WIDTH := 280
 
 # Animation constants
 const PANEL_ANIM_DURATION := 0.2
-
-# Signals
-signal left_sidebar_toggled(expanded: bool)
-signal right_panel_toggled(visible: bool)
-signal viewport_clicked(event: InputEventMouseButton)
 
 # UI components
 var top_bar: Control
@@ -352,7 +351,9 @@ func get_right_panel_content() -> VBoxContainer:
 
 ## Update the floor display
 func update_floor_display(floor_num: int) -> void:
-	var floor_navigator: FloorNavigator = bottom_bar.get_node_or_null("HBoxContainer/FloorNavigator")
+	var floor_navigator: FloorNavigator = bottom_bar.get_node_or_null(
+		"HBoxContainer/FloorNavigator"
+	)
 	if floor_navigator:
 		floor_navigator.update_display(floor_num)
 
@@ -374,7 +375,9 @@ func update_resources(money: int, population: int, aei: int) -> void:
 
 ## Update building stats display
 func update_building_stats(height: int, volume: int, footprint: int) -> void:
-	var building_stats: BuildingStatsDisplay = top_bar.get_node_or_null("HBoxContainer/BuildingStats")
+	var building_stats: BuildingStatsDisplay = top_bar.get_node_or_null(
+		"HBoxContainer/BuildingStats"
+	)
 	if building_stats:
 		building_stats.update_stats(height, volume, footprint)
 

@@ -232,12 +232,11 @@ func _update_datetime(year: int, month: int, day: int, hour: int) -> void:
 func _get_time_of_day_icon(hour: int) -> String:
 	if hour >= 6 and hour < 12:
 		return "🌅"  # Morning
-	elif hour >= 12 and hour < 18:
+	if hour >= 12 and hour < 18:
 		return "☀️"  # Afternoon
-	elif hour >= 18 and hour < 22:
+	if hour >= 18 and hour < 22:
 		return "🌆"  # Evening
-	else:
-		return "🌙"  # Night
+	return "🌙"  # Night
 
 
 func _update_button_states() -> void:
@@ -255,9 +254,12 @@ func _update_button_states() -> void:
 		_pause_btn.button_pressed = true
 	else:
 		match _current_speed:
-			1: _speed1_btn.button_pressed = true
-			2: _speed2_btn.button_pressed = true
-			3: _speed3_btn.button_pressed = true
+			1:
+				_speed1_btn.button_pressed = true
+			2:
+				_speed2_btn.button_pressed = true
+			3:
+				_speed3_btn.button_pressed = true
 
 
 func _update_clock_animation() -> void:
@@ -284,8 +286,12 @@ func _update_clock_animation() -> void:
 			_pulse_tween = create_tween()
 			_pulse_tween.set_loops()
 			var speed_factor: float = 1.0 / _current_speed
-			_pulse_tween.tween_property(_clock_icon, "scale", Vector2(1.1, 1.1), CLOCK_PULSE_DURATION * speed_factor)
-			_pulse_tween.tween_property(_clock_icon, "scale", Vector2(1.0, 1.0), CLOCK_PULSE_DURATION * speed_factor)
+			_pulse_tween.tween_property(
+				_clock_icon, "scale", Vector2(1.1, 1.1), CLOCK_PULSE_DURATION * speed_factor
+			)
+			_pulse_tween.tween_property(
+				_clock_icon, "scale", Vector2(1.0, 1.0), CLOCK_PULSE_DURATION * speed_factor
+			)
 		else:
 			_clock_icon.scale = Vector2.ONE
 

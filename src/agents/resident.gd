@@ -9,31 +9,22 @@ signal mood_changed(new_mood: String)
 signal arrived_at_destination(destination: Vector3i)
 signal action_completed(action_name: String)
 
-# Constants for need thresholds
-const NEED_MIN: float = 0.0
-const NEED_MAX: float = 100.0
-const CRITICAL_THRESHOLD: float = 20.0
-const SATISFIED_THRESHOLD: float = 70.0
-
 # Mood states
 enum Mood { MISERABLE, UNHAPPY, STRESSED, CONTENT, HAPPY }
 
 # Activity states
 enum Activity { IDLE, TRAVELING, WORKING, EATING, SLEEPING, SOCIALIZING, RECREATING }
 
+# Constants for need thresholds
+const NEED_MIN: float = 0.0
+const NEED_MAX: float = 100.0
+const CRITICAL_THRESHOLD: float = 20.0
+const SATISFIED_THRESHOLD: float = 70.0
 
 # === Identity ===
 @export var resident_name: String = ""
 @export var age: int = 30
-@export var archetype: String = "young_professional"  # young_professional, family, retiree, artist, entrepreneur
-
-
-# === Location ===
-var home_block: Vector3i = Vector3i.ZERO
-var workplace_block: Vector3i = Vector3i(-1, -1, -1)  # -1,-1,-1 = unemployed
-var current_position: Vector3i = Vector3i.ZERO
-var target_position: Vector3i = Vector3i.ZERO
-
+@export var archetype: String = "young_professional"
 
 # === Personality (Big Five, 0-100) ===
 @export_range(0, 100) var openness: int = 50
@@ -42,16 +33,20 @@ var target_position: Vector3i = Vector3i.ZERO
 @export_range(0, 100) var agreeableness: int = 50
 @export_range(0, 100) var neuroticism: int = 50
 
+# === Location ===
+var home_block: Vector3i = Vector3i.ZERO
+var workplace_block: Vector3i = Vector3i(-1, -1, -1)  # -1,-1,-1 = unemployed
+var current_position: Vector3i = Vector3i.ZERO
+var target_position: Vector3i = Vector3i.ZERO
+
+# === Behavior Tree Integration ===
+# These will be accessed by behavior tree tasks via the Blackboard
+var bt_player: Node  # BTPlayer reference (set externally)
 
 # === Needs (0-100) ===
 var _needs: Dictionary = {
-	"survival": 80.0,
-	"safety": 70.0,
-	"belonging": 60.0,
-	"esteem": 50.0,
-	"purpose": 50.0
+	"survival": 80.0, "safety": 70.0, "belonging": 60.0, "esteem": 50.0, "purpose": 50.0
 }
-
 
 # === State ===
 var _mood: Mood = Mood.CONTENT
@@ -60,16 +55,12 @@ var _residence_months: int = 0
 var _flight_risk: float = 0.0
 
 
-# === Behavior Tree Integration ===
-# These will be accessed by behavior tree tasks via the Blackboard
-var bt_player: Node  # BTPlayer reference (set externally)
-
-
 func _ready() -> void:
 	_calculate_flight_risk()
 
 
 # === Need Management ===
+
 
 func get_need(need_name: String) -> float:
 	return _needs.get(need_name, 0.0)
@@ -122,18 +113,25 @@ func is_need_satisfied(need_name: String) -> bool:
 
 # === Mood ===
 
+
 func get_mood() -> Mood:
 	return _mood
 
 
 func get_mood_string() -> String:
 	match _mood:
-		Mood.MISERABLE: return "miserable"
-		Mood.UNHAPPY: return "unhappy"
-		Mood.STRESSED: return "stressed"
-		Mood.CONTENT: return "content"
-		Mood.HAPPY: return "happy"
-		_: return "content"
+		Mood.MISERABLE:
+			return "miserable"
+		Mood.UNHAPPY:
+			return "unhappy"
+		Mood.STRESSED:
+			return "stressed"
+		Mood.CONTENT:
+			return "content"
+		Mood.HAPPY:
+			return "happy"
+		_:
+			return "content"
 
 
 func _update_mood() -> void:
@@ -156,6 +154,7 @@ func _update_mood() -> void:
 
 
 # === Flourishing Calculation ===
+
 
 func calculate_flourishing() -> float:
 	## Hierarchical flourishing calculation per documentation
@@ -191,20 +190,29 @@ func calculate_flourishing() -> float:
 
 # === Activity State ===
 
+
 func get_activity() -> Activity:
 	return _activity
 
 
 func get_activity_string() -> String:
 	match _activity:
-		Activity.IDLE: return "idle"
-		Activity.TRAVELING: return "traveling"
-		Activity.WORKING: return "working"
-		Activity.EATING: return "eating"
-		Activity.SLEEPING: return "sleeping"
-		Activity.SOCIALIZING: return "socializing"
-		Activity.RECREATING: return "recreating"
-		_: return "idle"
+		Activity.IDLE:
+			return "idle"
+		Activity.TRAVELING:
+			return "traveling"
+		Activity.WORKING:
+			return "working"
+		Activity.EATING:
+			return "eating"
+		Activity.SLEEPING:
+			return "sleeping"
+		Activity.SOCIALIZING:
+			return "socializing"
+		Activity.RECREATING:
+			return "recreating"
+		_:
+			return "idle"
 
 
 func set_activity(activity: Activity) -> void:
@@ -212,6 +220,7 @@ func set_activity(activity: Activity) -> void:
 
 
 # === Movement ===
+
 
 func is_at_home() -> bool:
 	return current_position == home_block
@@ -238,6 +247,7 @@ func arrive_at(destination: Vector3i) -> void:
 
 
 # === Flight Risk ===
+
 
 func get_flight_risk() -> float:
 	return _flight_risk
@@ -269,6 +279,7 @@ func _calculate_flight_risk() -> void:
 
 # === Serialization ===
 
+
 func to_dict() -> Dictionary:
 	return {
 		"name": resident_name,
@@ -276,8 +287,10 @@ func to_dict() -> Dictionary:
 		"archetype": archetype,
 		"home_block": {"x": home_block.x, "y": home_block.y, "z": home_block.z},
 		"workplace_block": {"x": workplace_block.x, "y": workplace_block.y, "z": workplace_block.z},
-		"current_position": {"x": current_position.x, "y": current_position.y, "z": current_position.z},
-		"personality": {
+		"current_position":
+		{"x": current_position.x, "y": current_position.y, "z": current_position.z},
+		"personality":
+		{
 			"openness": openness,
 			"conscientiousness": conscientiousness,
 			"extraversion": extraversion,

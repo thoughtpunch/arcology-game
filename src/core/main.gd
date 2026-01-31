@@ -26,9 +26,7 @@ const VisibilityControllerClass := preload("res://src/core/visibility_controller
 # Scenario config resource
 const ScenarioConfigClass := preload("res://src/data/scenario_config.gd")
 
-@onready var world: Node3D = $World
-@onready var ui_layer: CanvasLayer = $UI
-
+# Core systems
 var grid: Grid
 var block_renderer: BlockRenderer  # 2D renderer - temporarily disabled for 3D refactor
 var block_renderer_3d: Node3D  # 3D renderer (BlockRenderer3D)
@@ -40,9 +38,6 @@ var construction_queue  # ConstructionQueue instance
 var visibility_controller  # VisibilityController for cutaway mode (3D only)
 var scenario_config: Resource  # ScenarioConfig for current session
 
-# Flag for 3D mode - will be removed once 3D refactor is complete
-var _is_3d_mode := true
-
 # UI Components
 var hud: HUD
 var build_toolbar: BuildToolbar
@@ -50,9 +45,14 @@ var block_picker: BlockPicker
 var floor_selector: FloorSelector
 var camera_controls_pane: Control  # CameraControlsPaneClass instance
 
-# Game state
+# Private state
+var _is_3d_mode := true  # Flag for 3D mode - will be removed once 3D refactor is complete
 var _game_initialized := false
 var _game_config: Dictionary = {}
+
+# Onready references
+@onready var world: Node3D = $World
+@onready var ui_layer: CanvasLayer = $UI
 
 
 func _ready() -> void:
@@ -158,7 +158,7 @@ func _setup_camera() -> void:
 		#camera_controller = CameraControllerClass.new()
 		#add_child(camera_controller)
 		#camera_controller.setup(camera)
-		#print("Camera controls: WASD/arrows pan, scroll zoom, Q/E rotate, middle/right drag pan, double-click center")
+		#print("Camera controls: WASD pan, scroll zoom, Q/E rotate")
 
 
 func _setup_terrain() -> void:
@@ -519,7 +519,9 @@ func _on_view_mode_changed(show_all: bool) -> void:
 		return
 	# Update floor navigator display
 	if hud and hud.bottom_bar:
-		var floor_navigator: FloorNavigator = hud.bottom_bar.get_node_or_null("HBoxContainer/FloorNavigator")
+		var floor_navigator: FloorNavigator = hud.bottom_bar.get_node_or_null(
+			"HBoxContainer/FloorNavigator"
+		)
 		if floor_navigator:
 			floor_navigator.set_view_mode(show_all)
 	var mode := "ALL FLOORS" if show_all else "CUTAWAY"
@@ -667,6 +669,7 @@ func get_scenario_config() -> Resource:
 
 # --- Save/Load System ---
 
+
 func _load_game(save_path: String) -> void:
 	var file := FileAccess.open(save_path, FileAccess.READ)
 	if not file:
@@ -698,11 +701,7 @@ func _apply_save_data(data: Dictionary) -> void:
 	# Load blocks with connected status
 	var blocks_data: Array = data.get("blocks", [])
 	for block_data in blocks_data:
-		var pos := Vector3i(
-			block_data.get("x", 0),
-			block_data.get("y", 0),
-			block_data.get("z", 0)
-		)
+		var pos := Vector3i(block_data.get("x", 0), block_data.get("y", 0), block_data.get("z", 0))
 		var block_type: String = block_data.get("type", "residential_basic")
 		var block := Block.new(block_type, pos)
 		block.connected = block_data.get("connected", true)
@@ -745,8 +744,7 @@ func _apply_save_data(data: Dictionary) -> void:
 		else:
 			# Legacy 2D camera state
 			var pos := Vector2(
-				camera_data.get("position_x", 0.0),
-				camera_data.get("position_y", 0.0)
+				camera_data.get("position_x", 0.0), camera_data.get("position_y", 0.0)
 			)
 			camera_controller.set_position(pos)
 			camera_controller.set_zoom(camera_data.get("zoom", 1.0))
@@ -767,7 +765,9 @@ func _apply_save_data(data: Dictionary) -> void:
 		else:
 			block_registry.lock_all_to_defaults()
 
-	print("Loaded %d blocks (save version: %s)" % [blocks_data.size(), data.get("version", "unknown")])
+	print(
+		"Loaded %d blocks (save version: %s)" % [blocks_data.size(), data.get("version", "unknown")]
+	)
 
 
 func save_game(save_name: String) -> String:

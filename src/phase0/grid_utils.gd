@@ -1,6 +1,5 @@
 ## Static grid constants and coordinate conversion utilities.
 
-
 const CELL_SIZE: float = 6.0
 
 

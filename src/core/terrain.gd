@@ -4,6 +4,9 @@ extends Node2D
 ## Renders decorative ground surface and background at Z=0
 ## Loads theme configuration from data/terrain.json
 
+signal river_generated(positions: Array[Vector2i])
+signal underground_visibility_changed(z_level: int)
+
 # Path to terrain configuration file
 const TERRAIN_DATA_PATH := "res://data/terrain.json"
 
@@ -12,6 +15,8 @@ const Z_INDEX_BACKGROUND := -2000
 const Z_INDEX_BASE_PLANE := -1000
 const Z_INDEX_DECORATIONS_MIN := -500
 const Z_INDEX_DECORATIONS_MAX := -100
+const Z_INDEX_RIVER := -400  # Between decorations (-500) and blocks (0)
+const Z_INDEX_UNDERGROUND := -300  # Above river (-400) but below blocks
 
 # Fallback colors if JSON loading fails
 const FALLBACK_THEME_COLORS := {
@@ -26,8 +31,11 @@ const FALLBACK_BACKGROUND_COLORS := {
 	"space": Color("#0a0a1a"),
 }
 
-# Loaded terrain data from JSON
-var _terrain_data: Dictionary = {}
+# Visual size of the terrain plane (in screen pixels)
+var plane_size := Vector2(2000, 2000)
+
+# Reference to Grid for excavation state (injected or found via scene tree)
+var grid_ref = null
 
 # Current scenario theme
 var theme: String = "earth":
@@ -40,9 +48,6 @@ var theme: String = "earth":
 			theme = "earth"
 			_update_theme()
 
-# Visual size of the terrain plane (in screen pixels)
-var plane_size := Vector2(2000, 2000)
-
 # World seed for deterministic decoration placement
 var world_seed: int = 0:
 	set(value):
@@ -51,6 +56,9 @@ var world_seed: int = 0:
 		if is_inside_tree() and _decorations_container:
 			_clear_decorations()
 			scatter_decorations(_scatter_area)
+
+# Loaded terrain data from JSON
+var _terrain_data: Dictionary = {}
 
 # Internal nodes
 var _base_plane: ColorRect
@@ -69,8 +77,6 @@ var _scatter_area: Rect2i = Rect2i(-20, -20, 40, 40)
 var _river_container: Node2D
 var _river_positions: Array[Vector2i] = []  # Ordered path of river tiles
 var _river_tiles: Dictionary = {}  # Maps Vector2i -> Sprite2D
-signal river_generated(positions: Array[Vector2i])
-signal underground_visibility_changed(z_level: int)
 
 # Underground terrain system
 var _underground_container: Node2D
@@ -80,9 +86,6 @@ var _underground_tiles: Dictionary = {}
 var _underground_render_depth: int = -3
 # Current visible floor level (from GameState)
 var _current_floor: int = 0
-
-# Reference to Grid for excavation state (injected or found via scene tree)
-var grid_ref = null
 
 
 func _init() -> void:
@@ -115,7 +118,9 @@ func _load_terrain_data() -> void:
 	var json := JSON.new()
 	var error := json.parse(json_text)
 	if error != OK:
-		push_warning("Terrain: JSON parse error in '%s': %s" % [TERRAIN_DATA_PATH, json.get_error_message()])
+		push_warning(
+			"Terrain: JSON parse error in '%s': %s" % [TERRAIN_DATA_PATH, json.get_error_message()]
+		)
 		return
 
 	_terrain_data = json.get_data()
@@ -228,7 +233,9 @@ func _update_background() -> void:
 
 ## Check if background texture is loaded
 func has_background_texture() -> bool:
-	return _background_texture and _background_texture.texture != null and _background_texture.visible
+	return (
+		_background_texture and _background_texture.texture != null and _background_texture.visible
+	)
 
 
 ## Get the current theme color (base plane)
@@ -309,6 +316,7 @@ func get_background_sprite() -> String:
 # DECORATION SCATTER SYSTEM
 # =============================================================================
 
+
 ## Scatter decorations across the terrain area
 ## Uses world_seed for deterministic placement
 func scatter_decorations(area: Rect2i) -> void:
@@ -374,7 +382,9 @@ func scatter_decorations(area: Rect2i) -> void:
 
 
 ## Pick a decoration type based on weights
-func _pick_weighted_decoration(rng: RandomNumberGenerator, configs: Array, total_weight: float) -> String:
+func _pick_weighted_decoration(
+	rng: RandomNumberGenerator, configs: Array, total_weight: float
+) -> String:
 	var roll := rng.randf() * total_weight
 	var cumulative := 0.0
 
@@ -504,7 +514,6 @@ func set_scatter_area(area: Rect2i) -> void:
 # RIVER SYSTEM
 # =============================================================================
 
-const Z_INDEX_RIVER := -400  # Between decorations (-500) and blocks (0)
 
 ## Setup river container node
 func _setup_river_container() -> void:
@@ -567,7 +576,9 @@ func _generate_river_path(area: Rect2i) -> Array[Vector2i]:
 
 
 ## Generate a winding path between two points
-func _generate_winding_path(start: Vector2i, end: Vector2i, area: Rect2i, rng: RandomNumberGenerator) -> Array[Vector2i]:
+func _generate_winding_path(
+	start: Vector2i, end: Vector2i, area: Rect2i, rng: RandomNumberGenerator
+) -> Array[Vector2i]:
 	var path: Array[Vector2i] = []
 	var current := start
 
@@ -642,7 +653,12 @@ func _generate_winding_path(start: Vector2i, end: Vector2i, area: Rect2i, rng: R
 
 ## Check if position is within area bounds
 func _is_in_bounds(pos: Vector2i, area: Rect2i) -> bool:
-	return pos.x >= area.position.x and pos.x < area.end.x and pos.y >= area.position.y and pos.y < area.end.y
+	return (
+		pos.x >= area.position.x
+		and pos.x < area.end.x
+		and pos.y >= area.position.y
+		and pos.y < area.end.y
+	)
 
 
 ## Manhattan distance between two positions
@@ -659,7 +675,9 @@ func _render_river() -> void:
 		_setup_river_container()
 
 	var river_config: Dictionary = _get_river_config()
-	var sprite_path: String = river_config.get("sprite_path", "res://assets/sprites/terrain/earth/river_tiles/")
+	var sprite_path: String = river_config.get(
+		"sprite_path", "res://assets/sprites/terrain/earth/river_tiles/"
+	)
 	var tiles: Dictionary = river_config.get("tiles", {})
 
 	for i in range(_river_positions.size()):
@@ -761,7 +779,8 @@ func _get_corner_tile(prev_dir: Vector2i, next_dir: Vector2i) -> String:
 	# Determine which quadrant the corner is in
 	# based on the two directions involved
 
-	var from_north := prev_dir.y > 0  # Coming from north means prev_dir.y > 0 (moved south to get here)
+	# Coming from north means prev_dir.y > 0 (moved south to get here)
+	var from_north := prev_dir.y > 0
 	var from_south := prev_dir.y < 0
 	var from_east := prev_dir.x < 0
 	var from_west := prev_dir.x > 0
@@ -832,7 +851,6 @@ func show_river_at(grid_pos: Vector2i) -> void:
 # UNDERGROUND TERRAIN SYSTEM
 # =============================================================================
 
-const Z_INDEX_UNDERGROUND := -300  # Above river (-400) but below blocks
 
 ## Setup underground container node
 func _setup_underground_container() -> void:
@@ -1003,7 +1021,10 @@ func _get_grid():
 ## Helper to find nodes by class name recursively
 func _find_nodes_by_class(node: Node, class_name_str: String) -> Array:
 	var results := []
-	if node.get_class() == class_name_str or (node.get_script() != null and node.get_script().get_global_name() == class_name_str):
+	if (
+		node.get_class() == class_name_str
+		or (node.get_script() != null and node.get_script().get_global_name() == class_name_str)
+	):
 		results.append(node)
 	for child in node.get_children():
 		results.append_array(_find_nodes_by_class(child, class_name_str))

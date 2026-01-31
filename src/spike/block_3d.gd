@@ -1,5 +1,5 @@
-extends CSGBox3D
 class_name Block3D
+extends CSGBox3D
 
 ## 3D block for spike testing using CSGBox3D
 ##
@@ -8,10 +8,16 @@ class_name Block3D
 ## - Contains 2 internal residential floors at 3m each
 
 # Cell dimensions in meters (Godot units) — true cube
-const CELL_SIZE: float = 6.0     # All axes
-const BLOCK_WIDTH: float = CELL_SIZE   # X axis (alias)
-const BLOCK_DEPTH: float = CELL_SIZE   # Z axis (alias)
+const CELL_SIZE: float = 6.0  # All axes
+const BLOCK_WIDTH: float = CELL_SIZE  # X axis (alias)
+const BLOCK_DEPTH: float = CELL_SIZE  # Z axis (alias)
 const BLOCK_HEIGHT: float = CELL_SIZE  # Y axis (alias)
+
+# Collision layer for blocks (layer 2)
+const COLLISION_LAYER: int = 2
+
+# Materials for each block type
+static var _materials: Dictionary = {}
 
 # Grid position in block coordinates
 var grid_position: Vector3i = Vector3i.ZERO:
@@ -24,12 +30,6 @@ var block_type: String = "corridor":
 	set(value):
 		block_type = value
 		_update_material()
-
-# Materials for each block type
-static var _materials: Dictionary = {}
-
-# Collision layer for blocks (layer 2)
-const COLLISION_LAYER: int = 2
 
 
 func _init() -> void:

@@ -35,7 +35,12 @@ func _load_blocks() -> void:
 	var json := JSON.new()
 	var error := json.parse(json_text)
 	if error != OK:
-		push_error("BlockRegistry: JSON parse error at line %d: %s" % [json.get_error_line(), json.get_error_message()])
+		push_error(
+			(
+				"BlockRegistry: JSON parse error at line %d: %s"
+				% [json.get_error_line(), json.get_error_message()]
+			)
+		)
 		return
 
 	var data = json.get_data()
@@ -124,6 +129,7 @@ func reload() -> void:
 
 
 # --- Block Unlocking System ---
+
 
 ## Reset unlocked blocks to default
 func _reset_unlocked() -> void:

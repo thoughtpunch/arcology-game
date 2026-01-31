@@ -3,15 +3,21 @@
 
 const BlockDefScript = preload("res://src/phase0/block_definition.gd")
 
-var _definitions: Dictionary = {}
-
 # Explicit ordering for the palette UI, grouped by category.
 var palette_order: Array[String] = []
 
+var _definitions: Dictionary = {}
+
 # Category display order
 var _category_order: Array[String] = [
-	"transit", "residential", "commercial", "industrial",
-	"civic", "infrastructure", "green", "entertainment",
+	"transit",
+	"residential",
+	"commercial",
+	"industrial",
+	"civic",
+	"infrastructure",
+	"green",
+	"entertainment",
 ]
 
 # Greybox colors per category
@@ -127,12 +133,21 @@ func get_category_color(cat: String) -> Color:
 
 func get_category_display_name(cat: String) -> String:
 	match cat:
-		"transit": return "Transit"
-		"residential": return "Residential"
-		"commercial": return "Commercial"
-		"industrial": return "Industrial"
-		"civic": return "Civic"
-		"infrastructure": return "Infra"
-		"green": return "Green"
-		"entertainment": return "Entertainment"
-		_: return cat.capitalize()
+		"transit":
+			return "Transit"
+		"residential":
+			return "Residential"
+		"commercial":
+			return "Commercial"
+		"industrial":
+			return "Industrial"
+		"civic":
+			return "Civic"
+		"infrastructure":
+			return "Infra"
+		"green":
+			return "Green"
+		"entertainment":
+			return "Entertainment"
+		_:
+			return cat.capitalize()

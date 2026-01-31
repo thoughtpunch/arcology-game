@@ -5,9 +5,9 @@ extends InfoPanel
 ## See: documentation/ui/info-panels.md#resident-info-panel
 
 # Need satisfaction symbols
-const NEED_SATISFIED := "✓"     # >70%
-const NEED_PARTIAL := "~"       # 40-70%
-const NEED_UNMET := "✗"         # <40%
+const NEED_SATISFIED := "✓"  # >70%
+const NEED_PARTIAL := "~"  # 40-70%
+const NEED_UNMET := "✗"  # <40%
 
 const NEED_COLOR_SATISFIED := Color("#4ecdc4")
 const NEED_COLOR_PARTIAL := Color("#f9ca24")
@@ -167,7 +167,9 @@ func _setup_notable_resident(data: Dictionary) -> void:
 	emp_section.add_child(job_label)
 
 	if income > 0:
-		var income_row := create_stat_row("Income", format_money(income) + "/mo", COLOR_TEXT_POSITIVE)
+		var income_row := create_stat_row(
+			"Income", format_money(income) + "/mo", COLOR_TEXT_POSITIVE
+		)
 		emp_section.add_child(income_row)
 
 	# Actions section
@@ -251,20 +253,18 @@ func _create_need_bar(label_text: String, value: float) -> HBoxContainer:
 func _get_satisfaction_symbol(value: float) -> String:
 	if value >= 70.0:
 		return NEED_SATISFIED
-	elif value >= 40.0:
+	if value >= 40.0:
 		return NEED_PARTIAL
-	else:
-		return NEED_UNMET
+	return NEED_UNMET
 
 
 ## Get satisfaction color based on value
 func _get_satisfaction_color(value: float) -> Color:
 	if value >= 70.0:
 		return NEED_COLOR_SATISFIED
-	elif value >= 40.0:
+	if value >= 40.0:
 		return NEED_COLOR_PARTIAL
-	else:
-		return NEED_COLOR_UNMET
+	return NEED_COLOR_UNMET
 
 
 ## Get trend symbol
@@ -316,11 +316,13 @@ func update_needs(needs: Dictionary) -> void:
 					var symbol_label := bar.get_child(2) as Label
 					if symbol_label:
 						symbol_label.text = _get_satisfaction_symbol(value)
-						symbol_label.add_theme_color_override("font_color", _get_satisfaction_color(value))
+						symbol_label.add_theme_color_override(
+							"font_color", _get_satisfaction_color(value)
+						)
 
 
 ## Update flourishing score
-func update_flourishing(value: float, trend: String = "stable") -> void:
+func update_flourishing(value: float, _trend: String = "stable") -> void:
 	if _flourishing_bar:
 		update_bar(_flourishing_bar, value, 100.0, get_bar_color_by_value(value))
 

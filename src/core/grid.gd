@@ -3,17 +3,25 @@ extends Node
 ## 3D grid storage for all blocks in the arcology
 ## Uses sparse dictionary with Vector3i keys
 
-# Isometric rendering constants
-const TILE_WIDTH: int = 64    # Diamond width (hexagon horizontal extent)
-const TILE_DEPTH: int = 32    # Diamond height (top face only)
-const WALL_HEIGHT: int = 32   # Height of side faces
-const FLOOR_HEIGHT: int = 32  # Visual offset per Z level
-
-# Signals
 signal block_added(pos: Vector3i, block)
 signal block_removed(pos: Vector3i)
 signal entrances_changed(entrance_positions: Array[Vector3i])
 signal excavation_changed(pos: Vector3i, is_excavated: bool)
+signal connectivity_changed
+
+# Isometric rendering constants
+const TILE_WIDTH: int = 64  # Diamond width (hexagon horizontal extent)
+const TILE_DEPTH: int = 32  # Diamond height (top face only)
+const WALL_HEIGHT: int = 32  # Height of side faces
+const FLOOR_HEIGHT: int = 32  # Visual offset per Z level
+
+## Helper to get BlockRegistry autoload
+## Can be set directly for testing or looked up from scene tree
+var block_registry = null
+
+## Reference to Terrain for river obstacle checking (optional)
+## Can be set directly for testing or looked up from scene tree
+var terrain_ref = null
 
 # Sparse 3D storage: Vector3i -> Block
 var _blocks: Dictionary = {}
@@ -151,11 +159,11 @@ func screen_to_grid(screen_pos: Vector2, z_level: int) -> Vector3i:
 ## Get 6 cardinal neighbors of a position (±X, ±Y, ±Z)
 func get_neighbors(pos: Vector3i) -> Array[Vector3i]:
 	return [
-		pos + Vector3i(1, 0, 0),   # +X
+		pos + Vector3i(1, 0, 0),  # +X
 		pos + Vector3i(-1, 0, 0),  # -X
-		pos + Vector3i(0, 1, 0),   # +Y
+		pos + Vector3i(0, 1, 0),  # +Y
 		pos + Vector3i(0, -1, 0),  # -Y
-		pos + Vector3i(0, 0, 1),   # +Z (up)
+		pos + Vector3i(0, 0, 1),  # +Z (up)
 		pos + Vector3i(0, 0, -1),  # -Z (down)
 	]
 
@@ -163,9 +171,9 @@ func get_neighbors(pos: Vector3i) -> Array[Vector3i]:
 ## Get horizontal neighbors only (same Z level)
 func get_horizontal_neighbors(pos: Vector3i) -> Array[Vector3i]:
 	return [
-		pos + Vector3i(1, 0, 0),   # +X
+		pos + Vector3i(1, 0, 0),  # +X
 		pos + Vector3i(-1, 0, 0),  # -X
-		pos + Vector3i(0, 1, 0),   # +Y
+		pos + Vector3i(0, 1, 0),  # +Y
 		pos + Vector3i(0, -1, 0),  # -Y
 	]
 
@@ -260,14 +268,6 @@ func get_walkable_neighbors(pos: Vector3i) -> Array[Vector3i]:
 	return walkable
 
 
-## Helper to get BlockRegistry autoload
-## Can be set directly for testing or looked up from scene tree
-var block_registry = null
-
-## Reference to Terrain for river obstacle checking (optional)
-## Can be set directly for testing or looked up from scene tree
-var terrain_ref = null
-
 func _get_block_registry():
 	# Return direct reference if set
 	if block_registry:
@@ -344,7 +344,10 @@ func _get_terrain():
 ## Helper to find nodes by class name recursively
 func _find_nodes_by_class(node: Node, class_name_str: String) -> Array:
 	var results := []
-	if node.get_class() == class_name_str or (node.get_script() != null and node.get_script().get_global_name() == class_name_str):
+	if (
+		node.get_class() == class_name_str
+		or (node.get_script() != null and node.get_script().get_global_name() == class_name_str)
+	):
 		results.append(node)
 	for child in node.get_children():
 		results.append_array(_find_nodes_by_class(child, class_name_str))
@@ -352,6 +355,7 @@ func _find_nodes_by_class(node: Node, class_name_str: String) -> Array:
 
 
 # --- Excavation System ---
+
 
 ## Excavate an underground position (Z < 0)
 ## Must excavate before placing blocks underground
@@ -413,6 +417,7 @@ func reset_excavation() -> void:
 
 # --- Entrance Tracking ---
 
+
 ## Get all entrance positions (seed points for connectivity)
 func get_entrance_positions() -> Array[Vector3i]:
 	return _entrance_positions
@@ -456,7 +461,6 @@ func _untrack_entrance(pos: Vector3i, block) -> void:
 
 # --- Connectivity Flood-Fill ---
 
-signal connectivity_changed()
 
 ## Calculate connectivity from all entrance positions using BFS flood-fill
 ## Marks blocks as connected=true if reachable from any entrance

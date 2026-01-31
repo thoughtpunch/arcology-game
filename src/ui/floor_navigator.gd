@@ -4,6 +4,8 @@ extends Control
 ## Shows current floor with up/down buttons and extended floor list popup
 ## See: documentation/ui/sidebars.md#floor-navigator
 
+signal floor_changed(floor_num: int)
+
 # Color constants (from HUD)
 const COLOR_BUTTON := Color("#0f3460")
 const COLOR_BUTTON_HOVER := Color("#e94560")
@@ -16,9 +18,6 @@ const COLOR_TEXT_HIGHLIGHT := Color("#e94560")
 # Size constants
 const BUTTON_SIZE := Vector2(36, 36)
 const FLOOR_LABEL_WIDTH := 80
-
-# Signals
-signal floor_changed(floor_num: int)
 
 # UI elements
 var _up_button: Button
@@ -327,8 +326,7 @@ func _show_floor_list() -> void:
 	# Position popup above the floor button
 	var floor_btn_pos := _floor_button.global_position
 	_floor_list_popup.global_position = Vector2(
-		floor_btn_pos.x - 50,  # Center above button
-		floor_btn_pos.y - _floor_list_popup.size.y - 8
+		floor_btn_pos.x - 50, floor_btn_pos.y - _floor_list_popup.size.y - 8  # Center above button
 	)
 
 	_floor_list_popup.visible = true
@@ -341,7 +339,9 @@ func _hide_floor_list() -> void:
 
 
 func _populate_floor_list() -> void:
-	var scroll: ScrollContainer = _floor_list_popup.get_node_or_null("VBoxContainer/ScrollContainer")
+	var scroll: ScrollContainer = _floor_list_popup.get_node_or_null(
+		"VBoxContainer/ScrollContainer"
+	)
 	if not scroll:
 		return
 
@@ -456,7 +456,7 @@ func _on_floor_item_pressed(floor_num: int) -> void:
 	_hide_floor_list()
 
 
-func _update_floor_list_selection(new_floor: int) -> void:
+func _update_floor_list_selection(_new_floor: int) -> void:
 	if not _popup_visible:
 		return
 

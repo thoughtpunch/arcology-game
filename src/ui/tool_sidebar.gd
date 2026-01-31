@@ -4,6 +4,14 @@ extends PanelContainer
 ## Supports collapse/expand with hover, pin, and keyboard shortcuts
 ## See: documentation/ui/sidebars.md#left-sidebar
 
+signal tool_selected(tool: Tool)
+signal quick_build_selected(block_type: String)
+signal favorite_selected(block_type: String)
+signal expanded_changed(is_expanded: bool)
+
+# Tool enum matching InputHandler modes
+enum Tool { SELECT, BUILD, DEMOLISH, INFO, UPGRADE }
+
 # Color constants (from HUD)
 const COLOR_SIDEBAR := Color("#16213e")
 const COLOR_PANEL_BORDER := Color("#0f3460")
@@ -19,21 +27,6 @@ const EXPANDED_WIDTH := 200
 const BUTTON_SIZE_COLLAPSED := Vector2(44, 44)
 const BUTTON_SIZE_EXPANDED := Vector2(180, 36)
 const EXPAND_DELAY := 0.3  # Seconds before hover expands
-
-# Tool enum matching InputHandler modes
-enum Tool {
-	SELECT,
-	BUILD,
-	DEMOLISH,
-	INFO,
-	UPGRADE
-}
-
-# Signals
-signal tool_selected(tool: Tool)
-signal quick_build_selected(block_type: String)
-signal favorite_selected(block_type: String)
-signal expanded_changed(is_expanded: bool)
 
 # UI elements
 var _vbox: VBoxContainer
@@ -187,7 +180,9 @@ func _setup_ui() -> void:
 	_update_collapsed_state()
 
 
-func _create_tool_button(icon: String, tooltip: String, btn_name: String, toggle: bool = false) -> Button:
+func _create_tool_button(
+	icon: String, tooltip: String, btn_name: String, toggle: bool = false
+) -> Button:
 	var btn := Button.new()
 	btn.text = icon
 	btn.tooltip_text = tooltip
@@ -307,22 +302,34 @@ func _update_collapsed_state() -> void:
 
 func _get_tool_icon(tool: Tool) -> String:
 	match tool:
-		Tool.SELECT: return "🔍"
-		Tool.BUILD: return "🔨"
-		Tool.DEMOLISH: return "💥"
-		Tool.INFO: return "ℹ"
-		Tool.UPGRADE: return "⬆"
-		_: return "?"
+		Tool.SELECT:
+			return "🔍"
+		Tool.BUILD:
+			return "🔨"
+		Tool.DEMOLISH:
+			return "💥"
+		Tool.INFO:
+			return "ℹ"
+		Tool.UPGRADE:
+			return "⬆"
+		_:
+			return "?"
 
 
 func _get_tool_label(tool: Tool) -> String:
 	match tool:
-		Tool.SELECT: return "🔍 Select      (Q)"
-		Tool.BUILD: return "🔨 Build       (B)"
-		Tool.DEMOLISH: return "💥 Demolish    (X)"
-		Tool.INFO: return "ℹ  Info        (I)"
-		Tool.UPGRADE: return "⬆  Upgrade     (U)"
-		_: return "?"
+		Tool.SELECT:
+			return "🔍 Select      (Q)"
+		Tool.BUILD:
+			return "🔨 Build       (B)"
+		Tool.DEMOLISH:
+			return "💥 Demolish    (X)"
+		Tool.INFO:
+			return "ℹ  Info        (I)"
+		Tool.UPGRADE:
+			return "⬆  Upgrade     (U)"
+		_:
+			return "?"
 
 
 func _on_pin_pressed() -> void:

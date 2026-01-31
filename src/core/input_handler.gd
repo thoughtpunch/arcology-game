@@ -9,6 +9,20 @@ signal block_removal_attempted(pos: Vector3i, success: bool)
 signal selection_changed(block_type: String)
 signal block_selected(pos: Vector3i, block_type: String)
 
+# Mode
+enum Mode { BUILD, SELECT, DEMOLISH }
+
+# Ghost modulation colors
+const VALID_COLOR := Color(1.0, 1.0, 1.0, 0.6)  # Semi-transparent white
+const INVALID_COLOR := Color(1.0, 0.3, 0.3, 0.6)  # Semi-transparent red
+
+# Placement cooldown to prevent rapid-fire and make placements feel weighty
+const PLACEMENT_COOLDOWN := 0.15  # seconds
+
+# Label styling
+const FLOOR_LABEL_OFFSET := Vector2(40, -20)  # Offset from ghost sprite
+const COST_LABEL_OFFSET := Vector2(40, 0)  # Below floor label
+
 # References (must be set before use)
 var grid: Grid
 var camera: Camera2D
@@ -16,26 +30,16 @@ var ghost_container: Node2D  # Parent node for ghost sprite
 
 # State
 var selected_block_type: String = "corridor"
+var current_mode := Mode.BUILD
+var block_renderer = null  # Set by main.gd during setup
+var construction_queue = null  # Set by main.gd during setup
+
 var _ghost_sprite: Sprite2D
 var _floor_label: Label  # Shows Z level near ghost
-var _cost_label: Label   # Shows cost near ghost
+var _cost_label: Label  # Shows cost near ghost
 var _texture_cache: Dictionary = {}
-
-# Mode
-enum Mode { BUILD, SELECT, DEMOLISH }
-var current_mode := Mode.BUILD
-
-# Ghost modulation colors
-const VALID_COLOR := Color(1.0, 1.0, 1.0, 0.6)    # Semi-transparent white
-const INVALID_COLOR := Color(1.0, 0.3, 0.3, 0.6)  # Semi-transparent red
-
-# Placement cooldown to prevent rapid-fire and make placements feel weighty
-const PLACEMENT_COOLDOWN := 0.15  # seconds
 var _last_placement_time := 0.0
-
-# Label styling
-const FLOOR_LABEL_OFFSET := Vector2(40, -20)  # Offset from ghost sprite
-const COST_LABEL_OFFSET := Vector2(40, 0)     # Below floor label
+var _ready_logged := false
 
 
 func _ready() -> void:
@@ -102,15 +106,15 @@ func _create_cost_label() -> void:
 	add_child(_cost_label)  # Temporary parent until setup() called
 
 
-var _ready_logged := false
-
-
-
-
 func _process(_delta: float) -> void:
 	if not _is_ready():
 		if not _ready_logged:
-			print("InputHandler waiting for setup... grid=%s camera=%s ghost=%s" % [grid != null, camera != null, ghost_container != null])
+			print(
+				(
+					"InputHandler waiting for setup... grid=%s camera=%s ghost=%s"
+					% [grid != null, camera != null, ghost_container != null]
+				)
+			)
 		return
 	if not _ready_logged:
 		print("InputHandler ready!")
@@ -154,10 +158,6 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 				_try_remove_block(grid_pos)
 	elif event.button_index == MOUSE_BUTTON_RIGHT:
 		_try_remove_block(grid_pos)
-
-
-var block_renderer = null  # Set by main.gd during setup
-var construction_queue = null  # Set by main.gd during setup
 
 
 func set_block_renderer(renderer) -> void:
@@ -229,7 +229,9 @@ func _try_select_block(pos: Vector3i) -> void:
 
 	var block = grid.get_block_at(pos)
 	if block:
-		var block_type: String = block.block_type if block is Block else block.get("block_type", "unknown")
+		var block_type: String = (
+			block.block_type if block is Block else block.get("block_type", "unknown")
+		)
 		block_selected.emit(pos, block_type)
 
 

@@ -1,5 +1,5 @@
-extends Node
 class_name VisibilityController
+extends Node
 
 ## Controls visibility modes for the 3D arcology view.
 ##
@@ -12,18 +12,13 @@ class_name VisibilityController
 ##
 ## Integrates with BlockRenderer3D via shader global parameters.
 
-# Visibility modes
-enum Mode {
-	NORMAL,    # All blocks visible
-	CUTAWAY,   # Hide blocks above cut plane
-	XRAY,      # Transparent exteriors (future)
-	ISOLATE,   # Single floor only (future)
-	SECTION    # Vertical slice (future)
-}
-
-# Signals
 signal mode_changed(new_mode: Mode)
 signal cut_height_changed(new_height: float)
+
+# Visibility modes
+# NORMAL: All blocks visible, CUTAWAY: Hide above cut plane, XRAY: Transparent exteriors
+# ISOLATE: Single floor only (future), SECTION: Vertical slice (future)
+enum Mode { NORMAL, CUTAWAY, XRAY, ISOLATE, SECTION }
 
 # Cell dimensions (must match BlockRenderer3D) — true cube, 6m all axes
 const CELL_SIZE: float = 6.0
@@ -100,12 +95,18 @@ func get_mode() -> Mode:
 ## Get mode display name
 static func get_mode_name(m: Mode) -> String:
 	match m:
-		Mode.NORMAL: return "Normal"
-		Mode.CUTAWAY: return "Cutaway"
-		Mode.XRAY: return "X-Ray"
-		Mode.ISOLATE: return "Isolate Floor"
-		Mode.SECTION: return "Section"
-		_: return "Unknown"
+		Mode.NORMAL:
+			return "Normal"
+		Mode.CUTAWAY:
+			return "Cutaway"
+		Mode.XRAY:
+			return "X-Ray"
+		Mode.ISOLATE:
+			return "Isolate Floor"
+		Mode.SECTION:
+			return "Section"
+		_:
+			return "Unknown"
 
 
 ## Set the cut plane height (world Y coordinate)

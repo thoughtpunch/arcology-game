@@ -5,14 +5,18 @@ extends Node
 ## Handles notification creation, storage, and game state integration
 ## See: documentation/ui/sidebars.md#notification-tray
 
+signal notification_added(notification: Dictionary)
+signal notification_dismissed(notification_id: int)
+signal notification_read(notification_id: int)
+signal unread_count_changed(count: int)
+
 # Notification types with priority levels
-enum NotificationType {
-	INFO,       # Gray - tips, reminders (lowest priority)
-	POSITIVE,   # Green - achievements, milestones
-	NEWS,       # Blue - new residents, events
-	WARNING,    # Orange - capacity issues, declining stats
-	EMERGENCY   # Red - fires, critical failures (highest, auto-pause)
-}
+# Gray - tips, reminders (lowest priority)
+# Green - achievements, milestones
+# Blue - new residents, events
+# Orange - capacity issues, declining stats
+# Red - fires, critical failures (highest, auto-pause)
+enum NotificationType { INFO, POSITIVE, NEWS, WARNING, EMERGENCY }
 
 # Icons for each notification type
 const TYPE_ICONS := {
@@ -25,10 +29,10 @@ const TYPE_ICONS := {
 
 # Colors for each notification type
 const TYPE_COLORS := {
-	NotificationType.INFO: Color("#9e9e9e"),      # Gray
+	NotificationType.INFO: Color("#9e9e9e"),  # Gray
 	NotificationType.POSITIVE: Color("#4caf50"),  # Green
-	NotificationType.NEWS: Color("#2196f3"),      # Blue
-	NotificationType.WARNING: Color("#ff9800"),   # Orange
+	NotificationType.NEWS: Color("#2196f3"),  # Blue
+	NotificationType.WARNING: Color("#ff9800"),  # Orange
 	NotificationType.EMERGENCY: Color("#f44336")  # Red
 }
 
@@ -37,23 +41,17 @@ const TYPE_AUTO_DISMISS := {
 	NotificationType.INFO: 5.0,
 	NotificationType.POSITIVE: 5.0,
 	NotificationType.NEWS: 5.0,
-	NotificationType.WARNING: 0.0,    # Don't auto-dismiss warnings
-	NotificationType.EMERGENCY: 0.0   # Don't auto-dismiss emergencies
+	NotificationType.WARNING: 0.0,  # Don't auto-dismiss warnings
+	NotificationType.EMERGENCY: 0.0  # Don't auto-dismiss emergencies
 }
 
-# Signals
-signal notification_added(notification: Dictionary)
-signal notification_dismissed(notification_id: int)
-signal notification_read(notification_id: int)
-signal unread_count_changed(count: int)
+# Maximum notifications to keep in history
+const MAX_NOTIFICATIONS: int = 100
 
 # Storage
 var _notifications: Array[Dictionary] = []
 var _next_id: int = 1
 var _unread_count: int = 0
-
-# Maximum notifications to keep in history
-const MAX_NOTIFICATIONS: int = 100
 
 
 func _ready() -> void:
@@ -62,7 +60,12 @@ func _ready() -> void:
 
 ## Create a new notification
 ## Returns the notification ID
-func notify(title: String, description: String = "", type: NotificationType = NotificationType.INFO, action_data: Dictionary = {}) -> int:
+func notify(
+	title: String,
+	description: String = "",
+	type: NotificationType = NotificationType.INFO,
+	action_data: Dictionary = {}
+) -> int:
 	var notification := {
 		"id": _next_id,
 		"title": title,
@@ -195,15 +198,14 @@ static func get_relative_time(timestamp: float) -> String:
 
 	if diff < 60:
 		return "now"
-	elif diff < 3600:
+	if diff < 3600:
 		var minutes: int = diff / 60
 		return "%dm" % minutes
-	elif diff < 86400:
+	if diff < 86400:
 		var hours: int = diff / 3600
 		return "%dh" % hours
-	else:
-		var days: int = diff / 86400
-		return "%dd" % days
+	var days: int = diff / 86400
+	return "%dd" % days
 
 
 ## Pause game for emergency notification

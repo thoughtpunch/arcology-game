@@ -21,10 +21,9 @@ extends BTAction
 func _generate_name() -> String:
 	if block_type != "":
 		return "FindBlock: %s" % block_type
-	elif block_category != "":
+	if block_category != "":
 		return "FindBlock: category=%s" % block_category
-	else:
-		return "FindBlock: (not configured)"
+	return "FindBlock: (not configured)"
 
 
 func _tick(_delta: float) -> Status:

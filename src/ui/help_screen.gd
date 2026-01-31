@@ -3,6 +3,8 @@ extends Control
 ## Help screen with controls reference and gameplay tips
 ## Accessible from pause menu
 
+signal back_pressed
+
 # Color scheme (same as other menus)
 const COLOR_BACKGROUND := Color("#1a1a2e")
 const COLOR_PANEL := Color("#16213e")
@@ -11,9 +13,6 @@ const COLOR_BUTTON_HOVER := Color("#e94560")
 const COLOR_TEXT := Color("#ffffff")
 const COLOR_TEXT_SECONDARY := Color("#e0e0e0")
 const COLOR_ACCENT := Color("#e94560")
-
-# Signals
-signal back_pressed
 
 # Help content sections
 const CONTROLS_TEXT := """CONTROLS

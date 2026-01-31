@@ -12,15 +12,15 @@ extends Control
 ## The panel uses MOUSE_FILTER_PASS on its background so clicks pass
 ## through to the 3D scene, except on interactive widgets (MOUSE_FILTER_STOP).
 
+signal time_changed(hour: float)
+signal sun_energy_changed(energy: float)
+signal ambient_energy_changed(energy: float)
+
 const COLOR_BG := Color(0.08, 0.08, 0.12, 0.75)
 const COLOR_SECTION := Color(0.0, 0.9, 0.9)
 const COLOR_TEXT := Color(0.85, 0.85, 0.85)
 const COLOR_DIM := Color(0.5, 0.5, 0.55)
 const PANEL_WIDTH := 260.0
-
-signal time_changed(hour: float)
-signal sun_energy_changed(energy: float)
-signal ambient_energy_changed(energy: float)
 
 var _panel_bg: PanelContainer
 var _content: VBoxContainer
@@ -47,6 +47,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 # --- Layout ---
+
 
 func _setup_layout() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -103,6 +104,7 @@ func _setup_layout() -> void:
 
 # --- Public API for extensibility ---
 
+
 func add_section(title: String) -> void:
 	## Add a section header label.
 	var sep := HSeparator.new()
@@ -117,7 +119,9 @@ func add_section(title: String) -> void:
 	_content.add_child(lbl)
 
 
-func add_slider(label_text: String, min_val: float, max_val: float, default_val: float, callback: Callable) -> HSlider:
+func add_slider(
+	label_text: String, min_val: float, max_val: float, default_val: float, callback: Callable
+) -> HSlider:
 	## Add a labeled slider. Returns the HSlider for external reference.
 	## callback signature: func(value: float)
 	var row := VBoxContainer.new()
@@ -152,9 +156,10 @@ func add_slider(label_text: String, min_val: float, max_val: float, default_val:
 	slider.step = 0.01
 	slider.custom_minimum_size = Vector2(0, 18)
 	slider.mouse_filter = Control.MOUSE_FILTER_STOP
-	slider.value_changed.connect(func(val: float):
-		value_label.text = _format_slider_value(val, label_text)
-		callback.call(val)
+	slider.value_changed.connect(
+		func(val: float):
+			value_label.text = _format_slider_value(val, label_text)
+			callback.call(val)
 	)
 	row.add_child(slider)
 
@@ -195,20 +200,15 @@ func add_info_label(key: String) -> Label:
 
 # --- Default controls (built-in) ---
 
+
 func _build_default_controls() -> void:
 	_fps_label = add_info_label("FPS")
 
 	add_section("Lighting")
 
-	add_slider("Time of Day", 0.0, 24.0, 12.0, func(val: float):
-		time_changed.emit(val)
-	)
-	add_slider("Sun Energy", 0.0, 2.0, 1.2, func(val: float):
-		sun_energy_changed.emit(val)
-	)
-	add_slider("Ambient Energy", 0.0, 1.5, 0.5, func(val: float):
-		ambient_energy_changed.emit(val)
-	)
+	add_slider("Time of Day", 0.0, 24.0, 12.0, func(val: float): time_changed.emit(val))
+	add_slider("Sun Energy", 0.0, 2.0, 1.2, func(val: float): sun_energy_changed.emit(val))
+	add_slider("Ambient Energy", 0.0, 1.5, 0.5, func(val: float): ambient_energy_changed.emit(val))
 
 
 func _format_slider_value(val: float, label_text: String) -> String:

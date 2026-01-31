@@ -4,6 +4,8 @@ extends Control
 ## Resume, Reset Scenario, Options (placeholder), Exit to Main Menu, Quit.
 ## Reset and Exit to Main Menu show a confirmation dialog before acting.
 
+signal resumed
+
 const COLOR_OVERLAY := Color(0, 0, 0, 0.5)
 const COLOR_PANEL := Color("#16213e")
 const COLOR_BUTTON := Color("#0f3460")
@@ -11,8 +13,6 @@ const COLOR_BUTTON_HOVER := Color("#e94560")
 const COLOR_TEXT := Color("#ffffff")
 const COLOR_ACCENT := Color("#e94560")
 const FADE_DURATION := 0.2
-
-signal resumed
 
 var _overlay: ColorRect
 var _panel: PanelContainer
@@ -201,14 +201,16 @@ func _on_resume_pressed() -> void:
 
 
 func _on_reset_pressed() -> void:
-	_show_confirm("Reset this scenario?\nAll placed blocks will be lost.", func():
-		get_tree().reload_current_scene()
+	_show_confirm(
+		"Reset this scenario?\nAll placed blocks will be lost.",
+		func(): get_tree().reload_current_scene()
 	)
 
 
 func _on_main_menu_pressed() -> void:
-	_show_confirm("Exit to main menu?\nUnsaved progress will be lost.", func():
-		get_tree().change_scene_to_file("res://scenes/main.tscn")
+	_show_confirm(
+		"Exit to main menu?\nUnsaved progress will be lost.",
+		func(): get_tree().change_scene_to_file("res://scenes/main.tscn")
 	)
 
 
@@ -269,9 +271,10 @@ func _show_confirm(message: String, on_confirm: Callable) -> void:
 
 	var confirm_btn := _create_menu_button("CONFIRM")
 	confirm_btn.custom_minimum_size = Vector2(120, 36)
-	confirm_btn.pressed.connect(func():
-		confirm_overlay.queue_free()
-		on_confirm.call()
+	confirm_btn.pressed.connect(
+		func():
+			confirm_overlay.queue_free()
+			on_confirm.call()
 	)
 	btn_row.add_child(confirm_btn)
 

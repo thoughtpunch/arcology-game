@@ -1,5 +1,5 @@
-extends Node3D
 class_name GhostPreview3D
+extends Node3D
 
 ## 3D ghost preview for block placement
 ##
@@ -11,21 +11,20 @@ class_name GhostPreview3D
 ## - Floor level indicator (Label3D)
 ## - Excluded from raycasts (collision layer 4)
 
+signal rotation_changed(rotation_index: int)
+signal state_changed(new_state: GhostState)
+
 # Visual states
 enum GhostState { HIDDEN, VALID, WARNING, INVALID }
 
 # Cell dimensions (same as BlockRenderer3D) — true cube, 6m all axes
 const CELL_SIZE: float = 6.0
-const CUBE_WIDTH: float = CELL_SIZE   # Alias for compatibility
-const CUBE_DEPTH: float = CELL_SIZE   # Alias for compatibility
+const CUBE_WIDTH: float = CELL_SIZE  # Alias for compatibility
+const CUBE_DEPTH: float = CELL_SIZE  # Alias for compatibility
 const CUBE_HEIGHT: float = CELL_SIZE  # Alias for compatibility
 
 # Collision layer for ghost (excluded from normal raycasts)
 const COLLISION_LAYER_GHOST: int = 8  # Layer 4 (bit 3)
-
-# Signals
-signal rotation_changed(rotation_index: int)
-signal state_changed(new_state: GhostState)
 
 # Current state
 var _state: GhostState = GhostState.HIDDEN
@@ -137,6 +136,7 @@ func _create_collision_exclusion() -> void:
 
 # --- Public API ---
 
+
 func set_state(new_state: GhostState) -> void:
 	## Set the ghost visual state
 	if _state == new_state:
@@ -223,6 +223,7 @@ func update_from_hit(hit: Dictionary, is_valid: bool, has_warnings: bool = false
 
 # --- Internal ---
 
+
 func _apply_state() -> void:
 	match _state:
 		GhostState.HIDDEN:
@@ -244,6 +245,7 @@ func _update_floor_label() -> void:
 
 
 # --- Static Helpers ---
+
 
 static func grid_to_world_center(grid_pos: Vector3i) -> Vector3:
 	## Convert grid position to world center (same as BlockRenderer3D)

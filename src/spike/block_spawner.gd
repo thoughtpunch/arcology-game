@@ -1,19 +1,18 @@
-extends Node3D
 class_name BlockSpawner
+extends Node3D
 
 ## Spawns test blocks for the spike scene
 ##
 ## Manages a grid of Block3D instances for placement testing.
+
+signal block_placed(position: Vector3i, block_type: String)
+signal block_removed(position: Vector3i)
 
 # Reference to Block3D script
 const Block3DScript = preload("res://src/spike/block_3d.gd")
 
 # Container for spawned blocks
 var _blocks: Dictionary = {}  # Key: Vector3i, Value: CSGBox3D (Block3D)
-
-# Signals
-signal block_placed(position: Vector3i, block_type: String)
-signal block_removed(position: Vector3i)
 
 
 func _ready() -> void:

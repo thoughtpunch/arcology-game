@@ -3,8 +3,10 @@ extends Node
 ## Enhanced camera controller with Cities Skylines-style controls
 ## Features: smooth zoom, middle-mouse drag, double-click center, rotation
 
-# Camera reference
-var camera: Camera2D
+# Signals
+signal camera_moved(position: Vector2)
+signal camera_zoomed(zoom_level: float)
+signal camera_rotated(angle: float)
 
 # Pan settings
 const PAN_SPEED := 500.0
@@ -24,6 +26,9 @@ const ROTATION_SMOOTHING := 8.0
 const DOUBLE_CLICK_TIME := 0.3  # Seconds between clicks to count as double-click
 const CENTER_SMOOTHING := 5.0
 
+# Camera reference
+var camera: Camera2D
+
 # State
 var _target_position := Vector2.ZERO
 var _target_zoom := 1.0
@@ -35,11 +40,6 @@ var _drag_start_camera := Vector2.ZERO
 
 var _last_click_time := 0.0
 var _last_click_position := Vector2.ZERO
-
-# Signals
-signal camera_moved(position: Vector2)
-signal camera_zoomed(zoom_level: float)
-signal camera_rotated(angle: float)
 
 
 func _ready() -> void:
@@ -248,7 +248,9 @@ func center_on_screen_position(screen_pos: Vector2) -> void:
 
 	# Convert screen position to world position
 	var mouse_offset := screen_pos - viewport_center
-	var world_pos := camera.position + mouse_offset.rotated(deg_to_rad(camera.rotation_degrees)) / camera.zoom.x
+	var world_pos := (
+		camera.position + mouse_offset.rotated(deg_to_rad(camera.rotation_degrees)) / camera.zoom.x
+	)
 
 	_target_position = world_pos
 	camera_moved.emit(_target_position)
@@ -292,6 +294,7 @@ func _apply_smooth_movement(delta: float) -> void:
 
 
 # Public API for external control
+
 
 func set_zoom(zoom_level: float) -> void:
 	_target_zoom = clampf(zoom_level, MIN_ZOOM, MAX_ZOOM)

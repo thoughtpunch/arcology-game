@@ -133,6 +133,6 @@ func get_bus_index(bus_name: String) -> int:
 
 
 ## Set dynamic music enabled (placeholder for future music system)
-func set_dynamic_music_enabled(enabled: bool) -> void:
+func set_dynamic_music_enabled(_enabled: bool) -> void:
 	# TODO: Connect to music system when implemented
 	pass

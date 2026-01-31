@@ -5,20 +5,15 @@ extends Control
 
 signal block_type_selected(block_type: String)
 
+# Block type order (matches keyboard shortcuts 1-6)
+const BLOCK_ORDER: Array[String] = [
+	"corridor", "entrance", "stairs", "elevator_shaft", "residential_basic", "commercial_basic"
+]
+
 # References
 var _buttons: Dictionary = {}  # block_type -> Button
 var _button_container: HBoxContainer
 var _selected_type: String = ""
-
-# Block type order (matches keyboard shortcuts 1-6)
-const BLOCK_ORDER: Array[String] = [
-	"corridor",
-	"entrance",
-	"stairs",
-	"elevator_shaft",
-	"residential_basic",
-	"commercial_basic"
-]
 
 
 func _ready() -> void:
@@ -112,12 +107,18 @@ func _unhandled_input(event: InputEvent) -> void:
 	var index := -1
 
 	match key.keycode:
-		KEY_1: index = 0
-		KEY_2: index = 1
-		KEY_3: index = 2
-		KEY_4: index = 3
-		KEY_5: index = 4
-		KEY_6: index = 5
+		KEY_1:
+			index = 0
+		KEY_2:
+			index = 1
+		KEY_3:
+			index = 2
+		KEY_4:
+			index = 3
+		KEY_5:
+			index = 4
+		KEY_6:
+			index = 5
 
 	if index >= 0 and index < BLOCK_ORDER.size():
 		select_type(BLOCK_ORDER[index])

@@ -4,10 +4,6 @@ extends Node
 ## Handles opening/closing panels, pinning, and selection
 ## See: documentation/ui/info-panels.md#panel-behavior
 
-# Maximum pinned panels
-const MAX_PINNED := 3
-
-# Signals
 signal panel_opened(panel_type: String)
 signal panel_closed(panel_type: String)
 signal block_action(action: String, block_pos: Vector3i)
@@ -17,6 +13,9 @@ signal aei_action(action: String)
 
 # Panel types
 enum PanelType { NONE, BLOCK, RESIDENT, BUDGET, AEI, MULTI_SELECT, QUICK_STATS }
+
+# Maximum pinned panels
+const MAX_PINNED := 3
 
 # References
 var _hud: HUD
@@ -117,9 +116,15 @@ func show_quick_stats(stats_data: Dictionary) -> void:
 	stats_section.add_child(panel.create_stat_row("Population", panel.format_number(population)))
 	stats_section.add_child(panel.create_stat_row("Avg Flourishing", "%d" % int(avg_flourishing)))
 
-	var net_color := InfoPanel.COLOR_TEXT_POSITIVE if monthly_net >= 0 else InfoPanel.COLOR_TEXT_NEGATIVE
+	var net_color := (
+		InfoPanel.COLOR_TEXT_POSITIVE if monthly_net >= 0 else InfoPanel.COLOR_TEXT_NEGATIVE
+	)
 	var net_prefix := "+" if monthly_net >= 0 else ""
-	stats_section.add_child(panel.create_stat_row("Monthly Net", net_prefix + panel.format_money(monthly_net), net_color))
+	stats_section.add_child(
+		panel.create_stat_row(
+			"Monthly Net", net_prefix + panel.format_money(monthly_net), net_color
+		)
+	)
 
 	stats_section.add_child(panel.create_stat_row("AEI Score", "%d" % int(aei_score)))
 

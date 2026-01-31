@@ -22,8 +22,7 @@ var _elapsed: float = 0.0
 func _generate_name() -> String:
 	if target_need != "":
 		return "UseBlock: %s +%.0f" % [target_need, need_amount]
-	else:
-		return "UseBlock: %.1fs" % duration
+	return "UseBlock: %.1fs" % duration
 
 
 func _enter() -> void:
@@ -64,22 +63,34 @@ func _apply_effects(resident: Resident) -> void:
 func _infer_need_from_activity() -> String:
 	## Map activity states to needs
 	match activity_state:
-		"eating": return "survival"
-		"sleeping": return "survival"
-		"working": return "purpose"
-		"socializing": return "belonging"
-		"recreating": return "esteem"
-		_: return ""
+		"eating":
+			return "survival"
+		"sleeping":
+			return "survival"
+		"working":
+			return "purpose"
+		"socializing":
+			return "belonging"
+		"recreating":
+			return "esteem"
+		_:
+			return ""
 
 
 func _set_activity(resident: Resident) -> void:
 	match activity_state:
-		"eating": resident.set_activity(Resident.Activity.EATING)
-		"sleeping": resident.set_activity(Resident.Activity.SLEEPING)
-		"working": resident.set_activity(Resident.Activity.WORKING)
-		"socializing": resident.set_activity(Resident.Activity.SOCIALIZING)
-		"recreating": resident.set_activity(Resident.Activity.RECREATING)
-		_: resident.set_activity(Resident.Activity.IDLE)
+		"eating":
+			resident.set_activity(Resident.Activity.EATING)
+		"sleeping":
+			resident.set_activity(Resident.Activity.SLEEPING)
+		"working":
+			resident.set_activity(Resident.Activity.WORKING)
+		"socializing":
+			resident.set_activity(Resident.Activity.SOCIALIZING)
+		"recreating":
+			resident.set_activity(Resident.Activity.RECREATING)
+		_:
+			resident.set_activity(Resident.Activity.IDLE)
 
 
 func _get_resident() -> Resident:

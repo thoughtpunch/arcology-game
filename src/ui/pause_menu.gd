@@ -4,6 +4,14 @@ extends Control
 ## Accessed via Esc key, dims background and shows menu options
 ## See: documentation/ui/menus.md
 
+signal resume_pressed
+signal save_game_pressed
+signal load_game_pressed
+signal settings_pressed
+signal help_pressed
+signal main_menu_pressed
+signal quit_pressed
+
 # Color scheme
 const COLOR_OVERLAY := Color(0, 0, 0, 0.5)  # 50% opacity overlay
 const COLOR_PANEL := Color("#16213e")
@@ -14,15 +22,6 @@ const COLOR_ACCENT := Color("#e94560")
 
 # Animation
 const FADE_DURATION := 0.2
-
-# Signals
-signal resume_pressed
-signal save_game_pressed
-signal load_game_pressed
-signal settings_pressed
-signal help_pressed
-signal main_menu_pressed
-signal quit_pressed
 
 # UI components
 var _overlay: ColorRect

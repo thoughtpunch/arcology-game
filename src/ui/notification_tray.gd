@@ -3,6 +3,10 @@ extends Control
 ## Notification tray UI component - badge button + expandable notification list
 ## See: documentation/ui/sidebars.md#notification-tray
 
+signal notification_clicked(notification_id: int)
+signal view_action_pressed(notification_id: int)
+signal dismiss_pressed(notification_id: int)
+
 # Notification types (mirrored from NotificationSystem autoload)
 const TYPE_INFO := 0
 const TYPE_POSITIVE := 1
@@ -27,11 +31,6 @@ const NOTIFICATION_HEIGHT := 80
 
 # Animation constants
 const ANIM_DURATION := 0.15
-
-# Signals
-signal notification_clicked(notification_id: int)
-signal view_action_pressed(notification_id: int)
-signal dismiss_pressed(notification_id: int)
 
 # UI elements
 var _badge_button: Button
@@ -313,7 +312,10 @@ func _add_notification_item(notification: Dictionary) -> void:
 
 func _remove_notification_item(notification_id: int) -> void:
 	for child in _notification_list.get_children():
-		if child.has_meta("notification_id") and child.get_meta("notification_id") == notification_id:
+		if (
+			child.has_meta("notification_id")
+			and child.get_meta("notification_id") == notification_id
+		):
 			child.queue_free()
 			break
 	_update_panel_height()
@@ -504,15 +506,14 @@ static func _get_relative_time(timestamp: float) -> String:
 
 	if diff < 60:
 		return "now"
-	elif diff < 3600:
+	if diff < 3600:
 		var minutes: int = diff / 60
 		return "%dm" % minutes
-	elif diff < 86400:
+	if diff < 86400:
 		var hours: int = diff / 3600
 		return "%dh" % hours
-	else:
-		var days: int = diff / 86400
-		return "%dd" % days
+	var days: int = diff / 86400
+	return "%dd" % days
 
 
 ## Handle clicks outside panel to close

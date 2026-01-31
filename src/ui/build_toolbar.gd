@@ -10,61 +10,25 @@ signal category_changed(category: String)
 
 # Category definitions
 const CATEGORIES := {
-	"residential": {
-		"name": "Residential",
-		"short": "Res",
-		"color": Color("#3498db"),  # Blue
-		"icon": "🏠",
-		"key": KEY_1
-	},
-	"commercial": {
-		"name": "Commercial",
-		"short": "Com",
-		"color": Color("#2ecc71"),  # Green
-		"icon": "🏪",
-		"key": KEY_2
-	},
-	"industrial": {
-		"name": "Industrial",
-		"short": "Ind",
-		"color": Color("#e67e22"),  # Orange
-		"icon": "⚙",
-		"key": KEY_3
-	},
-	"transit": {
-		"name": "Transit",
-		"short": "Tra",
-		"color": Color("#95a5a6"),  # Gray
-		"icon": "↔",
-		"key": KEY_4
-	},
-	"green": {
-		"name": "Green",
-		"short": "Grn",
-		"color": Color("#27ae60"),  # Dark green
-		"icon": "🌿",
-		"key": KEY_5
-	},
-	"civic": {
-		"name": "Civic",
-		"short": "Civ",
-		"color": Color("#9b59b6"),  # Purple
-		"icon": "🏛",
-		"key": KEY_6
-	},
-	"infrastructure": {
-		"name": "Infrastructure",
-		"short": "Inf",
-		"color": Color("#f1c40f"),  # Yellow
-		"icon": "⚡",
-		"key": KEY_7
-	}
+	"residential":  # Blue
+	{"name": "Residential", "short": "Res", "color": Color("#3498db"), "icon": "🏠", "key": KEY_1},
+	"commercial":  # Green
+	{"name": "Commercial", "short": "Com", "color": Color("#2ecc71"), "icon": "🏪", "key": KEY_2},
+	"industrial":  # Orange
+	{"name": "Industrial", "short": "Ind", "color": Color("#e67e22"), "icon": "⚙", "key": KEY_3},
+	"transit":  # Gray
+	{"name": "Transit", "short": "Tra", "color": Color("#95a5a6"), "icon": "↔", "key": KEY_4},
+	"green":  # Dark green
+	{"name": "Green", "short": "Grn", "color": Color("#27ae60"), "icon": "🌿", "key": KEY_5},
+	"civic":  # Purple
+	{"name": "Civic", "short": "Civ", "color": Color("#9b59b6"), "icon": "🏛", "key": KEY_6},
+	"infrastructure":  # Yellow
+	{"name": "Infrastructure", "short": "Inf", "color": Color("#f1c40f"), "icon": "⚡", "key": KEY_7}
 }
 
 # Category order (matches keyboard shortcuts 1-7)
 const CATEGORY_ORDER: Array[String] = [
-	"residential", "commercial", "industrial", "transit",
-	"green", "civic", "infrastructure"
+	"residential", "commercial", "industrial", "transit", "green", "civic", "infrastructure"
 ]
 
 # UI Constants

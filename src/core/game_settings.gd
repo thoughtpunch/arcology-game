@@ -6,17 +6,19 @@ extends Node
 ## - Window focus: pause_on_lost_focus
 ## - NotificationSystem: show_news_popups, notification_sound
 
+# Signals for systems that need to react
+signal camera_setting_changed(key: String, value: Variant)
+
 # Auto-save interval mappings (from dropdown strings to minutes)
 const AUTO_SAVE_INTERVALS := {
-	"5 minutes": 5,
-	"10 minutes": 10,
-	"15 minutes": 15,
-	"30 minutes": 30,
-	"Disabled": 0
+	"5 minutes": 5, "10 minutes": 10, "15 minutes": 15, "30 minutes": 30, "Disabled": 0
 }
 
 # Window focus handling
 var _window_focused: bool = true
+var _show_news_popups: bool = true
+var _notification_sound_enabled: bool = true
+var _auto_pause_emergencies: bool = true
 
 
 func _ready() -> void:
@@ -76,10 +78,6 @@ func _on_setting_changed(key: String, value: Variant) -> void:
 		"edge_scrolling", "scroll_speed":
 			# These need CameraController - notify any listeners
 			camera_setting_changed.emit(key, value)
-
-
-# Signals for systems that need to react
-signal camera_setting_changed(key: String, value: Variant)
 
 
 ## Apply auto-save interval setting
@@ -158,13 +156,6 @@ func _get_game_state() -> Node:
 	if tree:
 		return tree.root.get_node_or_null("/root/GameState")
 	return null
-
-
-# Properties for other systems to check
-
-var _show_news_popups: bool = true
-var _notification_sound_enabled: bool = true
-var _auto_pause_emergencies: bool = true
 
 
 ## Check if news popups should be shown

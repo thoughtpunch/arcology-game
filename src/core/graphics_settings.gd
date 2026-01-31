@@ -18,18 +18,10 @@ const DISPLAY_MODES := {
 }
 
 # Frame rate limits
-const FRAME_RATE_LIMITS := {
-	"30 FPS": 30,
-	"60 FPS": 60,
-	"120 FPS": 120,
-	"Unlimited": 0
-}
+const FRAME_RATE_LIMITS := {"30 FPS": 30, "60 FPS": 60, "120 FPS": 120, "Unlimited": 0}
 
 # VSync modes
-const VSYNC_MODES := {
-	true: DisplayServer.VSYNC_ENABLED,
-	false: DisplayServer.VSYNC_DISABLED
-}
+const VSYNC_MODES := {true: DisplayServer.VSYNC_ENABLED, false: DisplayServer.VSYNC_DISABLED}
 
 # FPS counter overlay
 var _fps_label: Label

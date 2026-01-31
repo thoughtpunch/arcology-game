@@ -39,7 +39,9 @@ func setup(block_pos: Vector3i, block_type: String, block_data: Dictionary = {})
 	var header_section := add_section("Header", "")
 
 	# Create header with sprite
-	var sprite_path: String = definition.get("sprite", "res://assets/sprites/blocks/placeholder.png")
+	var sprite_path: String = definition.get(
+		"sprite", "res://assets/sprites/blocks/placeholder.png"
+	)
 	var texture: Texture2D = null
 	if ResourceLoader.exists(sprite_path):
 		texture = load(sprite_path)
@@ -85,8 +87,12 @@ func setup(block_pos: Vector3i, block_type: String, block_data: Dictionary = {})
 	_env_bars["light"] = create_bar("Light", light_val, 100.0, get_bar_color_by_value(light_val))
 	_env_bars["air"] = create_bar("Air", air_val, 100.0, get_bar_color_by_value(air_val))
 	# Noise is inverted (lower is better)
-	_env_bars["noise"] = create_bar("Noise", noise_val, 100.0, get_bar_color_by_value(100.0 - noise_val))
-	_env_bars["safety"] = create_bar("Safety", safety_val, 100.0, get_bar_color_by_value(safety_val))
+	_env_bars["noise"] = create_bar(
+		"Noise", noise_val, 100.0, get_bar_color_by_value(100.0 - noise_val)
+	)
+	_env_bars["safety"] = create_bar(
+		"Safety", safety_val, 100.0, get_bar_color_by_value(safety_val)
+	)
 	_env_bars["vibes"] = create_bar("Vibes", vibes_val, 100.0, get_bar_color_by_value(vibes_val))
 
 	for bar in _env_bars.values():
@@ -106,7 +112,9 @@ func setup(block_pos: Vector3i, block_type: String, block_data: Dictionary = {})
 	_econ_rows["maintenance"] = create_stat_row("Maintenance", format_money(maintenance) + "/month")
 
 	var net_color := COLOR_TEXT_POSITIVE if net_income >= 0 else COLOR_TEXT_NEGATIVE
-	_econ_rows["net_income"] = create_stat_row("Net Income", format_money(net_income) + "/month", net_color)
+	_econ_rows["net_income"] = create_stat_row(
+		"Net Income", format_money(net_income) + "/month", net_color
+	)
 
 	for row in _econ_rows.values():
 		econ_section.add_child(row)

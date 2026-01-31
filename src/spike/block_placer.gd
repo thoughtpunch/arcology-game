@@ -1,5 +1,5 @@
-extends Node3D
 class_name BlockPlacer
+extends Node3D
 
 ## Click-to-place system for 3D spike using raycasting
 ##
@@ -7,8 +7,15 @@ class_name BlockPlacer
 ## Right-click: Remove block at cursor position
 ## Ghost preview shows placement position with validity coloring
 
+signal block_placed(position: Vector3i, block_type: String)
+signal block_removed(position: Vector3i)
+
 # Dependencies
 const Block3DScript = preload("res://src/spike/block_3d.gd")
+
+# Raycast collision mask (layer 2 = blocks, layer 1 = ground)
+const RAY_LENGTH: float = 1000.0
+const COLLISION_MASK: int = 0b11  # Layers 1 and 2
 
 # Reference to camera (assigned by parent scene)
 var camera: Camera3D
@@ -27,14 +34,6 @@ var _ghost_material_invalid: StandardMaterial3D
 # Current ghost position (grid coordinates)
 var _ghost_grid_pos: Vector3i = Vector3i.ZERO
 var _ghost_visible: bool = false
-
-# Raycast collision mask (layer 2 = blocks, layer 1 = ground)
-const RAY_LENGTH: float = 1000.0
-const COLLISION_MASK: int = 0b11  # Layers 1 and 2
-
-# Signals
-signal block_placed(position: Vector3i, block_type: String)
-signal block_removed(position: Vector3i)
 
 
 func _ready() -> void:

@@ -10,26 +10,6 @@ extends Node
 ## - Extended tooltips (tooltip system)
 ## - Slower game speed max (TimeControls)
 
-# Colorblind mode options
-const COLORBLIND_MODES := {
-	"Off": 0,
-	"Protanopia": 1,    # Red-blind
-	"Deuteranopia": 2,  # Green-blind
-	"Tritanopia": 3     # Blue-blind
-}
-
-# Font size options
-const FONT_SIZES := {
-	"Small": 0.9,
-	"Medium": 1.0,
-	"Large": 1.2,
-	"Extra Large": 1.5
-}
-
-# Game speed options (slower max for accessibility)
-const SLOWER_SPEED_MAX := 2  # Max speed when accessibility option enabled
-const NORMAL_SPEED_MAX := 3  # Normal max speed
-
 # Signals for systems to react
 signal colorblind_mode_changed(mode: int)
 signal high_contrast_changed(enabled: bool)
@@ -38,6 +18,26 @@ signal screen_flash_changed(enabled: bool)
 signal font_size_changed(multiplier: float)
 signal extended_tooltips_changed(enabled: bool)
 signal max_speed_changed(max_speed: int)
+
+# Colorblind mode options (0=Off, 1=Red-blind, 2=Green-blind, 3=Blue-blind)
+const COLORBLIND_MODES := {"Off": 0, "Protanopia": 1, "Deuteranopia": 2, "Tritanopia": 3}
+
+# Font size options
+const FONT_SIZES := {"Small": 0.9, "Medium": 1.0, "Large": 1.2, "Extra Large": 1.5}
+
+# Game speed options (slower max for accessibility)
+const SLOWER_SPEED_MAX := 2  # Max speed when accessibility option enabled
+const NORMAL_SPEED_MAX := 3  # Normal max speed
+
+# State
+var _colorblind_mode: int = 0
+var _high_contrast_ui: bool = false
+var _reduce_motion: bool = false
+var _screen_flash_effects: bool = true
+var _font_size_multiplier: float = 1.0
+var _dyslexia_font: bool = false
+var _extended_tooltips: bool = false
+var _slower_speed_max: bool = false
 
 
 func _ready() -> void:
@@ -153,17 +153,6 @@ func _apply_slower_game_speed_max(enabled: Variant) -> void:
 	_slower_speed_max = enable
 	var max_speed: int = SLOWER_SPEED_MAX if enable else NORMAL_SPEED_MAX
 	max_speed_changed.emit(max_speed)
-
-
-# State
-var _colorblind_mode: int = 0
-var _high_contrast_ui: bool = false
-var _reduce_motion: bool = false
-var _screen_flash_effects: bool = true
-var _font_size_multiplier: float = 1.0
-var _dyslexia_font: bool = false
-var _extended_tooltips: bool = false
-var _slower_speed_max: bool = false
 
 
 ## Get current colorblind mode (0=off, 1=protanopia, 2=deuteranopia, 3=tritanopia)

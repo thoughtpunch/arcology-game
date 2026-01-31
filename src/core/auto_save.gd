@@ -4,16 +4,15 @@ extends Node
 ## Saves every configurable interval, keeps last N auto-saves
 ## See: documentation/ui/menus.md
 
+signal auto_save_started
+signal auto_save_completed(save_path: String)
+signal auto_save_failed(error: String)
+
 # Constants
 const SAVE_DIR := "user://saves/"
 const AUTO_SAVE_PREFIX := "autosave_"
 const DEFAULT_INTERVAL_MINUTES := 10
 const MAX_AUTO_SAVES := 3
-
-# Signals
-signal auto_save_started
-signal auto_save_completed(save_path: String)
-signal auto_save_failed(error: String)
 
 # State
 var _enabled := true
@@ -167,10 +166,7 @@ func _build_save_data(game_state: Object) -> Dictionary:
 		state_data = game_state.get_state()
 	else:
 		# Fallback minimal state
-		state_data = {
-			"money": 50000,
-			"current_floor": 0
-		}
+		state_data = {"money": 50000, "current_floor": 0}
 
 	# Get grid data if available
 	var blocks_data := []
@@ -188,10 +184,7 @@ func _build_save_data(game_state: Object) -> Dictionary:
 		"blocks": blocks_data,
 		"camera": {},
 		"terrain_seed": 0,
-		"statistics": {
-			"blocks_placed": blocks_data.size(),
-			"playtime_seconds": 0
-		}
+		"statistics": {"blocks_placed": blocks_data.size(), "playtime_seconds": 0}
 	}
 
 
@@ -213,10 +206,12 @@ func _serialize_blocks(grid: Object) -> Array:
 	for pos in grid.get_all_blocks():
 		var block = grid.get_block_at(pos)
 		if block:
-			blocks.append({
-				"type": block.block_type if "block_type" in block else "unknown",
-				"position": [pos.x, pos.y, pos.z]
-			})
+			blocks.append(
+				{
+					"type": block.block_type if "block_type" in block else "unknown",
+					"position": [pos.x, pos.y, pos.z]
+				}
+			)
 	return blocks
 
 

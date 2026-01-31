@@ -9,20 +9,20 @@ signal construction_progress(pos: Vector3i, hours_remaining: int, total_hours: i
 signal construction_completed(pos: Vector3i, block_type: String)
 signal construction_cancelled(pos: Vector3i, block_type: String)
 
-# Reference to grid (set during setup)
-var grid: Grid
-
-# Active construction jobs: Vector3i -> ConstructionJob
-var _jobs: Dictionary = {}
-
 # Default construction time if not specified in block data
 const DEFAULT_CONSTRUCTION_HOURS: int = 2
+
+# Reference to grid (set during setup)
+var grid: Grid
 
 # Global multiplier for construction time (can be set in balance.json)
 var construction_time_multiplier: float = 1.0
 
 # Instant construction mode (for debugging or game settings)
 var instant_construction: bool = false
+
+# Active construction jobs: Vector3i -> ConstructionJob
+var _jobs: Dictionary = {}
 
 
 class ConstructionJob:

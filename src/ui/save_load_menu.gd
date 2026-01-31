@@ -4,6 +4,15 @@ extends Control
 ## Handles save game creation, loading, and auto-save management
 ## See: documentation/ui/menus.md
 
+signal back_pressed
+signal save_selected(save_name: String)
+signal load_selected(save_path: String)
+signal save_deleted(save_path: String)
+signal delete_confirmation_requested(save_name: String, save_path: String)
+
+# Mode
+enum Mode { SAVE, LOAD }
+
 # Color scheme
 const COLOR_BACKGROUND := Color("#1a1a2e")
 const COLOR_PANEL := Color("#16213e")
@@ -23,18 +32,6 @@ const SAVE_DIR := "user://saves/"
 const AUTO_SAVE_PREFIX := "autosave_"
 const MAX_AUTO_SAVES := 3
 
-# Mode
-enum Mode {
-	SAVE,
-	LOAD
-}
-
-# Signals
-signal back_pressed
-signal save_selected(save_name: String)
-signal load_selected(save_path: String)
-signal save_deleted(save_path: String)
-
 # UI components
 var _panel: PanelContainer
 var _save_name_input: LineEdit
@@ -42,9 +39,6 @@ var _save_list: VBoxContainer
 var _selected_save_path := ""
 var _mode := Mode.LOAD
 var _pending_delete_path := ""  # Path of save awaiting deletion confirmation
-
-# Signals for confirmation dialogs
-signal delete_confirmation_requested(save_name: String, save_path: String)
 
 
 func _ready() -> void:
@@ -279,20 +273,21 @@ func _create_save_card(save_data: Dictionary) -> PanelContainer:
 	info_box.add_child(date_label)
 
 	var stats_label := Label.new()
-	stats_label.text = "Pop: %s | AEI: %d | $%s" % [
-		_format_number(save_data.get("population", 0)),
-		save_data.get("aei", 0),
-		_format_number(save_data.get("money", 0))
-	]
+	stats_label.text = (
+		"Pop: %s | AEI: %d | $%s"
+		% [
+			_format_number(save_data.get("population", 0)),
+			save_data.get("aei", 0),
+			_format_number(save_data.get("money", 0))
+		]
+	)
 	stats_label.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
 	stats_label.name = "StatsLabel"
 	info_box.add_child(stats_label)
 
 	if save_data.has("scenario") and save_data.has("playtime"):
 		var extra_label := Label.new()
-		extra_label.text = "Scenario: %s | Playtime: %s" % [
-			save_data.scenario, save_data.playtime
-		]
+		extra_label.text = "Scenario: %s | Playtime: %s" % [save_data.scenario, save_data.playtime]
 		extra_label.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
 		extra_label.name = "ExtraLabel"
 		info_box.add_child(extra_label)

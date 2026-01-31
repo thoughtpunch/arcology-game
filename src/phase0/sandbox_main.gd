@@ -15,11 +15,10 @@ const HelpOverlayScript = preload("res://src/phase0/sandbox_help_overlay.gd")
 const FaceScript = preload("res://src/phase0/face.gd")
 const ScenarioConfigScript = preload("res://src/phase0/scenario_config.gd")
 const ScenarioPickerScript = preload("res://src/phase0/scenario_picker.gd")
-
 const CELL_SIZE: float = 6.0
-
-# --- Scenario Config ---
-var _config: RefCounted = null
+const PLACE_INTERVAL: float = 0.1  # 100ms = 10 blocks/sec
+const BLOCK_INSET: float = 0.15  # Visual gap between adjacent blocks (per side)
+const LOG_PREFIX := "[Sandbox] "
 
 # --- Build Zone ---
 # Initialized from _config when scenario is selected.
@@ -33,8 +32,11 @@ var current_rotation: int = 0
 
 # Occupancy
 var cell_occupancy: Dictionary = {}  # Vector3i -> int (block_id)
-var placed_blocks: Dictionary = {}   # int -> PlacedBlock
+var placed_blocks: Dictionary = {}  # int -> PlacedBlock
 var next_block_id: int = 1
+
+# --- Scenario Config ---
+var _config: RefCounted = null
 
 # Node references
 var _camera: Node3D
@@ -43,8 +45,8 @@ var _ghost_node: Node3D
 var _ghost_mesh: MeshInstance3D
 var _ghost_material: ShaderMaterial
 var _palette: Control
-var _ground_layers: Array[MultiMeshInstance3D] = []     # index 0 = y=-1, index 4 = y=-5
-var _ground_cell_indices: Array[Dictionary] = []        # per-layer Vector2i(x,z) -> int (multimesh index)
+var _ground_layers: Array[MultiMeshInstance3D] = []  # index 0 = y=-1, index 4 = y=-5
+var _ground_cell_indices: Array[Dictionary] = []  # per-layer Vector2i(x,z) -> int (multimesh index)
 var _grid_overlays: Dictionary = {}  # y_level (int) -> MeshInstance3D
 var _pause_menu: Control
 var _debug_panel: Control
@@ -79,15 +81,11 @@ var _environment: Environment
 var _placing: bool = false
 var _place_cooldown: float = 0.0
 var _last_place_origin: Vector3i = Vector3i(-9999, -9999, -9999)
-const PLACE_INTERVAL: float = 0.1  # 100ms = 10 blocks/sec
-const BLOCK_INSET: float = 0.15    # Visual gap between adjacent blocks (per side)
 
 # Cached ghost state to avoid unnecessary mesh rebuilds
 var _ghost_def_id: String = ""
 var _ghost_rotation: int = -1
 
-
-const LOG_PREFIX := "[Sandbox] "
 
 static func _log(msg: String) -> void:
 	if OS.is_debug_build():
@@ -134,12 +132,21 @@ func _build_world() -> void:
 	_setup_compass_markers()
 	_setup_ui()
 	_setup_audio()
-	_log("=== Sandbox ready: %d block types, build zone %s+%s, scenario=%s ===" % [
-		registry.get_all_definitions().size(), build_zone_origin, build_zone_size, _config.id,
-	])
+	_log(
+		(
+			"=== Sandbox ready: %d block types, build zone %s+%s, scenario=%s ==="
+			% [
+				registry.get_all_definitions().size(),
+				build_zone_origin,
+				build_zone_size,
+				_config.id,
+			]
+		)
+	)
 
 
 # --- Scene Setup ---
+
 
 func _setup_environment() -> void:
 	_environment = Environment.new()
@@ -211,8 +218,11 @@ func _setup_ground() -> void:
 		var idx := 0
 		for x in range(gs):
 			for z in range(gs):
-				var center := GridUtilsScript.grid_to_world_center(
-					Vector3i(x, y_level, z),
+				var center := (
+					GridUtilsScript
+					. grid_to_world_center(
+						Vector3i(x, y_level, z),
+					)
 				)
 				mm.set_instance_transform(idx, Transform3D(Basis(), center))
 				cell_index[Vector2i(x, z)] = idx
@@ -243,9 +253,17 @@ func _setup_ground() -> void:
 	col_shape.position = Vector3(half, -total_depth / 2.0, half)
 	static_body.add_child(col_shape)
 	ground_container.add_child(static_body)
-	_log("Ground ready: %d layers, %dx%d cells, %d total ground cells" % [
-		gd, gs, gs, cell_occupancy.size(),
-	])
+	_log(
+		(
+			"Ground ready: %d layers, %dx%d cells, %d total ground cells"
+			% [
+				gd,
+				gs,
+				gs,
+				cell_occupancy.size(),
+			]
+		)
+	)
 
 
 func _make_ground_cell_mesh() -> Mesh:
@@ -267,19 +285,28 @@ func _find_top_ground_y(x: int, z: int) -> int:
 func _remove_ground_cell(grid_pos: Vector3i) -> void:
 	var layer_idx: int = -(grid_pos.y + 1)
 	if layer_idx < 0 or layer_idx >= _config.ground_depth:
-		push_warning("[Sandbox] _remove_ground_cell: layer %d out of range for %s" % [layer_idx, grid_pos])
+		push_warning(
+			"[Sandbox] _remove_ground_cell: layer %d out of range for %s" % [layer_idx, grid_pos]
+		)
 		return
 
 	var key := Vector2i(grid_pos.x, grid_pos.z)
 	if not _ground_cell_indices[layer_idx].has(key):
-		push_warning("[Sandbox] _remove_ground_cell: no cell index for %s in layer %d" % [key, layer_idx])
+		push_warning(
+			"[Sandbox] _remove_ground_cell: no cell index for %s in layer %d" % [key, layer_idx]
+		)
 		return
 
 	cell_occupancy.erase(grid_pos)
 	var idx: int = _ground_cell_indices[layer_idx][key]
 	# Hide by moving far off-screen
-	_ground_layers[layer_idx].multimesh.set_instance_transform(
-		idx, Transform3D(Basis(), Vector3(0, -10000, 0)),
+	(
+		_ground_layers[layer_idx]
+		. multimesh
+		. set_instance_transform(
+			idx,
+			Transform3D(Basis(), Vector3(0, -10000, 0)),
+		)
 	)
 	_ground_cell_indices[layer_idx].erase(key)
 
@@ -345,8 +372,8 @@ func _setup_skyline() -> void:
 
 	var rings := [
 		# [count, min_radius, max_radius, min_height, max_height, min_width, max_width]
-		[near_count, 80.0, 250.0, 8.0, 60.0, 6.0, 18.0],     # Near: small/medium, dense
-		[mid_count, 200.0, 500.0, 15.0, 120.0, 8.0, 24.0],    # Mid: medium, some tall
+		[near_count, 80.0, 250.0, 8.0, 60.0, 6.0, 18.0],  # Near: small/medium, dense
+		[mid_count, 200.0, 500.0, 15.0, 120.0, 8.0, 24.0],  # Mid: medium, some tall
 		[far_count, 400.0, 1000.0, 30.0, 250.0, 10.0, 30.0],  # Far: tall skyline
 	]
 
@@ -392,11 +419,17 @@ func _setup_skyline() -> void:
 			var grey := rng.randf_range(0.25, 0.42)
 			var blue_shift := lerpf(0.01, 0.1, dist_t) + rng.randf_range(0.0, 0.03)
 			var fade := lerpf(0.0, 0.08, dist_t)  # Slight lightening with distance
-			mm.set_instance_color(idx, Color(
-				grey - blue_shift + fade,
-				grey + fade,
-				grey + blue_shift + fade,
-			))
+			(
+				mm
+				. set_instance_color(
+					idx,
+					Color(
+						grey - blue_shift + fade,
+						grey + fade,
+						grey + blue_shift + fade,
+					)
+				)
+			)
 			idx += 1
 
 	var mm_instance := MultiMeshInstance3D.new()
@@ -493,9 +526,16 @@ func _setup_river() -> void:
 	mesh_inst.rotation_degrees = Vector3(0, _config.river_flow_angle, 0)
 
 	add_child(mesh_inst)
-	_log("River ready: width=%.0f angle=%.0f offset=%.0f" % [
-		_config.river_width, _config.river_flow_angle, _config.river_offset,
-	])
+	_log(
+		(
+			"River ready: width=%.0f angle=%.0f offset=%.0f"
+			% [
+				_config.river_width,
+				_config.river_flow_angle,
+				_config.river_offset,
+			]
+		)
+	)
 
 
 func _setup_block_container() -> void:
@@ -639,9 +679,9 @@ func _setup_ui() -> void:
 	_controls_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
 	_controls_label.text = (
 		"LMB: Place  |  RMB: Remove  |  Double-click: Focus  |  ,/.: Rotate\n"
-		+ "WASD: Pan  |  Q/E: Up/Down  |  Scroll: Zoom  |  Shift+LMB Drag: Zoom  |  RMB Drag: Orbit  |  MMB: Pan\n"
+		+ "WASD: Pan  |  Q/E: Up/Down  |  Scroll: Zoom  |  Shift+LMB: Zoom  |  RMB: Orbit\n"
 		+ "Shift: Precision  |  Ctrl: Boost  |  F: Frame  |  H: Home  |  `: Hide UI\n"
-		+ "Tab/Shift+Tab: Cycle Category  |  1-9: Select Block  |  F1/?: Help  |  F3: Debug  |  ESC: Pause"
+		+ "Tab: Cycle Category  |  1-9: Select Block  |  F1/?: Help  |  F3: Debug  |  ESC: Pause"
 	)
 	canvas.add_child(_controls_label)
 
@@ -729,11 +769,14 @@ func _setup_audio() -> void:
 
 # --- Process ---
 
+
 func _process(delta: float) -> void:
 	if _config == null:
 		return  # Picker showing, world not built yet
 	_update_debug_stats()
-	var blocked := (_pause_menu and _pause_menu.visible) or (_help_overlay and _help_overlay.visible)
+	var blocked := (
+		(_pause_menu and _pause_menu.visible) or (_help_overlay and _help_overlay.visible)
+	)
 	if blocked:
 		_ghost_node.visible = false
 		_face_highlight.visible = false
@@ -753,10 +796,17 @@ func _update_debug_stats() -> void:
 	_stats_volume_label.text = "Volume: %d cells" % _building_volume
 	_stats_footprint_label.text = "Footprint: %d columns" % _building_footprint
 	if _camera:
-		_stats_camera_label.text = "Cam: (%.0f, %.0f, %.0f) d=%.0f az=%.0f el=%.0f" % [
-			_camera.target.x, _camera.target.y, _camera.target.z,
-			_camera.distance, _camera.azimuth, _camera.elevation,
-		]
+		_stats_camera_label.text = (
+			"Cam: (%.0f, %.0f, %.0f) d=%.0f az=%.0f el=%.0f"
+			% [
+				_camera.target.x,
+				_camera.target.y,
+				_camera.target.z,
+				_camera.distance,
+				_camera.azimuth,
+				_camera.elevation,
+			]
+		)
 
 
 func _handle_rapid_fire(delta: float) -> void:
@@ -771,9 +821,7 @@ func _handle_rapid_fire(delta: float) -> void:
 		return
 
 	var normal_offset := Vector3i(
-		int(round(hit.normal.x)),
-		int(round(hit.normal.y)),
-		int(round(hit.normal.z))
+		int(round(hit.normal.x)), int(round(hit.normal.y)), int(round(hit.normal.z))
 	)
 	var place_origin: Vector3i = hit.grid_pos + normal_offset
 
@@ -819,9 +867,16 @@ func _recompute_building_stats() -> void:
 	_building_volume = total_cells
 	_building_footprint = columns.size()
 	_update_building_stats_hud()
-	_log("Building stats: height=%d volume=%d footprint=%d" % [
-		_building_height, _building_volume, _building_footprint,
-	])
+	_log(
+		(
+			"Building stats: height=%d volume=%d footprint=%d"
+			% [
+				_building_height,
+				_building_volume,
+				_building_footprint,
+			]
+		)
+	)
 
 
 func _update_building_stats_hud() -> void:
@@ -831,14 +886,19 @@ func _update_building_stats_hud() -> void:
 		_building_stats_hud.visible = false
 		return
 	_building_stats_hud.text = (
-		"Blocks: %d  |  Height: %d  |  Volume: %d  |  Footprint: %d" % [
-			placed_blocks.size(), _building_height, _building_volume, _building_footprint,
+		"Blocks: %d  |  Height: %d  |  Volume: %d  |  Footprint: %d"
+		% [
+			placed_blocks.size(),
+			_building_height,
+			_building_volume,
+			_building_footprint,
 		]
 	)
 	_building_stats_hud.visible = not _ui_hidden
 
 
 # --- Input ---
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _config == null:
@@ -867,8 +927,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		_log("Key: %s" % OS.get_keycode_string(event.keycode))
 		match event.keycode:
-			KEY_COMMA: _rotate_ccw()
-			KEY_PERIOD: _rotate_cw()
+			KEY_COMMA:
+				_rotate_ccw()
+			KEY_PERIOD:
+				_rotate_cw()
 			KEY_F:
 				_focus_camera_on_cursor()
 				get_viewport().set_input_as_handled()
@@ -881,18 +943,28 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_QUOTELEFT:
 				_toggle_ui()
 				get_viewport().set_input_as_handled()
-			KEY_1: _select_shape_by_index(0)
-			KEY_2: _select_shape_by_index(1)
-			KEY_3: _select_shape_by_index(2)
-			KEY_4: _select_shape_by_index(3)
-			KEY_5: _select_shape_by_index(4)
-			KEY_6: _select_shape_by_index(5)
-			KEY_7: _select_shape_by_index(6)
-			KEY_8: _select_shape_by_index(7)
-			KEY_9: _select_shape_by_index(8)
+			KEY_1:
+				_select_shape_by_index(0)
+			KEY_2:
+				_select_shape_by_index(1)
+			KEY_3:
+				_select_shape_by_index(2)
+			KEY_4:
+				_select_shape_by_index(3)
+			KEY_5:
+				_select_shape_by_index(4)
+			KEY_6:
+				_select_shape_by_index(5)
+			KEY_7:
+				_select_shape_by_index(6)
+			KEY_8:
+				_select_shape_by_index(7)
+			KEY_9:
+				_select_shape_by_index(8)
 
 
 # --- Rotation ---
+
 
 func _rotate_cw() -> void:
 	current_rotation = (current_rotation + 90) % 360
@@ -905,6 +977,7 @@ func _rotate_ccw() -> void:
 
 
 # --- Shape Selection ---
+
 
 func _select_shape_by_index(index: int) -> void:
 	# Select block within the current palette category
@@ -921,6 +994,7 @@ func _on_shape_selected(definition: Resource) -> void:
 
 
 # --- Focus / UI Toggle ---
+
 
 func _focus_camera_on_cursor() -> void:
 	var hit := _raycast_from_mouse()
@@ -947,15 +1021,18 @@ func _update_entrance_prompt() -> void:
 
 # --- Occupancy ---
 
+
 func is_cell_occupied(cell: Vector3i) -> bool:
 	return cell_occupancy.has(cell)
 
 
 func is_in_build_zone(x: int, z: int) -> bool:
-	return (x >= build_zone_origin.x
+	return (
+		x >= build_zone_origin.x
 		and x < build_zone_origin.x + build_zone_size.x
 		and z >= build_zone_origin.y
-		and z < build_zone_origin.y + build_zone_size.y)
+		and z < build_zone_origin.y + build_zone_size.y
+	)
 
 
 func is_cell_buildable(cell: Vector3i) -> bool:
@@ -971,9 +1048,12 @@ func _is_supported(cells: Array[Vector3i], definition: Resource) -> bool:
 	## All other blocks: need face-adjacency to a placed block (occupancy > 0).
 	## Ground does NOT count as support for non-entrance blocks.
 	var directions: Array[Vector3i] = [
-		Vector3i(1, 0, 0), Vector3i(-1, 0, 0),
-		Vector3i(0, 1, 0), Vector3i(0, -1, 0),
-		Vector3i(0, 0, 1), Vector3i(0, 0, -1),
+		Vector3i(1, 0, 0),
+		Vector3i(-1, 0, 0),
+		Vector3i(0, 1, 0),
+		Vector3i(0, -1, 0),
+		Vector3i(0, 0, 1),
+		Vector3i(0, 0, -1),
 	]
 	if definition.ground_only:
 		# Entrance: needs ground beneath at least one cell
@@ -982,14 +1062,13 @@ func _is_supported(cells: Array[Vector3i], definition: Resource) -> bool:
 			if cell_occupancy.has(below) and cell_occupancy[below] == -1:
 				return true
 		return false
-	else:
-		# All other blocks: must be face-adjacent to a placed block (not ground)
-		for cell in cells:
-			for dir in directions:
-				var neighbor: Vector3i = cell + dir
-				if cell_occupancy.has(neighbor) and cell_occupancy[neighbor] > 0:
-					return true
-		return false
+	# All other blocks: must be face-adjacent to a placed block (not ground)
+	for cell in cells:
+		for dir in directions:
+			var neighbor: Vector3i = cell + dir
+			if cell_occupancy.has(neighbor) and cell_occupancy[neighbor] > 0:
+				return true
+	return false
 
 
 func can_place_block(definition: Resource, origin: Vector3i, rot: int) -> bool:
@@ -1001,8 +1080,13 @@ func can_place_block(definition: Resource, origin: Vector3i, rot: int) -> bool:
 	if definition.ground_only and origin.y != 0:
 		_log("  can_place: ground_only block at y=%d (must be 0)" % origin.y)
 		return false
-	var cells: Array[Vector3i] = GridUtilsScript.get_occupied_cells(
-		definition.size, origin, rot,
+	var cells: Array[Vector3i] = (
+		GridUtilsScript
+		. get_occupied_cells(
+			definition.size,
+			origin,
+			rot,
+		)
 	)
 	for cell in cells:
 		if is_cell_occupied(cell):
@@ -1022,9 +1106,16 @@ func can_place_block(definition: Resource, origin: Vector3i, rot: int) -> bool:
 
 func place_block(definition: Resource, origin: Vector3i, rot: int) -> RefCounted:
 	if not can_place_block(definition, origin, rot):
-		_log("place_block FAILED: %s at %s rot=%d (see reasons above)" % [
-			definition.id, origin, rot,
-		])
+		_log(
+			(
+				"place_block FAILED: %s at %s rot=%d (see reasons above)"
+				% [
+					definition.id,
+					origin,
+					rot,
+				]
+			)
+		)
 		return null
 
 	var block: RefCounted = PlacedBlockScript.new()
@@ -1033,8 +1124,13 @@ func place_block(definition: Resource, origin: Vector3i, rot: int) -> RefCounted
 	block.definition = definition
 	block.origin = origin
 	block.rotation = rot
-	block.occupied_cells = GridUtilsScript.get_occupied_cells(
-		definition.size, origin, rot,
+	block.occupied_cells = (
+		GridUtilsScript
+		. get_occupied_cells(
+			definition.size,
+			origin,
+			rot,
+		)
 	)
 
 	for cell in block.occupied_cells:
@@ -1053,9 +1149,19 @@ func place_block(definition: Resource, origin: Vector3i, rot: int) -> RefCounted
 		_update_entrance_prompt()
 
 	_recompute_building_stats()
-	_log("Placed block #%d (%s) at %s rot=%d size=%s — cells: %s" % [
-		block.id, definition.id, origin, rot, definition.size, block.occupied_cells,
-	])
+	_log(
+		(
+			"Placed block #%d (%s) at %s rot=%d size=%s — cells: %s"
+			% [
+				block.id,
+				definition.id,
+				origin,
+				rot,
+				definition.size,
+				block.occupied_cells,
+			]
+		)
+	)
 	return block
 
 
@@ -1088,6 +1194,7 @@ func remove_block_at_cell(cell: Vector3i) -> void:
 
 # --- Structural Integrity ---
 
+
 func _would_orphan_blocks(block_id: int) -> bool:
 	## Check if removing block_id would leave any neighbor blocks disconnected
 	## from an entrance. Returns true if removal should be rejected.
@@ -1102,9 +1209,12 @@ func _would_orphan_blocks(block_id: int) -> bool:
 
 	var block: RefCounted = placed_blocks[block_id]
 	var directions: Array[Vector3i] = [
-		Vector3i(1, 0, 0), Vector3i(-1, 0, 0),
-		Vector3i(0, 1, 0), Vector3i(0, -1, 0),
-		Vector3i(0, 0, 1), Vector3i(0, 0, -1),
+		Vector3i(1, 0, 0),
+		Vector3i(-1, 0, 0),
+		Vector3i(0, 1, 0),
+		Vector3i(0, -1, 0),
+		Vector3i(0, 0, 1),
+		Vector3i(0, 0, -1),
 	]
 
 	# Find all unique neighbor block IDs
@@ -1132,9 +1242,12 @@ func _is_connected_to_entrance(start_cells: Array[Vector3i], excluded_id: int) -
 	## BFS from start_cells through placed blocks (occupancy > 0, skipping excluded_id).
 	## Returns true if we can reach any cell belonging to an entrance block.
 	var directions: Array[Vector3i] = [
-		Vector3i(1, 0, 0), Vector3i(-1, 0, 0),
-		Vector3i(0, 1, 0), Vector3i(0, -1, 0),
-		Vector3i(0, 0, 1), Vector3i(0, 0, -1),
+		Vector3i(1, 0, 0),
+		Vector3i(-1, 0, 0),
+		Vector3i(0, 1, 0),
+		Vector3i(0, -1, 0),
+		Vector3i(0, 0, 1),
+		Vector3i(0, 0, -1),
 	]
 
 	# Collect all cells belonging to entrance blocks (excluding the one being removed)
@@ -1216,13 +1329,16 @@ func _show_removal_warning(msg: String) -> void:
 
 # --- Block Node Creation ---
 
+
 func _create_block_node(block: RefCounted) -> Node3D:
 	var definition: Resource = block.definition
 	var rotation_deg: int = block.rotation
 	var effective_size: Vector3i = definition.size
 	if rotation_deg == 90 or rotation_deg == 270:
 		effective_size = Vector3i(
-			definition.size.z, definition.size.y, definition.size.x,
+			definition.size.z,
+			definition.size.y,
+			definition.size.x,
 		)
 
 	var root := Node3D.new()
@@ -1305,6 +1421,7 @@ func _create_mesh_for(_definition: Resource, effective_size: Vector3i) -> Mesh:
 
 # --- Placement / Removal Animation ---
 
+
 func _animate_placement(block_node: Node3D) -> void:
 	# Drop-in: start scaled to 0 and offset up, tween to final position
 	var final_pos := block_node.position
@@ -1312,12 +1429,28 @@ func _animate_placement(block_node: Node3D) -> void:
 	block_node.scale = Vector3(0.01, 0.01, 0.01)
 
 	var tween := create_tween().set_parallel(true)
-	tween.tween_property(
-		block_node, "scale", Vector3.ONE, 0.15,
-	).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tween.tween_property(
-		block_node, "position", final_pos, 0.15,
-	).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	(
+		tween
+		. tween_property(
+			block_node,
+			"scale",
+			Vector3.ONE,
+			0.15,
+		)
+		. set_ease(Tween.EASE_OUT)
+		. set_trans(Tween.TRANS_BACK)
+	)
+	(
+		tween
+		. tween_property(
+			block_node,
+			"position",
+			final_pos,
+			0.15,
+		)
+		. set_ease(Tween.EASE_OUT)
+		. set_trans(Tween.TRANS_QUAD)
+	)
 
 	# Emission flash on the mesh material
 	var mesh_inst: MeshInstance3D = block_node.get_child(0)
@@ -1325,8 +1458,14 @@ func _animate_placement(block_node: Node3D) -> void:
 		var mat: StandardMaterial3D = mesh_inst.material_override
 		mat.emission_energy_multiplier = 0.5
 		var flash_tween := create_tween()
-		flash_tween.tween_property(
-			mat, "emission_energy_multiplier", 0.0, 0.2,
+		(
+			flash_tween
+			. tween_property(
+				mat,
+				"emission_energy_multiplier",
+				0.0,
+				0.2,
+			)
 		)
 
 	# Play audio
@@ -1342,17 +1481,33 @@ func _animate_removal(block_node: Node3D) -> void:
 
 	# Shrink and drop slightly before freeing
 	var tween := create_tween().set_parallel(true)
-	tween.tween_property(
-		block_node, "scale", Vector3.ZERO, 0.15,
-	).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
-	tween.tween_property(
-		block_node, "position",
-		block_node.position + Vector3(0, -CELL_SIZE, 0), 0.15,
-	).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	(
+		tween
+		. tween_property(
+			block_node,
+			"scale",
+			Vector3.ZERO,
+			0.15,
+		)
+		. set_ease(Tween.EASE_IN)
+		. set_trans(Tween.TRANS_BACK)
+	)
+	(
+		tween
+		. tween_property(
+			block_node,
+			"position",
+			block_node.position + Vector3(0, -CELL_SIZE, 0),
+			0.15,
+		)
+		. set_ease(Tween.EASE_IN)
+		. set_trans(Tween.TRANS_QUAD)
+	)
 	tween.chain().tween_callback(block_node.queue_free)
 
 
 # --- Ghost Preview ---
+
 
 func _update_ghost() -> void:
 	var hit := _raycast_from_mouse()
@@ -1366,9 +1521,7 @@ func _update_ghost() -> void:
 		return
 
 	var normal_offset := Vector3i(
-		int(round(hit.normal.x)),
-		int(round(hit.normal.y)),
-		int(round(hit.normal.z))
+		int(round(hit.normal.x)), int(round(hit.normal.y)), int(round(hit.normal.z))
 	)
 	var place_origin: Vector3i = hit.grid_pos + normal_offset
 
@@ -1398,9 +1551,14 @@ func _update_ghost() -> void:
 	var cell_center := GridUtilsScript.grid_to_world_center(hit.grid_pos)
 	_face_highlight.transform = FaceScript.get_face_transform(face, cell_center, CELL_SIZE)
 	_face_highlight.visible = true
-	_face_label.text = "Face: %s  |  Rotation: %d\u00b0  |  %s" % [
-		FaceScript.to_label(face), current_rotation, current_definition.display_name,
-	]
+	_face_label.text = (
+		"Face: %s  |  Rotation: %d\u00b0  |  %s"
+		% [
+			FaceScript.to_label(face),
+			current_rotation,
+			current_definition.display_name,
+		]
+	)
 	_face_label.visible = true
 
 	if _stats_mouse_label:
@@ -1453,6 +1611,7 @@ func _rebuild_ghost_mesh() -> void:
 
 # --- Raycast ---
 
+
 func _raycast_from_mouse() -> Dictionary:
 	var viewport := get_viewport()
 	if not viewport:
@@ -1482,8 +1641,12 @@ func _raycast_from_mouse() -> Dictionary:
 			"position": hit_pos,
 			"normal": hit_normal,
 			"collider": result.collider,
-			"grid_pos": GridUtilsScript.world_to_grid(
-				hit_pos - hit_normal * 0.01,
+			"grid_pos":
+			(
+				GridUtilsScript
+				. world_to_grid(
+					hit_pos - hit_normal * 0.01,
+				)
 			),
 			"face": FaceScript.from_normal(hit_normal),
 		}
@@ -1493,6 +1656,7 @@ func _raycast_from_mouse() -> Dictionary:
 
 # --- Placement / Removal ---
 
+
 func _try_place_block() -> void:
 	var hit := _raycast_from_mouse()
 	if hit.is_empty() or not hit.get("hit", false):
@@ -1500,9 +1664,7 @@ func _try_place_block() -> void:
 		return
 
 	var normal_offset := Vector3i(
-		int(round(hit.normal.x)),
-		int(round(hit.normal.y)),
-		int(round(hit.normal.z))
+		int(round(hit.normal.x)), int(round(hit.normal.y)), int(round(hit.normal.z))
 	)
 	var place_origin: Vector3i = hit.grid_pos + normal_offset
 
@@ -1513,9 +1675,18 @@ func _try_place_block() -> void:
 		if top_y >= -(_config.ground_depth):
 			place_origin = Vector3i(hit.grid_pos.x, top_y + 1, hit.grid_pos.z)
 
-	_log("Place attempt: %s at %s rot=%d (hit_grid=%s normal=%s)" % [
-		current_definition.id, place_origin, current_rotation, hit.grid_pos, hit.normal,
-	])
+	_log(
+		(
+			"Place attempt: %s at %s rot=%d (hit_grid=%s normal=%s)"
+			% [
+				current_definition.id,
+				place_origin,
+				current_rotation,
+				hit.grid_pos,
+				hit.normal,
+			]
+		)
+	)
 
 	# Show contextual warnings before placement attempt
 	if not _has_entrance and current_definition.id != "entrance":
@@ -1529,7 +1700,12 @@ func _try_place_block() -> void:
 
 	var result := place_block(current_definition, place_origin, current_rotation)
 	if result == null:
-		_log("Place REJECTED: %s at %s rot=%d" % [current_definition.id, place_origin, current_rotation])
+		_log(
+			(
+				"Place REJECTED: %s at %s rot=%d"
+				% [current_definition.id, place_origin, current_rotation]
+			)
+		)
 
 
 func _try_remove_block() -> void:
@@ -1547,7 +1723,12 @@ func _try_remove_block() -> void:
 			return
 		var top_y := _find_top_ground_y(hit.grid_pos.x, hit.grid_pos.z)
 		if top_y < -(_config.ground_depth):
-			_log("Remove REJECTED: no ground left at column (%d, %d)" % [hit.grid_pos.x, hit.grid_pos.z])
+			_log(
+				(
+					"Remove REJECTED: no ground left at column (%d, %d)"
+					% [hit.grid_pos.x, hit.grid_pos.z]
+				)
+			)
 			return
 		var cell := Vector3i(hit.grid_pos.x, top_y, hit.grid_pos.z)
 		if top_y == -_config.ground_depth:
@@ -1585,6 +1766,7 @@ func _try_remove_block() -> void:
 
 
 # --- Debug Panel / Time of Day ---
+
 
 func _update_sun_for_time(hour: float) -> void:
 	# Sun elevation: sine curve — noon (12) is highest, dawn (6) and dusk (18) at horizon.

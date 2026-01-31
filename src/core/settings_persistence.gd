@@ -70,10 +70,9 @@ func _ready() -> void:
 func get_setting(key: String, default_value: Variant = null) -> Variant:
 	if key in _settings:
 		return _settings[key]
-	elif key in DEFAULT_SETTINGS:
+	if key in DEFAULT_SETTINGS:
 		return DEFAULT_SETTINGS[key]
-	else:
-		return default_value
+	return default_value
 
 
 ## Set a setting value by key
@@ -142,7 +141,9 @@ func load_settings() -> bool:
 
 	var file := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
 	if file == null:
-		push_warning("SettingsPersistence: Failed to open settings file: %s" % FileAccess.get_open_error())
+		push_warning(
+			"SettingsPersistence: Failed to open settings file: %s" % FileAccess.get_open_error()
+		)
 		_settings = DEFAULT_SETTINGS.duplicate(true)
 		settings_loaded.emit()
 		return false
@@ -153,7 +154,12 @@ func load_settings() -> bool:
 	var json := JSON.new()
 	var error := json.parse(json_string)
 	if error != OK:
-		push_warning("SettingsPersistence: Failed to parse settings JSON: %s at line %d" % [json.get_error_message(), json.get_error_line()])
+		push_warning(
+			(
+				"SettingsPersistence: Failed to parse settings JSON: %s at line %d"
+				% [json.get_error_message(), json.get_error_line()]
+			)
+		)
 		_settings = DEFAULT_SETTINGS.duplicate(true)
 		settings_loaded.emit()
 		return false
@@ -181,7 +187,9 @@ func load_settings() -> bool:
 func save_settings() -> bool:
 	var file := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
 	if file == null:
-		push_warning("SettingsPersistence: Failed to create settings file: %s" % FileAccess.get_open_error())
+		push_warning(
+			"SettingsPersistence: Failed to create settings file: %s" % FileAccess.get_open_error()
+		)
 		return false
 
 	var json_string := JSON.stringify(_settings, "\t")

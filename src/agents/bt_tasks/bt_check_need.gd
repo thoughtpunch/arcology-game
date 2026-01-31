@@ -17,8 +17,7 @@ extends BTCondition
 func _generate_name() -> String:
 	if check_above:
 		return "CheckNeed: %s > %.0f" % [need_name, threshold]
-	else:
-		return "CheckNeed: %s < %.0f" % [need_name, threshold]
+	return "CheckNeed: %s < %.0f" % [need_name, threshold]
 
 
 func _tick(_delta: float) -> Status:
@@ -32,10 +31,9 @@ func _tick(_delta: float) -> Status:
 		if need_value > threshold:
 			return SUCCESS
 		return FAILURE
-	else:
-		if need_value < threshold:
-			return SUCCESS
-		return FAILURE
+	if need_value < threshold:
+		return SUCCESS
+	return FAILURE
 
 
 func _get_resident() -> Resident:
