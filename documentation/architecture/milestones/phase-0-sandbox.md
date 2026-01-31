@@ -70,6 +70,7 @@ A fully functional 3D block-placing sandbox. The foundation for all future gamep
 - Face label (top-left: face direction + rotation + block name)
 - Controls hint (bottom-left)
 - Compass markers (N/S/E/W Label3D at build zone edges)
+- **Building stats HUD** (top-right): Blocks, Height, Volume, Footprint — visible when blocks are placed
 - Warning labels (center-top, fade animation) with contextual messages:
   - "Place an entrance first!"
   - "Entrances must be placed at ground level"

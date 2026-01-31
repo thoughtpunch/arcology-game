@@ -67,6 +67,7 @@ var _stats_footprint_label: Label
 var _building_height: int = 0
 var _building_volume: int = 0
 var _building_footprint: int = 0
+var _building_stats_hud: Label
 var _entrance_block_ids: Dictionary = {}  # block_id -> true
 var _has_entrance: bool = false
 var _prompt_label: Label
@@ -644,6 +645,18 @@ func _setup_ui() -> void:
 	)
 	canvas.add_child(_controls_label)
 
+	# Building stats HUD (top-right, always visible when blocks exist)
+	_building_stats_hud = Label.new()
+	_building_stats_hud.name = "BuildingStatsHUD"
+	_building_stats_hud.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_building_stats_hud.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_building_stats_hud.offset_right = -20
+	_building_stats_hud.offset_top = 20
+	_building_stats_hud.add_theme_font_size_override("font_size", 15)
+	_building_stats_hud.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9, 0.85))
+	_building_stats_hud.visible = false
+	canvas.add_child(_building_stats_hud)
+
 	# Entrance prompt label
 	_prompt_label = Label.new()
 	_prompt_label.name = "EntrancePrompt"
@@ -786,6 +799,7 @@ func _recompute_building_stats() -> void:
 		_building_height = 0
 		_building_volume = 0
 		_building_footprint = 0
+		_update_building_stats_hud()
 		return
 
 	var max_y: int = 0
@@ -804,9 +818,24 @@ func _recompute_building_stats() -> void:
 	_building_height = max_y
 	_building_volume = total_cells
 	_building_footprint = columns.size()
+	_update_building_stats_hud()
 	_log("Building stats: height=%d volume=%d footprint=%d" % [
 		_building_height, _building_volume, _building_footprint,
 	])
+
+
+func _update_building_stats_hud() -> void:
+	if not _building_stats_hud:
+		return
+	if placed_blocks.is_empty():
+		_building_stats_hud.visible = false
+		return
+	_building_stats_hud.text = (
+		"Blocks: %d  |  Height: %d  |  Volume: %d  |  Footprint: %d" % [
+			placed_blocks.size(), _building_height, _building_volume, _building_footprint,
+		]
+	)
+	_building_stats_hud.visible = not _ui_hidden
 
 
 # --- Input ---
@@ -906,6 +935,8 @@ func _toggle_ui() -> void:
 	_controls_label.visible = not _ui_hidden
 	if _prompt_label:
 		_prompt_label.visible = not _ui_hidden and not _has_entrance
+	if _building_stats_hud:
+		_building_stats_hud.visible = not _ui_hidden and not placed_blocks.is_empty()
 	_log("UI hidden: %s" % _ui_hidden)
 
 
