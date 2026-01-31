@@ -1,12 +1,17 @@
 extends RefCounted
 class_name PlacementValidator
 
-## Validates block placement according to structural and gameplay rules
+## Validates block placement according to structural and gameplay rules.
+##
+## Structural model: Every cell must be within max_cantilever horizontal
+## (Manhattan) distance of a vertically-supported column — an unbroken path
+## of blocks down to ground (Z <= 0). max_cantilever = floor(BASE_CANTILEVER / gravity).
+## At zero-g (gravity=0), no cantilever limit but blocks must connect to an anchor.
 ##
 ## Validation checks:
 ## 1. Space empty - can't place where a block exists
-## 2. Structural support - blocks need support from below or adjacent cantilevers
-## 3. Cantilever limit - max 2 cubes horizontal without vertical support
+## 2. Structural support - gravity-aware cantilever BFS
+## 3. Cantilever limit - max_cantilever cells from a supported column
 ## 4. Prerequisites - some blocks require adjacent infrastructure
 ## 5. Warnings - non-blocking issues (light blocking, dead ends, etc.)
 
@@ -52,6 +57,17 @@ class ValidationResult:
 		if has_warnings():
 			return "Valid with warnings: %s" % ", ".join(warnings)
 		return "Valid"
+
+
+# Shared horizontal offsets for BFS
+const _HORIZONTAL_OFFSETS: Array[Vector3i] = [
+	Vector3i(1, 0, 0),
+	Vector3i(-1, 0, 0),
+	Vector3i(0, 1, 0),
+	Vector3i(0, -1, 0)
+]
+
+const BASE_CANTILEVER: int = 2
 
 
 func _init(p_grid: Node = null, p_registry = null, p_scenario_config: Resource = null) -> void:
@@ -118,9 +134,12 @@ func _check_space_empty(pos: Vector3i) -> ValidationResult:
 
 
 func _check_structural_support(pos: Vector3i, block_type: String) -> ValidationResult:
-	## Check that the block has structural support
-	## Ground level (z=0) is always supported
-	## Above ground needs block below or adjacent cantilever support (within limit)
+	## Check that the block has structural support using gravity-aware cantilever BFS.
+	##
+	## Every cell must be within max_cantilever horizontal (Manhattan) distance of a
+	## vertically-supported column (unbroken path down to ground).
+	## max_cantilever = floor(BASE_CANTILEVER / gravity).
+	## At zero-g, unlimited cantilever but must connect to an anchor (any existing block).
 	## If structural_integrity is disabled (via ScenarioConfig), always passes.
 
 	if grid == null:
@@ -135,50 +154,27 @@ func _check_structural_support(pos: Vector3i, block_type: String) -> ValidationR
 	if pos.z <= 0:
 		return ValidationResult.success()
 
-	# Check for block directly below (fully supported)
-	var below_pos := pos + Vector3i(0, 0, -1)
-	if grid.has_block(below_pos):
-		return ValidationResult.success()
+	var max_cant: int = _get_max_cantilever()
 
-	# Get cantilever limit from scenario config or use default
-	var max_cant: int = 2
-	if scenario_config and "max_cantilever" in scenario_config:
-		max_cant = scenario_config.max_cantilever
 	# -1 means unlimited cantilever (zero-g)
 	if max_cant < 0:
-		# Unlimited cantilever - just need any adjacent block
-		var horizontal_neighbors: Array[Vector3i] = [
-			pos + Vector3i(1, 0, 0),
-			pos + Vector3i(-1, 0, 0),
-			pos + Vector3i(0, 1, 0),
-			pos + Vector3i(0, -1, 0)
-		]
-		for i in range(horizontal_neighbors.size()):
-			var neighbor_pos: Vector3i = horizontal_neighbors[i]
+		# Zero-g: just need any adjacent block (connectivity to anchor)
+		for i in range(_HORIZONTAL_OFFSETS.size()):
+			var neighbor_pos: Vector3i = pos + _HORIZONTAL_OFFSETS[i]
 			if grid.has_block(neighbor_pos):
 				return ValidationResult.success()
+		# Also check above and below for zero-g connectivity
+		if grid.has_block(pos + Vector3i(0, 0, 1)) or grid.has_block(pos + Vector3i(0, 0, -1)):
+			return ValidationResult.success()
 		return ValidationResult.invalid("No adjacent block (zero-g requires connectivity)")
 
-	# Check for cantilever support from adjacent blocks
-	# Adjacent blocks can provide support if they have vertical support
-	# and we're within cantilever limit
-	var horizontal_neighbors: Array[Vector3i] = [
-		pos + Vector3i(1, 0, 0),
-		pos + Vector3i(-1, 0, 0),
-		pos + Vector3i(0, 1, 0),
-		pos + Vector3i(0, -1, 0)
-	]
+	# Calculate the cantilever depth this position would have
+	# (treating pos as if a block were already there for the purpose of checking)
+	var depth: int = _calculate_cantilever_depth(pos)
+	if depth <= max_cant:
+		return ValidationResult.success()
 
-	for i in range(horizontal_neighbors.size()):
-		var neighbor_pos: Vector3i = horizontal_neighbors[i]
-		if grid.has_block(neighbor_pos):
-			# Check cantilever depth from this neighbor
-			var neighbor_depth := _calculate_cantilever_depth_from(neighbor_pos)
-			# If neighbor is within cantilever limit, we can extend from it
-			if neighbor_depth < max_cant:
-				return ValidationResult.success()
-
-	return ValidationResult.invalid("No structural support")
+	return ValidationResult.invalid("Exceeds cantilever limit (%d > %d)" % [depth, max_cant])
 
 
 func _check_cantilever_limit(_pos: Vector3i, _block_type: String) -> ValidationResult:
@@ -291,100 +287,131 @@ func _collect_warnings(pos: Vector3i, block_type: String) -> Array[String]:
 # --- Helper Methods ---
 
 func _has_vertical_support(pos: Vector3i) -> bool:
-	## Check if position has vertical support (block below, or is ground level)
+	## Check if position has a vertically-supported column: an unbroken chain
+	## of occupied cells from pos down to ground (Z <= 0).
+	## Ground level and below are always considered supported.
 	if pos.z <= 0:
 		return true
 
-	var below := pos + Vector3i(0, 0, -1)
-	if grid.has_block(below):
-		return true
+	# Trace downward — every cell from Z-1 down to Z=0 must be occupied
+	for check_z in range(pos.z - 1, -1, -1):
+		if not grid.has_block(Vector3i(pos.x, pos.y, check_z)):
+			return false
 
-	return false
+	return true
 
 
-func _calculate_cantilever_depth_from(pos: Vector3i) -> int:
-	## Calculate cantilever depth for an existing block
-	## Returns 0 if vertically supported, 1+ if cantilevered
-	if grid == null:
-		return 0
-
-	if _has_vertical_support(pos):
-		return 0
-
-	# Trace back to a supported block
-	var visited: Dictionary = {}
-	var queue: Array[Dictionary] = [{ "pos": pos, "depth": 0 }]
-	visited[pos] = true
-
-	var horizontal_offsets: Array[Vector3i] = [
-		Vector3i(1, 0, 0),
-		Vector3i(-1, 0, 0),
-		Vector3i(0, 1, 0),
-		Vector3i(0, -1, 0)
-	]
-
-	while not queue.is_empty():
-		var current: Dictionary = queue.pop_front()
-		var current_pos: Vector3i = current.pos
-		var current_depth: int = current.depth
-
-		if grid.has_block(current_pos) and _has_vertical_support(current_pos):
-			return current_depth
-
-		for j in range(horizontal_offsets.size()):
-			var offset: Vector3i = horizontal_offsets[j]
-			var neighbor: Vector3i = current_pos + offset
-			if not visited.has(neighbor):
-				visited[neighbor] = true
-				if grid.has_block(neighbor):
-					queue.append({ "pos": neighbor, "depth": current_depth + 1 })
-
-	return 999  # No support found
+func _get_max_cantilever() -> int:
+	## Get max cantilever distance from scenario config or compute from gravity.
+	## Returns -1 for zero-g (unlimited).
+	if scenario_config:
+		if "max_cantilever" in scenario_config:
+			return scenario_config.max_cantilever
+		if "gravity" in scenario_config:
+			var grav: float = scenario_config.gravity
+			if grav <= 0.0:
+				return -1
+			return int(floor(float(BASE_CANTILEVER) / grav))
+	return BASE_CANTILEVER  # Default: Earth gravity
 
 
 func _calculate_cantilever_depth(pos: Vector3i) -> int:
-	## Calculate how many blocks this position is cantilevered from support
-	## Uses BFS to find shortest path to a vertically-supported block
+	## Calculate the shortest horizontal (Manhattan) distance from pos to the
+	## nearest vertically-supported column at the same Z level.
+	## Uses BFS outward through occupied horizontal neighbors.
+	## Returns 0 if pos itself is vertically supported, 999 if no support found.
+	##
+	## "Vertically supported" means an unbroken column of blocks from that
+	## position down to ground (Z <= 0).
 
 	if grid == null:
 		return 0
 
-	# If this position has vertical support, no cantilever
+	# Ground level and below are always supported (no cantilever)
+	if pos.z <= 0:
+		return 0
+
+	# If this position has its own vertical support, depth is 0
 	if _has_vertical_support(pos):
 		return 0
 
-	# BFS to find nearest vertically-supported block at same Z level
+	# BFS outward through horizontal neighbors to find nearest supported column
 	var visited: Dictionary = {}
 	var queue: Array[Dictionary] = [{ "pos": pos, "depth": 0 }]
 	visited[pos] = true
-
-	var horizontal_offsets := [
-		Vector3i(1, 0, 0),
-		Vector3i(-1, 0, 0),
-		Vector3i(0, 1, 0),
-		Vector3i(0, -1, 0)
-	]
 
 	while not queue.is_empty():
 		var current: Dictionary = queue.pop_front()
 		var current_pos: Vector3i = current.pos
 		var current_depth: int = current.depth
 
-		# Check if this position has vertical support
-		if grid.has_block(current_pos) and _has_vertical_support(current_pos):
+		# If this occupied position has vertical support, return the distance
+		if current_depth > 0 and grid.has_block(current_pos) and _has_vertical_support(current_pos):
 			return current_depth
 
-		# Explore horizontal neighbors
-		for j in range(horizontal_offsets.size()):
-			var offset: Vector3i = horizontal_offsets[j]
+		# Explore horizontal neighbors (same Z level only)
+		for j in range(_HORIZONTAL_OFFSETS.size()):
+			var offset: Vector3i = _HORIZONTAL_OFFSETS[j]
 			var neighbor: Vector3i = current_pos + offset
 			if not visited.has(neighbor):
 				visited[neighbor] = true
 				if grid.has_block(neighbor):
 					queue.append({ "pos": neighbor, "depth": current_depth + 1 })
 
-	# No path to supported block found - this would be a floating block
-	return 999  # Very high number indicates no support found
+	return 999  # No support path found
+
+
+func _calculate_cantilever_depth_excluding(pos: Vector3i, excluded_pos: Vector3i) -> int:
+	## Same as _calculate_cantilever_depth but pretends excluded_pos doesn't exist.
+	## Used for checking what would happen if a block at excluded_pos were removed.
+
+	if grid == null:
+		return 0
+
+	if pos.z <= 0:
+		return 0
+
+	# Check vertical support, but skip excluded_pos in the column
+	if _has_vertical_support_excluding(pos, excluded_pos):
+		return 0
+
+	var visited: Dictionary = {}
+	var queue: Array[Dictionary] = [{ "pos": pos, "depth": 0 }]
+	visited[pos] = true
+	visited[excluded_pos] = true  # Pretend excluded doesn't exist
+
+	while not queue.is_empty():
+		var current: Dictionary = queue.pop_front()
+		var current_pos: Vector3i = current.pos
+		var current_depth: int = current.depth
+
+		if current_depth > 0 and grid.has_block(current_pos) and _has_vertical_support_excluding(current_pos, excluded_pos):
+			return current_depth
+
+		for j in range(_HORIZONTAL_OFFSETS.size()):
+			var offset: Vector3i = _HORIZONTAL_OFFSETS[j]
+			var neighbor: Vector3i = current_pos + offset
+			if not visited.has(neighbor):
+				visited[neighbor] = true
+				if grid.has_block(neighbor):
+					queue.append({ "pos": neighbor, "depth": current_depth + 1 })
+
+	return 999
+
+
+func _has_vertical_support_excluding(pos: Vector3i, excluded_pos: Vector3i) -> bool:
+	## Check vertical support but pretend excluded_pos doesn't exist.
+	if pos.z <= 0:
+		return true
+
+	for check_z in range(pos.z - 1, -1, -1):
+		var check_pos := Vector3i(pos.x, pos.y, check_z)
+		if check_pos == excluded_pos:
+			return false
+		if not grid.has_block(check_pos):
+			return false
+
+	return true
 
 
 func _has_adjacent_public_block(pos: Vector3i) -> bool:
@@ -539,3 +566,161 @@ func get_placement_state(pos: Vector3i, block_type: String) -> int:
 	if result.has_warnings():
 		return 2  # WARNING
 	return 1  # VALID
+
+
+func would_orphan_blocks(pos: Vector3i) -> bool:
+	## Check if removing the block at pos would cause any remaining block to
+	## exceed its cantilever limit. Returns true if removal should be rejected.
+	##
+	## For zero-g: checks that all remaining blocks stay connected to an anchor.
+	## For normal gravity: checks cantilever distance from supported columns.
+
+	if grid == null:
+		return false
+
+	if not grid.has_block(pos):
+		return false
+
+	# If structural integrity is disabled, removal never orphans
+	if scenario_config and scenario_config.has_method("is_within_cantilever_limit"):
+		if not scenario_config.structural_integrity:
+			return false
+
+	var max_cant: int = _get_max_cantilever()
+
+	# Zero-g: check connectivity (all blocks must remain connected to anchor)
+	if max_cant < 0:
+		return _would_disconnect_from_anchor(pos)
+
+	# Normal gravity: check that no remaining block exceeds cantilever limit
+	# Only need to check blocks on the same Z level and blocks directly above
+	# that might have relied on pos for their column support.
+	var affected_positions: Array[Vector3i] = _get_structurally_dependent_positions(pos)
+
+	for i in range(affected_positions.size()):
+		var check_pos: Vector3i = affected_positions[i]
+		if check_pos == pos:
+			continue
+		var new_depth: int = _calculate_cantilever_depth_excluding(check_pos, pos)
+		if new_depth > max_cant:
+			return true
+
+	return false
+
+
+func validate_removal(pos: Vector3i) -> ValidationResult:
+	## Validate whether removing the block at pos is safe.
+	## Returns invalid if removal would orphan other blocks.
+
+	if grid == null:
+		return ValidationResult.success()
+
+	if not grid.has_block(pos):
+		return ValidationResult.invalid("No block to remove")
+
+	if would_orphan_blocks(pos):
+		return ValidationResult.invalid("Removal would leave blocks without structural support")
+
+	return ValidationResult.success()
+
+
+func _would_disconnect_from_anchor(removal_pos: Vector3i) -> bool:
+	## Zero-g check: would removing removal_pos disconnect any block from
+	## the anchor network? Uses BFS from all entrances, skipping removal_pos.
+	## Returns true if any block would be disconnected.
+
+	if grid == null:
+		return false
+
+	var all_positions: Array = grid.get_all_positions()
+	if all_positions.size() <= 1:
+		return false  # Removing the last block is always OK
+
+	# Get entrance/anchor positions
+	var entrances: Array[Vector3i] = grid.get_entrance_positions()
+	if entrances.is_empty():
+		return false  # No anchors — can't check connectivity
+
+	# BFS from all entrances, excluding removal_pos
+	var visited: Dictionary = {}
+	var queue: Array[Vector3i] = []
+
+	for entrance_pos in entrances:
+		if entrance_pos != removal_pos and grid.has_block(entrance_pos):
+			queue.append(entrance_pos)
+			visited[entrance_pos] = true
+
+	var all_offsets: Array[Vector3i] = [
+		Vector3i(1, 0, 0), Vector3i(-1, 0, 0),
+		Vector3i(0, 1, 0), Vector3i(0, -1, 0),
+		Vector3i(0, 0, 1), Vector3i(0, 0, -1)
+	]
+
+	while not queue.is_empty():
+		var current: Vector3i = queue.pop_front()
+		for j in range(all_offsets.size()):
+			var neighbor: Vector3i = current + all_offsets[j]
+			if not visited.has(neighbor) and neighbor != removal_pos and grid.has_block(neighbor):
+				visited[neighbor] = true
+				queue.append(neighbor)
+
+	# Check if all blocks (except the one being removed) are reachable
+	for i in range(all_positions.size()):
+		var block_pos: Vector3i = all_positions[i]
+		if block_pos != removal_pos and not visited.has(block_pos):
+			return true  # Found a block that would be disconnected
+
+	return false
+
+
+func _get_structurally_dependent_positions(removal_pos: Vector3i) -> Array[Vector3i]:
+	## Get all positions that might be structurally affected by removing
+	## the block at removal_pos. Includes:
+	## - Horizontal neighbors on the same floor (cantilever chain)
+	## - All blocks above this column (vertical support chain)
+	## - Horizontal neighbors of blocks above (their cantilever chains)
+
+	var affected: Array[Vector3i] = []
+	var checked: Dictionary = {}
+
+	# 1. Horizontal neighbors on same floor
+	for j in range(_HORIZONTAL_OFFSETS.size()):
+		var neighbor: Vector3i = removal_pos + _HORIZONTAL_OFFSETS[j]
+		if grid.has_block(neighbor) and not checked.has(neighbor):
+			affected.append(neighbor)
+			checked[neighbor] = true
+
+	# 2. All blocks directly above in the column, and their horizontal neighbors
+	var z: int = removal_pos.z + 1
+	var max_z: int = removal_pos.z + 100  # Safety limit
+	while z <= max_z:
+		var above_pos := Vector3i(removal_pos.x, removal_pos.y, z)
+		if not grid.has_block(above_pos):
+			break  # Column ends here
+		if not checked.has(above_pos):
+			affected.append(above_pos)
+			checked[above_pos] = true
+		# Horizontal neighbors of each block above
+		for j in range(_HORIZONTAL_OFFSETS.size()):
+			var h_neighbor: Vector3i = above_pos + _HORIZONTAL_OFFSETS[j]
+			if grid.has_block(h_neighbor) and not checked.has(h_neighbor):
+				affected.append(h_neighbor)
+				checked[h_neighbor] = true
+		z += 1
+
+	# 3. BFS outward from already-affected positions to find cantilever chains
+	# that might depend on the removed block's column
+	var bfs_queue: Array[Vector3i] = affected.duplicate()
+	while not bfs_queue.is_empty():
+		var current: Vector3i = bfs_queue.pop_front()
+		for j in range(_HORIZONTAL_OFFSETS.size()):
+			var neighbor: Vector3i = current + _HORIZONTAL_OFFSETS[j]
+			if not checked.has(neighbor) and grid.has_block(neighbor):
+				# Only expand into positions that don't have their own vertical support
+				# (excluding the removal position)
+				if not _has_vertical_support_excluding(neighbor, removal_pos):
+					affected.append(neighbor)
+					checked[neighbor] = true
+					bfs_queue.append(neighbor)
+
+	return affected

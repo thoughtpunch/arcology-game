@@ -142,7 +142,7 @@ func _test_structural_support_no_support() -> void:
 	# Try to place at Z=1 with nothing below
 	var result = validator.validate_placement(Vector3i(0, 0, 1), "corridor")
 	_assert(not result.valid, "Floating block should be invalid")
-	_assert(result.reason == "No structural support", "Should report no support: got '%s'" % result.reason)
+	_assert("cantilever" in result.reason.to_lower() or "support" in result.reason.to_lower(), "Should report cantilever/support issue: got '%s'" % result.reason)
 
 
 func _test_structural_support_cantilever() -> void:
@@ -197,9 +197,8 @@ func _test_cantilever_limit_exceeded() -> void:
 	# Third cantilever at (3,0,1) should exceed limit
 	var result = validator.validate_placement(Vector3i(3, 0, 1), "corridor")
 	_assert(not result.valid, "Third cantilever block should exceed limit")
-	# Note: Cantilever limit is now detected as "No structural support" since the
-	# logic was consolidated into structural support checking
-	_assert("support" in result.reason.to_lower(), "Should report no support: got '%s'" % result.reason)
+	# Cantilever limit produces a descriptive error message
+	_assert("cantilever" in result.reason.to_lower() or "support" in result.reason.to_lower(), "Should report cantilever/support issue: got '%s'" % result.reason)
 
 
 # --- Floor Constraint Tests ---
