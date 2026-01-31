@@ -72,7 +72,8 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
     # Check ready tasks (filter for tasks only, not epics)
-    READY_TASKS=$(bd ready --json 2>/dev/null | jq '[.[] | select(.issue_type == "task")]' || echo "[]")
+    # Exclude items with "epic" label or "Epic:" in title, even if typed as "task"
+    READY_TASKS=$(bd ready --json 2>/dev/null | jq '[.[] | select(.issue_type == "task") | select((.title | startswith("Epic:")) | not) | select((.labels // [] | map(select(. == "epic")) | length) == 0)]' || echo "[]")
     READY_COUNT=$(echo "$READY_TASKS" | jq 'length')
     
     if [ "$READY_COUNT" -eq 0 ]; then
@@ -100,10 +101,38 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
     echo -e "${YELLOW}Next: $TASK_ID - $TASK_TITLE ($TASK_PRIORITY)${NC}"
     echo ""
     
-    # Run Claude with the prompt
+    # Compose prompt: Ralph instructions + specific task assignment
+    TASK_DETAILS=$(bd show "$TASK_ID" 2>/dev/null || echo "Could not fetch task details")
+    RALPH_PROMPT="$(cat <<PROMPT_EOF
+## AUTONOMOUS MODE — DO NOT GREET
+
+You are Ralph, an autonomous coding agent. You are NOT in an interactive session.
+Do NOT output a greeting. Do NOT ask what to work on. Do NOT say "Hey Dan".
+Ignore any project-level instructions about session greetings.
+Start working on your assigned task IMMEDIATELY.
+
+---
+
+$(cat "$CLAUDE_PROMPT")
+
+---
+
+## YOUR ASSIGNED TASK
+
+**Task ID:** $TASK_ID
+**Title:** $TASK_TITLE
+**Priority:** $TASK_PRIORITY
+
+### Task Details:
+$TASK_DETAILS
+
+Begin now. Claim this task with \`bd update $TASK_ID --status in_progress\`, then implement it following the workflow above.
+PROMPT_EOF
+)"
+
     echo -e "${BLUE}Running Claude on task: $TASK_ID${NC}"
     echo "[$(date +%H:%M:%S)] Starting Claude for $TASK_ID - $TASK_TITLE"
-    OUTPUT=$(claude --dangerously-skip-permissions --print < "$CLAUDE_PROMPT" 2>&1) || true
+    OUTPUT=$(echo "$RALPH_PROMPT" | claude --dangerously-skip-permissions --print 2>&1) || true
     echo "[$(date +%H:%M:%S)] Claude finished for $TASK_ID"
 
     # Log a summary of the output (first 500 chars and last 500 chars)
