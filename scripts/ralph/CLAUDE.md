@@ -14,6 +14,11 @@ Use `bd` (Beads) for task tracking instead of prd.json.
 
 ## Your Task (One Iteration)
 
+0. **SCAN for related tickets** before choosing work:
+   ```bash
+   ./scripts/hooks/scan-tickets.sh "<keywords from ready tasks>"
+   bd list --status in_progress  # Check what's already claimed
+   ```
 1. Run `bd ready --json` to get unblocked tasks
 2. Read `scripts/ralph/progress.txt` for codebase patterns (check **Codebase Patterns** section first)
 3. **Consult `documentation/` for implementation details**
@@ -24,12 +29,17 @@ Use `bd` (Beads) for task tracking instead of prd.json.
 8. **Write tests** (positive AND negative assertions)
 9. Run quality checks (see below)
 10. **⚠️ MANDATORY: Commit with ticket ID:** `git commit -m "feat: arcology-x0d.1 - Title"`
-11. Run post-task hook: `./scripts/hooks/post-task.sh <id>` (blocks if no commit!)
-12. **⚠️ MANDATORY: Add completion comment** (see Completion Comment Format below)
-13. Close task: `bd close <id> --reason "Implemented"`
-14. Sync: `bd sync`
-15. Append learnings to `scripts/ralph/progress.txt`
-16. Check for more work: `bd ready --json`
+11. **⚠️ MANDATORY: Back-link commit SHA to ticket:**
+    ```bash
+    SHA=$(git rev-parse HEAD)
+    bd comments add <id> "Commit: $SHA"
+    ```
+12. Run post-task hook: `./scripts/hooks/post-task.sh <id>` (blocks if no commit or no comment!)
+13. **⚠️ MANDATORY: Add completion comment** (see Completion Comment Format below)
+14. Close task: `bd close <id> --reason "Implemented"`
+15. Sync: `./scripts/hooks/bd-sync-rich.sh`
+16. Append learnings to `scripts/ralph/progress.txt`
+17. Check for more work: `bd ready --json`
 
 ## Completion Comment Format
 
@@ -81,8 +91,8 @@ bd create "Fix bug found during implementation" --priority 1 --discovered-from b
 # Add dependency (A blocked by B)
 bd dep add bd-A bd-B
 
-# Sync to git (export JSONL)
-bd sync
+# Sync to git (rich commit messages)
+./scripts/hooks/bd-sync-rich.sh
 ```
 
 ## Stop Conditions
@@ -308,7 +318,7 @@ If you discover a reusable pattern, add it to **## Codebase Patterns** at TOP of
 - **Use bd commands** - Not manual JSON editing
 - **Data-driven** - Put numbers in JSON, not code
 - **Signals > polling** - Use Godot signals for updates
-- **Sync before done** - Always `bd sync` after closing tasks
+- **Sync before done** - Always `./scripts/hooks/bd-sync-rich.sh` after closing tasks
 
 ## If Stuck
 

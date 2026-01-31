@@ -51,9 +51,11 @@ Before committing:
 
 ---
 
-## Beads Workflow Integration
+## MANDATORY: Beads Ticket Workflow
 
 This project uses [beads_viewer](https://github.com/Dicklesworthstone/beads_viewer) for issue tracking. Issues are stored in `.beads/` and tracked in git.
+
+**Every piece of work MUST follow the 6-step workflow. No exceptions.**
 
 ### Essential Commands
 
@@ -65,20 +67,48 @@ bv
 bd ready              # Show issues ready to work (no blockers)
 bd list --status=open # All open issues
 bd show <id>          # Full issue details with dependencies
-bd create --title="..." --type=task --priority=2
-bd update <id> --status=in_progress
+bd search "keyword"   # Search for related tickets
+bd create "Title" -t task -p 2
+bd update <id> --status in_progress
+bd comments add <id> "text"
 bd close <id> --reason="Completed"
 bd close <id1> <id2>  # Close multiple issues at once
-bd sync               # Commit and push changes
+./scripts/hooks/bd-sync-rich.sh  # Sync with rich commit messages
 ```
 
-### Workflow Pattern
+### The 6-Step Workflow (MANDATORY)
 
-1. **Start**: Run `bd ready` to find actionable work
-2. **Claim**: Use `bd update <id> --status=in_progress`
-3. **Work**: Implement the task
-4. **Complete**: Use `bd close <id>`
-5. **Sync**: Always run `bd sync` at session end
+```
+SCAN -> CLAIM/CREATE -> DO -> UPDATE -> CLOSE -> COMMIT
+```
+
+1. **SCAN**: Search for related tickets before starting work
+   ```bash
+   ./scripts/hooks/scan-tickets.sh "keyword1" "keyword2"
+   bd search "relevant term"
+   ```
+2. **CLAIM/CREATE**: Every piece of work MUST have a ticket
+   ```bash
+   bd update <id> --status in_progress          # Claim existing
+   bd create "Description" -t task -p 2          # Or create new
+   # If related to closed ticket, link it:
+   bd create "Follow-up to arcology-xyz - Desc" -t task -p 2 --deps "discovered-from:arcology-xyz"
+   ```
+3. **DO**: Implement the work
+4. **UPDATE**: MUST add a chain-of-thought comment before closing
+   ```bash
+   bd comments add <id> "What was done: ... | Left undone: ... | Gotchas: ..."
+   ```
+5. **CLOSE**: Close the ticket
+   ```bash
+   bd close <id> --reason "Completed"
+   ```
+6. **COMMIT**: Commit with ticket ID, then back-link
+   ```bash
+   git commit -m "feat: arcology-xyz - Short description"
+   SHA=$(git rev-parse HEAD)
+   bd comments add <id> "Commit: $SHA"
+   ```
 
 ### Key Concepts
 
@@ -86,26 +116,38 @@ bd sync               # Commit and push changes
 - **Priority**: P0=critical, P1=high, P2=medium, P3=low, P4=backlog (use numbers, not words)
 - **Types**: task, bug, feature, epic, question, docs
 - **Blocking**: `bd dep add <issue> <depends-on>` to add dependencies
+- **Worklog Chain**: If work relates to a closed ticket, create a NEW ticket linked via `--deps "discovered-from:<id>"`. Never orphan work.
 
 ### Session Protocol
 
-**Before ending any session, run this checklist:**
-
+**At session start:**
 ```bash
-git status              # Check what changed
-git add <files>         # Stage code changes
-bd sync                 # Commit beads changes
-git commit -m "..."     # Commit code
-bd sync                 # Commit any new beads changes
-git push                # Push to remote
+bd list --status in_progress  # See active work
+bd ready                      # See available work
+./scripts/hooks/scan-tickets.sh "keyword"  # Scan for related tickets
 ```
 
-### Best Practices
+**Before ending any session:**
+```bash
+git status                        # Check what changed
+git add <files>                   # Stage code changes
+./scripts/hooks/bd-sync-rich.sh   # Sync beads changes (rich commit msg)
+git commit -m "feat: <id> - ..."  # Commit code (ticket ID required!)
+SHA=$(git rev-parse HEAD)
+bd comments add <id> "Commit: $SHA"  # Back-link commit to ticket
+./scripts/hooks/bd-sync-rich.sh   # Sync any new beads changes
+git push                          # Push to remote
+```
 
-- Check `bd ready` at session start to find available work
-- Update status as you work (in_progress → closed)
-- Create new issues with `bd create` when you discover tasks
-- Use descriptive titles and set appropriate priority/type
-- Always `bd sync` before ending session
+### Rules
+
+- You MUST check `bd ready` or `bd search` at session start
+- You MUST update ticket status as you work (in_progress -> closed)
+- You MUST add a completion comment before closing any ticket
+- You MUST include the ticket ID in every commit message
+- You MUST back-link the commit SHA to the ticket after committing
+- You MUST create new issues with `bd create` when you discover tasks
+- You MUST use `./scripts/hooks/bd-sync-rich.sh` instead of bare `bd sync`
+- You MUST never orphan work — every change traces to a ticket
 
 <!-- end-bv-agent-instructions -->

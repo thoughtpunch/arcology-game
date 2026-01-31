@@ -2,6 +2,89 @@
 
 > **For AI assistants (Claude Code, etc.) working on this project**
 
+## MANDATORY: Beads Ticket Workflow
+
+**Every piece of work MUST follow this workflow. No exceptions.**
+
+Every change is traceable. Every commit links to a ticket. Every ticket links to its predecessors.
+This creates an audit trail so any future agent or human can trace from a commit back to the original design decision (RCA-able).
+
+### The 6-Step Workflow
+
+```
+SCAN -> CLAIM/CREATE -> DO -> UPDATE -> CLOSE -> COMMIT
+```
+
+**1. SCAN** — Find related tickets before starting anything:
+```bash
+./scripts/hooks/scan-tickets.sh "keyword1" "keyword2"
+bd search "relevant term"
+bd list --status in_progress   # Check what's already claimed
+```
+
+**2. CLAIM or CREATE** — Every piece of work needs a ticket:
+```bash
+# Claim an existing ticket:
+bd update <id> --status in_progress
+
+# Or create a new one:
+bd create "Description of work" -t task -p 2
+
+# If related to a closed ticket, create a linked follow-up:
+bd create "Follow-up to arcology-xyz - Description" -t task -p 2 --deps "discovered-from:arcology-xyz"
+bd comments add arcology-xyz "Superseded by arcology-abc - <reason>"
+```
+
+**3. DO** — Implement the work.
+
+**4. UPDATE** — Add a chain-of-thought comment before closing:
+```bash
+bd comments add <id> "## What was done
+- <change 1>
+- <change 2>
+- Files: <list>
+
+## Left undone / deferred
+- <or 'None'>
+
+## Gotchas
+- <anything surprising>"
+```
+
+**5. CLOSE** — Close the ticket:
+```bash
+bd close <id> --reason "Completed"
+```
+
+**6. COMMIT** — Commit with ticket ID in the message, then back-link:
+```bash
+git commit -m "feat: arcology-xyz - Short description"
+SHA=$(git rev-parse HEAD)
+bd comments add <id> "Commit: $SHA"
+```
+
+### Worklog Chain Rules
+
+- **Related to existing ticket (even closed)?** Create a NEW ticket linked via `--deps "discovered-from:<id>"`. This preserves the chain: original decision -> implementation -> follow-up.
+- **Brand new work?** Create a fresh ticket. It starts a new chain.
+- **Never orphan work.** Every commit traces to a ticket.
+
+### Quick Reference: bd Commands
+
+| Action | Command |
+|--------|---------|
+| Search | `bd search "keyword"` |
+| Ready work | `bd ready` |
+| Claim | `bd update <id> --status in_progress` |
+| Create | `bd create "Title" -t task -p 2` |
+| Comment | `bd comments add <id> "text"` |
+| Close | `bd close <id> --reason "Done"` |
+| Sync | `./scripts/hooks/bd-sync-rich.sh` |
+| Show | `bd show <id>` |
+| List in-progress | `bd list --status in_progress` |
+
+---
+
 ## Quick Start
 
 **Read these in order:**
@@ -165,6 +248,9 @@ AEI = individual(40%) + community(25%) + sustainability(20%) + resilience(15%)
 
 ## Don't Forget
 
+- [ ] **Every commit MUST reference a ticket ID** (e.g., `arcology-xyz`)
+- [ ] **Every ticket MUST have a completion comment** before closing
+- [ ] **Use `./scripts/hooks/bd-sync-rich.sh`** instead of bare `bd sync`
 - [ ] Blocks are load-bearing (CNC-U material, no structural engineering needed)
 - [ ] Cantilevers max 1-2 units in gravity scenarios
 - [ ] All environment values propagate (not magic radius)
