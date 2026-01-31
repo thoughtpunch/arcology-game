@@ -6,6 +6,7 @@ extends Node3D
 ##   Right-click + drag: Orbit (rotate + tilt)
 ##   Middle-click + drag: Pan (truck in camera plane)
 ##   Scroll wheel: Zoom in/out (proportional to distance)
+##   Shift + left-click + drag: Zoom (vertical drag, MacBook-friendly)
 ##   Double-click: Handled by parent (focus on object)
 ##
 ## Keyboard — Movement:
@@ -53,6 +54,7 @@ const VERTICAL_SPEED: float = 50.0
 const ORBIT_SENSITIVITY: float = 0.25
 const PAN_MOUSE_SENSITIVITY: float = 0.15
 const ZOOM_SCROLL_FACTOR: float = 0.12
+const ZOOM_DRAG_SENSITIVITY: float = 0.005
 const FOV_STEP: float = 5.0
 const FOV_FINE_STEP: float = 1.0
 const LERP_FACTOR: float = 14.0
@@ -90,6 +92,9 @@ var _right_pressed: bool = false
 var _right_drag_active: bool = false
 var _right_press_pos: Vector2 = Vector2.ZERO
 var _middle_pressed: bool = false
+var _zoom_drag_pressed: bool = false
+var _zoom_drag_active: bool = false
+var _zoom_drag_press_pos: Vector2 = Vector2.ZERO
 var _last_mouse_pos: Vector2 = Vector2.ZERO
 
 # Speed modulation (recomputed each frame)
@@ -222,6 +227,21 @@ func _handle_keyboard(delta: float) -> void:
 
 func _handle_mouse_button(event: InputEventMouseButton) -> void:
 	match event.button_index:
+		MOUSE_BUTTON_LEFT:
+			if event.pressed and event.shift_pressed:
+				_zoom_drag_pressed = true
+				_zoom_drag_active = false
+				_zoom_drag_press_pos = event.position
+				_last_mouse_pos = event.position
+				get_viewport().set_input_as_handled()
+			elif not event.pressed and _zoom_drag_pressed:
+				if _zoom_drag_active:
+					_push_history()
+					_log("Zoom drag ended")
+				_zoom_drag_pressed = false
+				_zoom_drag_active = false
+				get_viewport().set_input_as_handled()
+
 		MOUSE_BUTTON_RIGHT:
 			if event.pressed:
 				_right_pressed = true
@@ -277,6 +297,24 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 	var delta := event.position - _last_mouse_pos
 	_last_mouse_pos = event.position
+
+	# Shift + left-click drag → zoom
+	if _zoom_drag_pressed:
+		if not _zoom_drag_active:
+			if event.position.distance_to(_zoom_drag_press_pos) > DRAG_THRESHOLD:
+				_zoom_drag_active = true
+				_log("Zoom drag started")
+		if _zoom_drag_active:
+			var zoom_delta := delta.y * ZOOM_DRAG_SENSITIVITY * _movement_speed
+			if is_orthographic:
+				camera.size = clampf(camera.size * (1.0 + zoom_delta), 5.0, 500.0)
+			else:
+				_target_distance = clampf(
+					_target_distance * (1.0 + zoom_delta),
+					MIN_DISTANCE, MAX_DISTANCE,
+				)
+		get_viewport().set_input_as_handled()
+		return
 
 	# Right-click drag → orbit
 	if _right_pressed:

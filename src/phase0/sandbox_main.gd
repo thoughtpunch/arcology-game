@@ -13,22 +13,16 @@ const PauseMenuScript = preload("res://src/phase0/sandbox_pause_menu.gd")
 const DebugPanelScript = preload("res://src/phase0/sandbox_debug_panel.gd")
 const HelpOverlayScript = preload("res://src/phase0/sandbox_help_overlay.gd")
 const FaceScript = preload("res://src/phase0/face.gd")
+const ScenarioConfigScript = preload("res://src/phase0/scenario_config.gd")
+const ScenarioPickerScript = preload("res://src/phase0/scenario_picker.gd")
 
 const CELL_SIZE: float = 6.0
-const GROUND_SIZE: int = 100
-const GROUND_DEPTH: int = 5
 
-const STRATA_COLORS := [
-	Color(0.3, 0.55, 0.2),   # y=-1: Grass/topsoil
-	Color(0.55, 0.35, 0.2),  # y=-2: Soil
-	Color(0.4, 0.25, 0.15),  # y=-3: Clay
-	Color(0.5, 0.5, 0.5),    # y=-4: Rock
-	Color(0.3, 0.3, 0.3),    # y=-5: Bedrock (indestructible)
-]
+# --- Scenario Config ---
+var _config: RefCounted = null
 
 # --- Build Zone ---
-# Defines the buildable/diggable rectangle in XZ grid coords.
-# Can be expanded later via game state (e.g. unlock adjacent tiles).
+# Initialized from _config when scenario is selected.
 var build_zone_origin: Vector2i = Vector2i(40, 40)
 var build_zone_size: Vector2i = Vector2i(20, 20)
 
@@ -48,7 +42,7 @@ var _block_container: Node3D
 var _ghost_node: Node3D
 var _ghost_mesh: MeshInstance3D
 var _ghost_material: ShaderMaterial
-var _palette: HBoxContainer
+var _palette: Control
 var _ground_layers: Array[MultiMeshInstance3D] = []     # index 0 = y=-1, index 4 = y=-5
 var _ground_cell_indices: Array[Dictionary] = []        # per-layer Vector2i(x,z) -> int (multimesh index)
 var _grid_overlays: Dictionary = {}  # y_level (int) -> MeshInstance3D
@@ -73,6 +67,9 @@ var _stats_footprint_label: Label
 var _building_height: int = 0
 var _building_volume: int = 0
 var _building_footprint: int = 0
+var _entrance_block_ids: Dictionary = {}  # block_id -> true
+var _has_entrance: bool = false
+var _prompt_label: Label
 var _sun: DirectionalLight3D
 var _sky_material: ProceduralSkyMaterial
 var _environment: Environment
@@ -82,6 +79,7 @@ var _placing: bool = false
 var _place_cooldown: float = 0.0
 var _last_place_origin: Vector3i = Vector3i(-9999, -9999, -9999)
 const PLACE_INTERVAL: float = 0.1  # 100ms = 10 blocks/sec
+const BLOCK_INSET: float = 0.15    # Visual gap between adjacent blocks (per side)
 
 # Cached ghost state to avoid unnecessary mesh rebuilds
 var _ghost_def_id: String = ""
@@ -98,21 +96,45 @@ static func _log(msg: String) -> void:
 func _ready() -> void:
 	_log("Initializing Phase 0 sandbox")
 	registry = RegistryScript.new()
-	current_definition = registry.get_definition("cube")
+	current_definition = registry.get_definition("entrance")
+	_show_scenario_picker()
 
+
+func _show_scenario_picker() -> void:
+	var picker_canvas := CanvasLayer.new()
+	picker_canvas.name = "PickerCanvas"
+	picker_canvas.layer = 10
+	var picker: Control = ScenarioPickerScript.new()
+	picker.name = "ScenarioPicker"
+	picker.scenario_selected.connect(_on_scenario_selected.bind(picker_canvas))
+	picker_canvas.add_child(picker)
+	add_child(picker_canvas)
+
+
+func _on_scenario_selected(config: RefCounted, picker_canvas: CanvasLayer) -> void:
+	_config = config
+	build_zone_origin = _config.build_zone_origin
+	build_zone_size = _config.build_zone_size
+	picker_canvas.queue_free()
+	_build_world()
+
+
+func _build_world() -> void:
 	_setup_environment()
 	_setup_camera()
 	_setup_ground()
 	_setup_grid_overlay()
 	_setup_skyline()
+	_setup_mountains()
+	_setup_river()
 	_setup_block_container()
 	_setup_ghost()
 	_setup_face_highlight()
 	_setup_compass_markers()
 	_setup_ui()
 	_setup_audio()
-	_log("=== Sandbox ready: %d block types, build zone %s+%s ===" % [
-		registry.get_all_definitions().size(), build_zone_origin, build_zone_size,
+	_log("=== Sandbox ready: %d block types, build zone %s+%s, scenario=%s ===" % [
+		registry.get_all_definitions().size(), build_zone_origin, build_zone_size, _config.id,
 	])
 
 
@@ -123,18 +145,18 @@ func _setup_environment() -> void:
 	_environment.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	_sky_material = ProceduralSkyMaterial.new()
-	_sky_material.sky_top_color = Color(0.35, 0.55, 0.85)
-	_sky_material.sky_horizon_color = Color(0.6, 0.75, 0.9)
-	_sky_material.ground_bottom_color = Color(0.25, 0.35, 0.2)
-	_sky_material.ground_horizon_color = Color(0.55, 0.7, 0.5)
+	_sky_material.sky_top_color = _config.sky_top_color
+	_sky_material.sky_horizon_color = _config.sky_horizon_color
+	_sky_material.ground_bottom_color = _config.ground_bottom_color
+	_sky_material.ground_horizon_color = _config.ground_horizon_color
 	sky.sky_material = _sky_material
 	_environment.sky = sky
 	_environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	_environment.ambient_light_energy = 0.5
+	_environment.ambient_light_energy = _config.ambient_energy
 
 	_environment.fog_enabled = true
-	_environment.fog_light_color = Color(0.55, 0.62, 0.72)
-	_environment.fog_density = 0.001
+	_environment.fog_light_color = _config.fog_color
+	_environment.fog_density = _config.fog_density
 
 	var world_env := WorldEnvironment.new()
 	world_env.name = "WorldEnvironment"
@@ -144,7 +166,7 @@ func _setup_environment() -> void:
 	_sun = DirectionalLight3D.new()
 	_sun.name = "Sun"
 	_sun.rotation_degrees = Vector3(-45, 30, 0)
-	_sun.light_energy = 1.2
+	_sun.light_energy = _config.sun_energy
 	_sun.shadow_enabled = true
 	add_child(_sun)
 	_log("Environment ready (sky, fog, sun)")
@@ -162,20 +184,22 @@ func _setup_camera() -> void:
 
 
 func _setup_ground() -> void:
-	# Ground is 5 layers of individually-destroyable cells (y=-1 through y=-5).
+	# Ground is N layers of individually-destroyable cells (y=-1 through y=-N).
 	# Each layer is a separate MultiMeshInstance3D with its own strata color.
 	var ground_container := Node3D.new()
 	ground_container.name = "Ground"
 	add_child(ground_container)
 
-	var cell_count := GROUND_SIZE * GROUND_SIZE
+	var gs: int = _config.ground_size
+	var gd: int = _config.ground_depth
+	var cell_count := gs * gs
 	var mesh := _make_ground_cell_mesh()
 
-	for layer_idx in range(GROUND_DEPTH):
+	for layer_idx in range(gd):
 		var y_level: int = -(layer_idx + 1)
 
 		var mat := StandardMaterial3D.new()
-		mat.albedo_color = STRATA_COLORS[layer_idx]
+		mat.albedo_color = _config.strata_colors[layer_idx]
 
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -184,8 +208,8 @@ func _setup_ground() -> void:
 
 		var cell_index: Dictionary = {}
 		var idx := 0
-		for x in range(GROUND_SIZE):
-			for z in range(GROUND_SIZE):
+		for x in range(gs):
+			for z in range(gs):
 				var center := GridUtilsScript.grid_to_world_center(
 					Vector3i(x, y_level, z),
 				)
@@ -202,14 +226,14 @@ func _setup_ground() -> void:
 		_ground_layers.append(mm_instance)
 		_ground_cell_indices.append(cell_index)
 
-	# Single collision body covers the full ground slab (all 5 layers) for raycasting.
+	# Single collision body covers the full ground slab for raycasting.
 	var static_body := StaticBody3D.new()
 	static_body.collision_layer = 1
 	static_body.set_meta("is_ground", true)
 
-	var total_size := float(GROUND_SIZE) * CELL_SIZE
+	var total_size := float(gs) * CELL_SIZE
 	var half := total_size / 2.0
-	var total_depth := float(GROUND_DEPTH) * CELL_SIZE
+	var total_depth := float(gd) * CELL_SIZE
 
 	var col_shape := CollisionShape3D.new()
 	var col_box := BoxShape3D.new()
@@ -219,7 +243,7 @@ func _setup_ground() -> void:
 	static_body.add_child(col_shape)
 	ground_container.add_child(static_body)
 	_log("Ground ready: %d layers, %dx%d cells, %d total ground cells" % [
-		GROUND_DEPTH, GROUND_SIZE, GROUND_SIZE, cell_occupancy.size(),
+		gd, gs, gs, cell_occupancy.size(),
 	])
 
 
@@ -230,17 +254,18 @@ func _make_ground_cell_mesh() -> Mesh:
 
 
 func _find_top_ground_y(x: int, z: int) -> int:
-	## Scans y=-1 to y=-GROUND_DEPTH, returns topmost occupied ground cell Y.
+	## Scans y=-1 to y=-ground_depth, returns topmost occupied ground cell Y.
 	## Returns a value below all layers if no ground exists at this column.
-	for y in range(-1, -(GROUND_DEPTH + 1), -1):
+	var gd: int = _config.ground_depth
+	for y in range(-1, -(gd + 1), -1):
 		if cell_occupancy.has(Vector3i(x, y, z)) and cell_occupancy[Vector3i(x, y, z)] == -1:
 			return y
-	return -(GROUND_DEPTH + 1)
+	return -(gd + 1)
 
 
 func _remove_ground_cell(grid_pos: Vector3i) -> void:
 	var layer_idx: int = -(grid_pos.y + 1)
-	if layer_idx < 0 or layer_idx >= GROUND_DEPTH:
+	if layer_idx < 0 or layer_idx >= _config.ground_depth:
 		push_warning("[Sandbox] _remove_ground_cell: layer %d out of range for %s" % [layer_idx, grid_pos])
 		return
 
@@ -295,24 +320,33 @@ func _add_grid_at_y(y_level: int) -> void:
 
 
 func _setup_skyline() -> void:
+	if _config.skyline_type == ScenarioConfigScript.SkylineType.NONE:
+		_log("Skyline skipped (type=NONE)")
+		return
+	if _config.skyline_building_count <= 0:
+		_log("Skyline skipped (building_count=0)")
+		return
+
 	# Three rings of buildings: near (just outside build zone), mid, far.
 	# Near buildings are smaller and denser, blending into the play area.
 	# Far buildings are taller and sparser, forming a dramatic skyline.
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 42
+	rng.seed = _config.skyline_seed
 
-	var center_offset := float(GROUND_SIZE) * CELL_SIZE / 2.0
+	var center_offset := float(_config.ground_size) * CELL_SIZE / 2.0
 	var center := Vector3(center_offset, 0, center_offset)
 
-	# Build zone extends roughly 120 units from center (20 cells * 6 = 120, half = 60 from zone center)
-	# But zone center isn't world center. Zone is at grid (40,40)-(60,60), world (240,240)-(360,360).
-	# World center is at 300,300. Zone fits snugly. Build rings from edge of ground outward,
-	# but also scatter some near the build zone edge.
+	# Distribute building count across rings proportionally
+	var bc: int = _config.skyline_building_count
+	var near_count := int(bc * 0.4)
+	var mid_count := int(bc * 0.33)
+	var far_count := bc - near_count - mid_count
+
 	var rings := [
 		# [count, min_radius, max_radius, min_height, max_height, min_width, max_width]
-		[120, 80.0, 250.0, 8.0, 60.0, 6.0, 18.0],     # Near: small/medium, dense
-		[100, 200.0, 500.0, 15.0, 120.0, 8.0, 24.0],   # Mid: medium, some tall
-		[80, 400.0, 1000.0, 30.0, 250.0, 10.0, 30.0],  # Far: tall skyline
+		[near_count, 80.0, 250.0, 8.0, 60.0, 6.0, 18.0],     # Near: small/medium, dense
+		[mid_count, 200.0, 500.0, 15.0, 120.0, 8.0, 24.0],    # Mid: medium, some tall
+		[far_count, 400.0, 1000.0, 30.0, 250.0, 10.0, 30.0],  # Far: tall skyline
 	]
 
 	var total_count := 0
@@ -371,6 +405,96 @@ func _setup_skyline() -> void:
 
 	add_child(mm_instance)
 	_log("Skyline ready: %d buildings in 3 rings" % total_count)
+
+
+func _setup_mountains() -> void:
+	if not _config.mountains_enabled or _config.mountain_count <= 0:
+		_log("Mountains skipped (disabled or count=0)")
+		return
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _config.mountain_seed
+
+	var center_offset := float(_config.ground_size) * CELL_SIZE / 2.0
+	var center := Vector3(center_offset, 0, center_offset)
+
+	var count: int = _config.mountain_count
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.instance_count = count
+
+	# Hexagonal cone — CylinderMesh with top_radius=0
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.0
+	cone.bottom_radius = 1.0
+	cone.height = 1.0
+	cone.radial_segments = 6
+	cone.rings = 0
+	mm.mesh = cone
+
+	for i in range(count):
+		var angle := rng.randf() * TAU
+		var radius := rng.randf_range(500.0, 1200.0)
+		var pos := center + Vector3(cos(angle) * radius, 0, sin(angle) * radius)
+
+		var height := rng.randf_range(_config.mountain_min_height, _config.mountain_max_height)
+		var base_radius := rng.randf_range(_config.mountain_min_radius, _config.mountain_max_radius)
+		# Scale: x/z = base diameter, y = height
+		var basis := Basis.IDENTITY.scaled(Vector3(base_radius * 2.0, height, base_radius * 2.0))
+		var t := Transform3D(basis, pos + Vector3(0, height / 2.0, 0))
+		mm.set_instance_transform(i, t)
+
+		# Aerial perspective: near = green/dark, far = blue/light
+		var dist_t := clampf((radius - 500.0) / 700.0, 0.0, 1.0)
+		var col: Color = _config.mountain_base_color.lerp(_config.mountain_peak_color, dist_t)
+		col = col.lerp(Color(0.6, 0.65, 0.75), dist_t * 0.3)  # Atmospheric haze
+		mm.set_instance_color(i, col)
+
+	var mm_instance := MultiMeshInstance3D.new()
+	mm_instance.name = "Mountains"
+	mm_instance.multimesh = mm
+	mm_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mm_instance)
+	_log("Mountains ready: %d cones" % count)
+
+
+func _setup_river() -> void:
+	if not _config.river_enabled or _config.river_width <= 0.0:
+		_log("River skipped (disabled or width=0)")
+		return
+
+	var gs := float(_config.ground_size) * CELL_SIZE
+	var river_length := gs * 1.5  # Extends past visible edges
+
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(river_length, _config.river_width)
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = _config.river_color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.metallic = 0.3
+	mat.roughness = 0.2
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	var mesh_inst := MeshInstance3D.new()
+	mesh_inst.name = "River"
+	mesh_inst.mesh = plane
+	mesh_inst.material_override = mat
+	mesh_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	# Position at center of ground, offset perpendicular to flow direction
+	var center := gs / 2.0
+	var angle_rad := deg_to_rad(_config.river_flow_angle)
+	var offset_x: float = sin(angle_rad) * _config.river_offset
+	var offset_z: float = cos(angle_rad) * _config.river_offset
+	mesh_inst.position = Vector3(center + offset_x, 0.02, center + offset_z)
+	mesh_inst.rotation_degrees = Vector3(0, _config.river_flow_angle, 0)
+
+	add_child(mesh_inst)
+	_log("River ready: width=%.0f angle=%.0f offset=%.0f" % [
+		_config.river_width, _config.river_flow_angle, _config.river_offset,
+	])
 
 
 func _setup_block_container() -> void:
@@ -514,11 +638,23 @@ func _setup_ui() -> void:
 	_controls_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
 	_controls_label.text = (
 		"LMB: Place  |  RMB: Remove  |  Double-click: Focus  |  ,/.: Rotate\n"
-		+ "WASD: Pan  |  Q/E: Up/Down  |  Scroll: Zoom  |  RMB Drag: Orbit  |  MMB: Pan\n"
-		+ "Shift: Precision  |  Ctrl: Boost  |  F: Frame  |  H: Home  |  Tab: Hide UI\n"
-		+ "1-7: Select Shape  |  F1/?: Help  |  F3: Debug  |  ESC: Pause"
+		+ "WASD: Pan  |  Q/E: Up/Down  |  Scroll: Zoom  |  Shift+LMB Drag: Zoom  |  RMB Drag: Orbit  |  MMB: Pan\n"
+		+ "Shift: Precision  |  Ctrl: Boost  |  F: Frame  |  H: Home  |  `: Hide UI\n"
+		+ "Tab/Shift+Tab: Cycle Category  |  1-9: Select Block  |  F1/?: Help  |  F3: Debug  |  ESC: Pause"
 	)
 	canvas.add_child(_controls_label)
+
+	# Entrance prompt label
+	_prompt_label = Label.new()
+	_prompt_label.name = "EntrancePrompt"
+	_prompt_label.text = "Place your entrance to begin building"
+	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_prompt_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	_prompt_label.offset_top = -80
+	_prompt_label.add_theme_font_size_override("font_size", 28)
+	_prompt_label.add_theme_color_override("font_color", Color(0.85, 0.72, 0.2))
+	_prompt_label.visible = true
+	canvas.add_child(_prompt_label)
 
 	_debug_panel = DebugPanelScript.new()
 	_debug_panel.name = "DebugPanel"
@@ -581,6 +717,8 @@ func _setup_audio() -> void:
 # --- Process ---
 
 func _process(delta: float) -> void:
+	if _config == null:
+		return  # Picker showing, world not built yet
 	_update_debug_stats()
 	var blocked := (_pause_menu and _pause_menu.visible) or (_help_overlay and _help_overlay.visible)
 	if blocked:
@@ -629,7 +767,7 @@ func _handle_rapid_fire(delta: float) -> void:
 	var collider = hit.get("collider")
 	if collider and collider.has_meta("is_ground"):
 		var top_y := _find_top_ground_y(hit.grid_pos.x, hit.grid_pos.z)
-		if top_y >= -(GROUND_DEPTH):
+		if top_y >= -(_config.ground_depth):
 			place_origin = Vector3i(hit.grid_pos.x, top_y + 1, hit.grid_pos.z)
 
 	# Only place if cursor moved to a new cell
@@ -674,6 +812,8 @@ func _recompute_building_stats() -> void:
 # --- Input ---
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _config == null:
+		return  # Picker showing, world not built yet
 	if (_pause_menu and _pause_menu.visible) or (_help_overlay and _help_overlay.visible):
 		return
 
@@ -704,6 +844,12 @@ func _unhandled_input(event: InputEvent) -> void:
 				_focus_camera_on_cursor()
 				get_viewport().set_input_as_handled()
 			KEY_TAB:
+				if event.shift_pressed:
+					_palette.cycle_category(-1)
+				else:
+					_palette.cycle_category(1)
+				get_viewport().set_input_as_handled()
+			KEY_QUOTELEFT:
 				_toggle_ui()
 				get_viewport().set_input_as_handled()
 			KEY_1: _select_shape_by_index(0)
@@ -713,6 +859,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_5: _select_shape_by_index(4)
 			KEY_6: _select_shape_by_index(5)
 			KEY_7: _select_shape_by_index(6)
+			KEY_8: _select_shape_by_index(7)
+			KEY_9: _select_shape_by_index(8)
 
 
 # --- Rotation ---
@@ -730,7 +878,8 @@ func _rotate_ccw() -> void:
 # --- Shape Selection ---
 
 func _select_shape_by_index(index: int) -> void:
-	var defs: Array = registry.get_all_definitions()
+	# Select block within the current palette category
+	var defs: Array = _palette.get_current_category_definitions()
 	if index >= 0 and index < defs.size():
 		current_definition = defs[index]
 		_palette.highlight_definition(current_definition)
@@ -755,7 +904,14 @@ func _toggle_ui() -> void:
 	_ui_hidden = not _ui_hidden
 	_palette.visible = not _ui_hidden
 	_controls_label.visible = not _ui_hidden
+	if _prompt_label:
+		_prompt_label.visible = not _ui_hidden and not _has_entrance
 	_log("UI hidden: %s" % _ui_hidden)
+
+
+func _update_entrance_prompt() -> void:
+	if _prompt_label:
+		_prompt_label.visible = not _has_entrance and not _ui_hidden
 
 
 # --- Occupancy ---
@@ -776,25 +932,44 @@ func is_cell_buildable(cell: Vector3i) -> bool:
 		return false
 	if not is_in_build_zone(cell.x, cell.z):
 		return false
-	return cell.y >= -GROUND_DEPTH
+	return cell.y >= -_config.ground_depth
 
 
-func _is_supported(cells: Array[Vector3i]) -> bool:
-	## At least one cell must share a face with an existing block or ground.
+func _is_supported(cells: Array[Vector3i], definition: Resource) -> bool:
+	## Entrance blocks: need ground (occupancy -1) directly below at least one cell.
+	## All other blocks: need face-adjacency to a placed block (occupancy > 0).
+	## Ground does NOT count as support for non-entrance blocks.
 	var directions: Array[Vector3i] = [
 		Vector3i(1, 0, 0), Vector3i(-1, 0, 0),
 		Vector3i(0, 1, 0), Vector3i(0, -1, 0),
 		Vector3i(0, 0, 1), Vector3i(0, 0, -1),
 	]
-	for cell in cells:
-		for dir in directions:
-			var neighbor: Vector3i = cell + dir
-			if cell_occupancy.has(neighbor):
+	if definition.ground_only:
+		# Entrance: needs ground beneath at least one cell
+		for cell in cells:
+			var below := Vector3i(cell.x, cell.y - 1, cell.z)
+			if cell_occupancy.has(below) and cell_occupancy[below] == -1:
 				return true
-	return false
+		return false
+	else:
+		# All other blocks: must be face-adjacent to a placed block (not ground)
+		for cell in cells:
+			for dir in directions:
+				var neighbor: Vector3i = cell + dir
+				if cell_occupancy.has(neighbor) and cell_occupancy[neighbor] > 0:
+					return true
+		return false
 
 
 func can_place_block(definition: Resource, origin: Vector3i, rot: int) -> bool:
+	# Entrance-first: must place an entrance before any other block
+	if not _has_entrance and definition.id != "entrance":
+		_log("  can_place: no entrance placed yet")
+		return false
+	# Ground-only blocks must be at y=0
+	if definition.ground_only and origin.y != 0:
+		_log("  can_place: ground_only block at y=%d (must be 0)" % origin.y)
+		return false
 	var cells: Array[Vector3i] = GridUtilsScript.get_occupied_cells(
 		definition.size, origin, rot,
 	)
@@ -805,10 +980,10 @@ func can_place_block(definition: Resource, origin: Vector3i, rot: int) -> bool:
 		if not is_in_build_zone(cell.x, cell.z):
 			_log("  can_place: cell %s outside build zone" % cell)
 			return false
-		if cell.y < -GROUND_DEPTH:
+		if cell.y < -_config.ground_depth:
 			_log("  can_place: cell %s below ground depth" % cell)
 			return false
-	if not _is_supported(cells):
+	if not _is_supported(cells, definition):
 		_log("  can_place: no adjacent support for cells %s" % [cells])
 		return false
 	return true
@@ -839,9 +1014,16 @@ func place_block(definition: Resource, origin: Vector3i, rot: int) -> RefCounted
 	_animate_placement(block.node)
 
 	placed_blocks[block.id] = block
+
+	# Track entrance blocks
+	if definition.id == "entrance":
+		_entrance_block_ids[block.id] = true
+		_has_entrance = true
+		_update_entrance_prompt()
+
 	_recompute_building_stats()
-	_log("Placed block #%d (%s) at %s rot=%d — cells: %s" % [
-		block.id, definition.id, origin, rot, block.occupied_cells,
+	_log("Placed block #%d (%s) at %s rot=%d size=%s — cells: %s" % [
+		block.id, definition.id, origin, rot, definition.size, block.occupied_cells,
 	])
 	return block
 
@@ -857,6 +1039,12 @@ func remove_block(block_id: int) -> void:
 	for cell in block.occupied_cells:
 		cell_occupancy.erase(cell)
 
+	# Track entrance removal
+	if _entrance_block_ids.has(block_id):
+		_entrance_block_ids.erase(block_id)
+		_has_entrance = _entrance_block_ids.size() > 0
+		_update_entrance_prompt()
+
 	_animate_removal(block.node)
 	placed_blocks.erase(block_id)
 	_recompute_building_stats()
@@ -871,9 +1059,15 @@ func remove_block_at_cell(cell: Vector3i) -> void:
 
 func _would_orphan_blocks(block_id: int) -> bool:
 	## Check if removing block_id would leave any neighbor blocks disconnected
-	## from the ground. Returns true if removal should be rejected.
+	## from an entrance. Returns true if removal should be rejected.
 	if not placed_blocks.has(block_id):
 		return false
+
+	# If this is the only entrance and other blocks exist, reject
+	if _entrance_block_ids.has(block_id) and _entrance_block_ids.size() == 1:
+		# Allow removal only if no other blocks exist
+		if placed_blocks.size() > 1:
+			return true
 
 	var block: RefCounted = placed_blocks[block_id]
 	var directions: Array[Vector3i] = [
@@ -892,43 +1086,48 @@ func _would_orphan_blocks(block_id: int) -> bool:
 				if nid != block_id and nid != -1:  # -1 is ground
 					neighbor_ids[nid] = true
 
-	# For each neighbor, check if it can still reach ground without block_id
+	# For each neighbor, check if it can still reach an entrance without block_id
 	for nid in neighbor_ids:
 		if not placed_blocks.has(nid):
 			continue
 		var neighbor_block: RefCounted = placed_blocks[nid]
-		if not _is_connected_to_ground(neighbor_block.occupied_cells, block_id):
+		if not _is_connected_to_entrance(neighbor_block.occupied_cells, block_id):
 			return true
 
 	return false
 
 
-func _is_connected_to_ground(start_cells: Array[Vector3i], excluded_id: int) -> bool:
-	## BFS from start_cells through cell_occupancy (skipping excluded_id).
-	## Returns true if we can reach any cell adjacent to ground (occupancy == -1).
+func _is_connected_to_entrance(start_cells: Array[Vector3i], excluded_id: int) -> bool:
+	## BFS from start_cells through placed blocks (occupancy > 0, skipping excluded_id).
+	## Returns true if we can reach any cell belonging to an entrance block.
 	var directions: Array[Vector3i] = [
 		Vector3i(1, 0, 0), Vector3i(-1, 0, 0),
 		Vector3i(0, 1, 0), Vector3i(0, -1, 0),
 		Vector3i(0, 0, 1), Vector3i(0, 0, -1),
 	]
 
+	# Collect all cells belonging to entrance blocks (excluding the one being removed)
+	var entrance_cells: Dictionary = {}
+	for eid in _entrance_block_ids:
+		if eid == excluded_id:
+			continue
+		if placed_blocks.has(eid):
+			for cell in placed_blocks[eid].occupied_cells:
+				entrance_cells[cell] = true
+
 	var visited: Dictionary = {}
 	var queue: Array[Vector3i] = []
 
 	for cell in start_cells:
+		# If this start cell IS an entrance cell, we're connected
+		if entrance_cells.has(cell):
+			return true
 		queue.append(cell)
 		visited[cell] = true
 
 	while queue.size() > 0:
 		var current: Vector3i = queue.pop_front()
 
-		# Check if this cell is adjacent to ground
-		for dir in directions:
-			var neighbor: Vector3i = current + dir
-			if cell_occupancy.has(neighbor) and cell_occupancy[neighbor] == -1:
-				return true  # Reached ground
-
-		# Expand to face-adjacent occupied cells (not the excluded block)
 		for dir in directions:
 			var neighbor: Vector3i = current + dir
 			if visited.has(neighbor):
@@ -936,8 +1135,11 @@ func _is_connected_to_ground(start_cells: Array[Vector3i], excluded_id: int) -> 
 			if not cell_occupancy.has(neighbor):
 				continue
 			var nid: int = cell_occupancy[neighbor]
-			if nid == excluded_id or nid == -1:
+			if nid == excluded_id or nid == -1 or nid <= 0:
 				continue
+			# Found an entrance cell
+			if entrance_cells.has(neighbor):
+				return true
 			visited[neighbor] = true
 			queue.append(neighbor)
 
@@ -945,7 +1147,8 @@ func _is_connected_to_ground(start_cells: Array[Vector3i], excluded_id: int) -> 
 
 
 func _would_orphan_ground_removal(grid_pos: Vector3i) -> bool:
-	## Check if removing a ground cell would orphan blocks above it.
+	## Check if removing a ground cell would unseat an entrance block above it.
+	## Only entrance blocks sit on ground, so only they can be orphaned by digging.
 	var above := Vector3i(grid_pos.x, grid_pos.y + 1, grid_pos.z)
 	if not cell_occupancy.has(above):
 		return false
@@ -956,16 +1159,18 @@ func _would_orphan_ground_removal(grid_pos: Vector3i) -> bool:
 	if not placed_blocks.has(above_id):
 		return false
 
-	# Temporarily remove the ground cell from occupancy
-	cell_occupancy.erase(grid_pos)
+	# Only entrance blocks depend on ground for support
+	if not _entrance_block_ids.has(above_id):
+		return false
 
-	var block: RefCounted = placed_blocks[above_id]
-	var connected := _is_connected_to_ground(block.occupied_cells, -999)
+	# Check if this entrance has other ground cells beneath it
+	var entrance_block: RefCounted = placed_blocks[above_id]
+	for cell in entrance_block.occupied_cells:
+		var below := Vector3i(cell.x, cell.y - 1, cell.z)
+		if below != grid_pos and cell_occupancy.has(below) and cell_occupancy[below] == -1:
+			return false  # Still has another ground cell
 
-	# Restore the ground cell
-	cell_occupancy[grid_pos] = -1
-
-	return not connected
+	return true
 
 
 func _show_removal_warning(msg: String) -> void:
@@ -1021,6 +1226,29 @@ func _create_block_node(block: RefCounted) -> Node3D:
 	static_body.add_child(collision)
 	root.add_child(static_body)
 
+	# Top-face name label
+	var name_label := Label3D.new()
+	name_label.text = definition.display_name
+	name_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	name_label.no_depth_test = true
+	name_label.modulate = Color(1.0, 1.0, 1.0, 0.95)
+	name_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.9)
+	name_label.outline_size = 12
+	name_label.render_priority = 10
+	name_label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Scale font size to footprint
+	var footprint := maxi(effective_size.x, effective_size.z)
+	name_label.font_size = 48 if footprint == 1 else 72
+	name_label.pixel_size = 0.04 if footprint == 1 else 0.05
+	# Position on top face, centered
+	name_label.position = Vector3(
+		center_offset.x,
+		float(effective_size.y) * CELL_SIZE + 0.15,
+		center_offset.z,
+	)
+	name_label.rotation_degrees = Vector3(-90, 0, 0)
+	root.add_child(name_label)
+
 	# Position at grid corner (use position, not global_position, since node isn't in tree yet)
 	root.position = GridUtilsScript.grid_to_world(block.origin)
 
@@ -1029,7 +1257,7 @@ func _create_block_node(block: RefCounted) -> Node3D:
 
 func _create_mesh_for(_definition: Resource, effective_size: Vector3i) -> Mesh:
 	var box := BoxMesh.new()
-	box.size = Vector3(effective_size) * CELL_SIZE
+	box.size = Vector3(effective_size) * CELL_SIZE - Vector3.ONE * BLOCK_INSET * 2.0
 	return box
 
 
@@ -1106,7 +1334,7 @@ func _update_ghost() -> void:
 	var collider = hit.get("collider")
 	if collider and collider.has_meta("is_ground"):
 		var top_y := _find_top_ground_y(hit.grid_pos.x, hit.grid_pos.z)
-		if top_y >= -(GROUND_DEPTH):
+		if top_y >= -(_config.ground_depth):
 			place_origin = Vector3i(hit.grid_pos.x, top_y + 1, hit.grid_pos.z)
 
 	# Rebuild mesh only when definition or rotation changes
@@ -1128,7 +1356,9 @@ func _update_ghost() -> void:
 	var cell_center := GridUtilsScript.grid_to_world_center(hit.grid_pos)
 	_face_highlight.transform = FaceScript.get_face_transform(face, cell_center, CELL_SIZE)
 	_face_highlight.visible = true
-	_face_label.text = "Face: %s  |  Rotation: %d\u00b0" % [FaceScript.to_label(face), current_rotation]
+	_face_label.text = "Face: %s  |  Rotation: %d\u00b0  |  %s" % [
+		FaceScript.to_label(face), current_rotation, current_definition.display_name,
+	]
 	_face_label.visible = true
 
 	if _stats_mouse_label:
@@ -1238,12 +1468,23 @@ func _try_place_block() -> void:
 	var collider = hit.get("collider")
 	if collider and collider.has_meta("is_ground"):
 		var top_y := _find_top_ground_y(hit.grid_pos.x, hit.grid_pos.z)
-		if top_y >= -(GROUND_DEPTH):
+		if top_y >= -(_config.ground_depth):
 			place_origin = Vector3i(hit.grid_pos.x, top_y + 1, hit.grid_pos.z)
 
 	_log("Place attempt: %s at %s rot=%d (hit_grid=%s normal=%s)" % [
 		current_definition.id, place_origin, current_rotation, hit.grid_pos, hit.normal,
 	])
+
+	# Show contextual warnings before placement attempt
+	if not _has_entrance and current_definition.id != "entrance":
+		_show_removal_warning("Place an entrance first!")
+		_log("Place REJECTED: no entrance yet")
+		return
+	if current_definition.ground_only and place_origin.y != 0:
+		_show_removal_warning("Entrances must be placed at ground level")
+		_log("Place REJECTED: ground_only at y=%d" % place_origin.y)
+		return
+
 	var result := place_block(current_definition, place_origin, current_rotation)
 	if result == null:
 		_log("Place REJECTED: %s at %s rot=%d" % [current_definition.id, place_origin, current_rotation])
@@ -1263,11 +1504,11 @@ func _try_remove_block() -> void:
 			_log("Remove REJECTED: ground cell %s outside build zone" % hit.grid_pos)
 			return
 		var top_y := _find_top_ground_y(hit.grid_pos.x, hit.grid_pos.z)
-		if top_y < -(GROUND_DEPTH):
+		if top_y < -(_config.ground_depth):
 			_log("Remove REJECTED: no ground left at column (%d, %d)" % [hit.grid_pos.x, hit.grid_pos.z])
 			return
 		var cell := Vector3i(hit.grid_pos.x, top_y, hit.grid_pos.z)
-		if top_y == -GROUND_DEPTH:
+		if top_y == -_config.ground_depth:
 			_log("Remove REJECTED: bedrock at %s" % cell)
 			_show_removal_warning("Cannot remove bedrock")
 			return
@@ -1288,8 +1529,13 @@ func _try_remove_block() -> void:
 
 	if block_id > 0:
 		if _would_orphan_blocks(block_id):
-			_log("Remove REJECTED: block #%d would orphan neighbors" % block_id)
-			_show_removal_warning("Cannot remove: would leave blocks unsupported")
+			# Give specific warning for entrance vs generic block
+			if _entrance_block_ids.has(block_id) and _entrance_block_ids.size() == 1:
+				_log("Remove REJECTED: block #%d is the only entrance" % block_id)
+				_show_removal_warning("Cannot remove the only entrance")
+			else:
+				_log("Remove REJECTED: block #%d would disconnect blocks from entrance" % block_id)
+				_show_removal_warning("Cannot remove: would disconnect blocks from entrance")
 			return
 		remove_block(block_id)
 	else:
