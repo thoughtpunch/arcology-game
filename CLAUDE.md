@@ -2,6 +2,27 @@
 
 > **For AI assistants (Claude Code, etc.) working on this project**
 
+## MANDATORY: Session Start Greeting
+
+**On the FIRST user message of every session, you MUST greet the user with a status summary.** The SessionStart hook feeds you ticket status via a system reminder — the user CANNOT see this output. You are the only one who sees it. You must relay it.
+
+Your first response must always begin with:
+
+```
+Hey Dan! Here's where we are:
+
+**In-progress:** <list any in-progress tickets from the hook output, or "None">
+**Ready to work:** <count from hook output> ticket(s)
+
+<If there's an in-progress ticket, add a 1-sentence summary of what it is>
+```
+
+Then respond to whatever the user actually said.
+
+**Why this matters:** The session-start hook runs automatically but its output is only visible to you (the AI). Dan has no status bar, no progress indicator, no way to know what you know. This greeting is his only window into the session state. Never skip it.
+
+---
+
 ## MANDATORY: Beads Ticket Workflow
 
 **Every piece of work MUST follow this workflow. No exceptions.**
