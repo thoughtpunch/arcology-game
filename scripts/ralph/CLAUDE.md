@@ -14,32 +14,27 @@ Use `bd` (Beads) for task tracking instead of prd.json.
 
 ## Your Task (One Iteration)
 
-0. **SCAN for related tickets** before choosing work:
-   ```bash
-   ./scripts/hooks/scan-tickets.sh "<keywords from ready tasks>"
-   bd list --status in_progress  # Check what's already claimed
-   ```
-1. Run `bd ready --json` to get unblocked tasks
-2. Read `scripts/ralph/progress.txt` for codebase patterns (check **Codebase Patterns** section first)
-3. **Consult `documentation/` for implementation details**
-4. Check you're on the correct branch. If not, check it out or create from `main`
-5. Pick the **highest priority** ready task (lowest P number = highest priority)
-6. Update task: `bd update <id> --status in_progress`
-7. Implement that **single** task
-8. **Write tests** (positive AND negative assertions)
-9. Run quality checks (see below)
-10. **⚠️ MANDATORY: Commit with ticket ID:** `git commit -m "feat: arcology-x0d.1 - Title"`
-11. **⚠️ MANDATORY: Back-link commit SHA to ticket:**
+**NOTE:** The bash loop (`ralph-beads.sh`) assigns you ONE task. Work on ONLY that task.
+
+1. Read `scripts/ralph/progress.txt` for codebase patterns (check **Codebase Patterns** section first)
+2. **Consult `documentation/` for implementation details**
+3. Check you're on the correct branch. If not, check it out or create from `main`
+4. Claim the assigned task: `bd update <id> --status in_progress`
+5. Implement that **single** task
+6. **Write tests** (positive AND negative assertions)
+7. Run quality checks (see below)
+8. **⚠️ MANDATORY: Commit with ticket ID:** `git commit -m "feat: arcology-x0d.1 - Title"`
+9. **⚠️ MANDATORY: Back-link commit SHA to ticket:**
     ```bash
     SHA=$(git rev-parse HEAD)
     bd comments add <id> "Commit: $SHA"
     ```
-12. Run post-task hook: `./scripts/hooks/post-task.sh <id>` (blocks if no commit or no comment!)
-13. **⚠️ MANDATORY: Add completion comment** (see Completion Comment Format below)
-14. Close task: `bd close <id> --reason "Implemented"`
-15. Sync: `./scripts/hooks/bd-sync-rich.sh`
-16. Append learnings to `scripts/ralph/progress.txt`
-17. Check for more work: `bd ready --json`
+10. Run post-task hook: `./scripts/hooks/post-task.sh <id>` (blocks if no commit or no comment!)
+11. **⚠️ MANDATORY: Add completion comment** (see Completion Comment Format below)
+12. Close task: `bd close <id> --reason "Implemented"`
+13. Sync: `./scripts/hooks/bd-sync-rich.sh`
+14. Append learnings to `scripts/ralph/progress.txt`
+15. **STOP** — The bash loop will assign the next task. Do NOT check for more work yourself.
 
 ## Completion Comment Format
 
@@ -97,19 +92,16 @@ bd dep add bd-A bd-B
 
 ## Stop Conditions
 
-**All done?** If `bd ready --json` returns empty array `[]`, output exactly:
-```
-<promise>COMPLETE</promise>
-```
+**IMPORTANT:** The bash loop (`ralph-beads.sh`) handles task selection and iteration.
+You are given ONE task per iteration. Do NOT check for more work yourself.
+Do NOT output `<promise>COMPLETE</promise>` — the bash script handles completion detection.
 
-**Stuck?** If a task fails 3+ times:
-1. Add comment: `bd comment bd-xxx "Blocked: <reason>"`
-2. Mark blocked: `bd update bd-xxx --status blocked`
-3. Try next ready task
-4. If ALL remaining tasks are blocked, output:
-```
-<ralph>STUCK</ralph>
-```
+**Stuck on your assigned task?** If you cannot complete the task after 3 attempts:
+1. Add comment: `bd comments add <id> "Blocked: <reason>"`
+2. Mark blocked: `bd update <id> --status blocked`
+3. Output: `<ralph>STUCK</ralph>`
+
+The bash loop will then try the next task or report that all tasks are blocked.
 
 ## Project Context
 
