@@ -1257,24 +1257,35 @@ func _create_block_node(block: RefCounted) -> Node3D:
 	static_body.add_child(collision)
 	root.add_child(static_body)
 
-	# Top-face name label
+	# Top-face name label — fit text within block's top face (5% margin)
 	var name_label := Label3D.new()
 	name_label.text = definition.display_name
 	name_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-	name_label.no_depth_test = true
+	name_label.no_depth_test = false
+	name_label.render_priority = 10
 	name_label.modulate = Color(1.0, 1.0, 1.0, 0.95)
 	name_label.outline_modulate = Color(0.0, 0.0, 0.0, 0.9)
-	name_label.outline_size = 12
-	name_label.render_priority = 10
+	name_label.outline_size = 8
 	name_label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Scale font size to footprint
-	var footprint := maxi(effective_size.x, effective_size.z)
-	name_label.font_size = 48 if footprint == 1 else 72
-	name_label.pixel_size = 0.04 if footprint == 1 else 0.05
-	# Position on top face, centered
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Compute pixel_size so text fits within block's top face.
+	# Use the smaller face dimension to constrain pixel_size (ensures height fits).
+	# Map the larger dimension to pixel width for word wrapping.
+	var face_x: float = float(effective_size.x) * CELL_SIZE
+	var face_z: float = float(effective_size.z) * CELL_SIZE
+	var available_x: float = face_x * 0.9
+	var available_z: float = face_z * 0.9
+	var fit_dim: float = minf(available_x, available_z)
+	var layout_px: float = 300.0
+	name_label.font_size = 64
+	name_label.pixel_size = fit_dim / layout_px
+	name_label.width = available_x / name_label.pixel_size
+	# Position centered on top face, offset above surface to avoid z-fighting
 	name_label.position = Vector3(
 		center_offset.x,
-		float(effective_size.y) * CELL_SIZE + 0.15,
+		float(effective_size.y) * CELL_SIZE + 0.3,
 		center_offset.z,
 	)
 	name_label.rotation_degrees = Vector3(-90, 0, 0)
