@@ -359,6 +359,12 @@ func _setup_hud() -> void:
 		hud.update_resources(50000, 0, 0)
 		hud.update_datetime(1, 1, 1)
 
+	# Connect building stats display to grid
+	if grid:
+		var stats_display: BuildingStatsDisplay = hud.get_building_stats_display()
+		if stats_display:
+			stats_display.connect_to_grid(grid)
+
 	# Connect tool sidebar to input handler
 	if hud.left_sidebar and hud.left_sidebar is ToolSidebar:
 		var tool_sidebar: ToolSidebar = hud.left_sidebar

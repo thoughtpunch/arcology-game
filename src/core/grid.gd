@@ -98,6 +98,25 @@ func get_block_count_on_floor(z_level: int) -> int:
 	return count
 
 
+## Compute building statistics: height, volume, footprint
+## Height = highest Z coordinate + 1 (top of tallest block, 0-based)
+## Volume = total number of occupied grid cells
+## Footprint = number of unique (x, y) columns with at least one block
+func get_building_stats() -> Dictionary:
+	if _blocks.is_empty():
+		return {"height": 0, "volume": 0, "footprint": 0}
+
+	var max_z: int = 0
+	var columns: Dictionary = {}
+
+	for pos: Vector3i in _blocks.keys():
+		if pos.z + 1 > max_z:
+			max_z = pos.z + 1
+		columns[Vector2i(pos.x, pos.y)] = true
+
+	return {"height": max_z, "volume": _blocks.size(), "footprint": columns.size()}
+
+
 ## Clear all blocks from the grid
 func clear() -> void:
 	for pos in _blocks.keys():

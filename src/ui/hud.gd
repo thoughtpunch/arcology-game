@@ -131,6 +131,11 @@ func _create_top_bar() -> Control:
 	aei_label.name = "AEILabel"
 	resources.add_child(aei_label)
 
+	# Building stats display (compact: H: 5 | V: 42 | FP: 12)
+	var building_stats := BuildingStatsDisplay.new()
+	building_stats.name = "BuildingStats"
+	hbox.add_child(building_stats)
+
 	# Spacer
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -365,6 +370,18 @@ func update_resources(money: int, population: int, aei: int) -> void:
 	var aei_label: Label = top_bar.get_node_or_null("HBoxContainer/Resources/AEILabel")
 	if aei_label:
 		aei_label.text = "AEI: %d" % aei
+
+
+## Update building stats display
+func update_building_stats(height: int, volume: int, footprint: int) -> void:
+	var building_stats: BuildingStatsDisplay = top_bar.get_node_or_null("HBoxContainer/BuildingStats")
+	if building_stats:
+		building_stats.update_stats(height, volume, footprint)
+
+
+## Get the building stats display component for direct grid connection
+func get_building_stats_display() -> BuildingStatsDisplay:
+	return top_bar.get_node_or_null("HBoxContainer/BuildingStats")
 
 
 ## Update date/time display
