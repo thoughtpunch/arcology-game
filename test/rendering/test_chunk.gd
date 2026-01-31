@@ -1,5 +1,5 @@
 extends SceneTree
-## Test: Chunk (arcology-6ep)
+## Test: Chunk (arcology-6ep, arcology-5e2.11)
 ##
 ## Verifies:
 ## - Block add/remove within chunk
@@ -8,6 +8,7 @@ extends SceneTree
 ## - Mesh rebuild
 ## - AABB calculation
 ## - Empty chunk handling
+## - LOD level management (arcology-5e2.11)
 
 var _test_count := 0
 var _pass_count := 0
@@ -40,6 +41,12 @@ func _init() -> void:
 	_test_color_for_block_types()
 	_test_multiple_blocks()
 	_test_shader_assignment()
+	# LOD tests (arcology-5e2.11)
+	_test_lod_level_default()
+	_test_lod_level_change()
+	_test_lod_signal()
+	_test_lod_reduction_factors()
+	_test_average_block_color()
 
 	print("\n=== Results: %d/%d tests passed ===" % [_pass_count, _test_count])
 
@@ -389,5 +396,112 @@ func _test_shader_assignment() -> void:
 	# Setting null shader on empty content shouldn't mark dirty (no blocks affected by null)
 	# But set_shader marks dirty if chunk has blocks
 	# The test verifies the method doesn't crash
+
+	chunk.free()
+
+
+func _test_lod_level_default() -> void:
+	print("\n--- LOD Level Default ---")
+	var chunk: Node3D = _ChunkClass.new(Vector3i(0, 0, 0))
+
+	_assert(chunk.get_lod() == 0, "New chunk should be at LOD0")
+	_assert(chunk.get_lod_reduction_factor() == 1.0, "LOD0 should have reduction factor 1.0")
+
+	chunk.free()
+
+
+func _test_lod_level_change() -> void:
+	print("\n--- LOD Level Change ---")
+	var chunk: Node3D = _ChunkClass.new(Vector3i(0, 0, 0))
+	root.add_child(chunk)
+	await process_frame
+
+	chunk.add_block(Vector3i(0, 0, 0), "corridor")
+	chunk.rebuild()
+
+	# Change LOD level
+	chunk.set_lod(1)  # LOD1
+	_assert(chunk.get_lod() == 1, "Should be at LOD1 after set_lod(1)")
+
+	chunk.set_lod(2)  # LOD2
+	_assert(chunk.get_lod() == 2, "Should be at LOD2 after set_lod(2)")
+
+	chunk.set_lod(3)  # LOD3
+	_assert(chunk.get_lod() == 3, "Should be at LOD3 after set_lod(3)")
+
+	chunk.set_lod(0)  # Back to LOD0
+	_assert(chunk.get_lod() == 0, "Should be back at LOD0")
+
+	chunk.queue_free()
+	await process_frame
+
+
+func _test_lod_signal() -> void:
+	print("\n--- LOD Signal ---")
+	var chunk: Node3D = _ChunkClass.new(Vector3i(0, 0, 0))
+	root.add_child(chunk)
+	await process_frame
+
+	# Use an array to capture values from the signal (closure-friendly)
+	var signal_data: Array = [false, -1, -1]  # [received, old_level, new_level]
+
+	# The signal uses LODLevel enum, which is compatible with int
+	chunk.lod_changed.connect(func(old, new):
+		signal_data[0] = true
+		signal_data[1] = int(old)
+		signal_data[2] = int(new)
+	)
+
+	chunk.set_lod(2)
+
+	_assert(signal_data[0], "lod_changed signal should be emitted")
+	_assert(signal_data[1] == 0, "Old level should be 0 (LOD0)")
+	_assert(signal_data[2] == 2, "New level should be 2 (LOD2)")
+
+	# Setting same level shouldn't emit signal
+	signal_data[0] = false
+	chunk.set_lod(2)
+	_assert(not signal_data[0], "Same LOD shouldn't emit signal")
+
+	chunk.queue_free()
+	await process_frame
+
+
+func _test_lod_reduction_factors() -> void:
+	print("\n--- LOD Reduction Factors ---")
+	var chunk: Node3D = _ChunkClass.new(Vector3i(0, 0, 0))
+
+	chunk.set_lod(0)
+	_assert(chunk.get_lod_reduction_factor() == 1.0, "LOD0 reduction factor should be 1.0")
+
+	chunk.set_lod(1)
+	_assert(chunk.get_lod_reduction_factor() == 1.0, "LOD1 reduction factor should be 1.0")
+
+	chunk.set_lod(2)
+	_assert(chunk.get_lod_reduction_factor() == 0.5, "LOD2 reduction factor should be 0.5")
+
+	chunk.set_lod(3)
+	_assert(chunk.get_lod_reduction_factor() == 0.25, "LOD3 reduction factor should be 0.25")
+
+	chunk.free()
+
+
+func _test_average_block_color() -> void:
+	print("\n--- Average Block Color ---")
+	var chunk: Node3D = _ChunkClass.new(Vector3i(0, 0, 0))
+
+	# Empty chunk should return default gray
+	var empty_color: Color = chunk._get_average_block_color()
+	_assert(empty_color == Color(0.6, 0.6, 0.6), "Empty chunk should return gray")
+
+	# Single block
+	chunk.add_block(Vector3i(0, 0, 0), "entrance")
+	var entrance_color: Color = chunk._get_average_block_color()
+	_assert(entrance_color == Color(0.5, 0.75, 0.5), "Single entrance should return entrance color")
+
+	# Multiple blocks of same type
+	chunk.add_block(Vector3i(1, 0, 0), "entrance")
+	var same_color: Color = chunk._get_average_block_color()
+	_assert(same_color == Color(0.5, 0.75, 0.5), "Same type blocks should return that type's color")
 
 	chunk.free()

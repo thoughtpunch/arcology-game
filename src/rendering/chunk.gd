@@ -11,6 +11,12 @@ class_name Chunk
 ## - Opaque exterior: Main solid geometry
 ## - Transparent: Glass panels (future)
 ## - Dynamic: Unmerged blocks (doors, elevators - future)
+##
+## LOD Levels (from 3D refactor spec Section 3.4):
+##   LOD0 (0-50m):    Full detail, interior visible
+##   LOD1 (50-150m):  Simplified exterior, no interior
+##   LOD2 (150-400m): Block silhouette only
+##   LOD3 (400m+):    Merged chunks, impostors
 
 # Chunk size in grid cells per axis
 const CHUNK_SIZE: int = 8
@@ -20,6 +26,25 @@ const CELL_SIZE: float = 6.0
 const CUBE_WIDTH: float = CELL_SIZE   # Alias for compatibility
 const CUBE_DEPTH: float = CELL_SIZE   # Alias for compatibility
 const CUBE_HEIGHT: float = CELL_SIZE  # Alias for compatibility
+
+# LOD level enumeration (matches LODManager.LODLevel)
+enum LODLevel {
+	LOD0 = 0,  # Full detail (0-50m)
+	LOD1 = 1,  # Simplified exterior (50-150m)
+	LOD2 = 2,  # Silhouette only (150-400m)
+	LOD3 = 3,  # Merged/impostor (400m+)
+}
+
+# LOD mesh reduction factors (triangle reduction per LOD)
+const LOD_FACE_REDUCTION: Dictionary = {
+	LODLevel.LOD0: 1.0,   # Full detail: all 6 faces
+	LODLevel.LOD1: 1.0,   # Simplified: all faces but simpler material
+	LODLevel.LOD2: 0.5,   # Silhouette: only visible faces (roughly half)
+	LODLevel.LOD3: 0.25,  # Impostor: single quad or merged bounding box
+}
+
+# Signal emitted when LOD level changes
+signal lod_changed(old_level: LODLevel, new_level: LODLevel)
 
 # Chunk coordinate (grid-space, not world-space)
 var chunk_coord: Vector3i = Vector3i.ZERO
@@ -32,12 +57,18 @@ var _blocks: Dictionary = {}
 var _opaque_mesh: MeshInstance3D = null
 var _transparent_mesh: MeshInstance3D = null
 
+# LOD mesh instances (for different detail levels)
+var _lod_meshes: Array[MeshInstance3D] = []
+
 # Collision body for raycasting all blocks in chunk
 var _static_body: StaticBody3D = null
 
 # State tracking
 var _dirty: bool = true
 var _block_count: int = 0
+
+# Current LOD level
+var _current_lod: LODLevel = LODLevel.LOD0
 
 # AABB for frustum culling (world space)
 var _aabb: AABB = AABB()
@@ -378,3 +409,159 @@ func set_shader(shader: Shader) -> void:
 ## Set material cache reference
 func set_material_cache(cache: Dictionary) -> void:
 	_material_cache = cache
+
+
+# --- LOD Methods ---
+
+## Set the LOD level for this chunk
+func set_lod(lod: LODLevel) -> void:
+	if lod == _current_lod:
+		return
+
+	var old_lod := _current_lod
+	_current_lod = lod
+
+	_apply_lod_level()
+	lod_changed.emit(old_lod, lod)
+
+
+## Get the current LOD level
+func get_lod() -> LODLevel:
+	return _current_lod
+
+
+## Apply visual changes based on current LOD level
+func _apply_lod_level() -> void:
+	if not _opaque_mesh:
+		return
+
+	match _current_lod:
+		LODLevel.LOD0:
+			# Full detail: show opaque mesh with full material
+			_opaque_mesh.visible = true
+			_set_lod0_material()
+		LODLevel.LOD1:
+			# Simplified exterior: show opaque mesh with simplified material
+			_opaque_mesh.visible = true
+			_set_lod1_material()
+		LODLevel.LOD2:
+			# Silhouette only: show opaque mesh with flat shading
+			_opaque_mesh.visible = true
+			_set_lod2_material()
+		LODLevel.LOD3:
+			# Impostor: hide detailed mesh, show simplified representation
+			_opaque_mesh.visible = true
+			_set_lod3_material()
+
+
+## Set material for LOD0 (full detail)
+func _set_lod0_material() -> void:
+	if not _opaque_mesh:
+		return
+
+	var mat := _create_chunk_material()
+	if mat:
+		_opaque_mesh.material_override = mat
+
+
+## Set material for LOD1 (simplified exterior)
+func _set_lod1_material() -> void:
+	if not _opaque_mesh:
+		return
+
+	# LOD1: Same geometry but simpler material (no specular, reduced roughness detail)
+	if _block_shader:
+		var mat := ShaderMaterial.new()
+		mat.shader = _block_shader
+		mat.set_shader_parameter("albedo_color", Color.WHITE)
+		mat.set_shader_parameter("roughness", 0.9)  # More matte
+		mat.set_shader_parameter("metallic", 0.0)
+		mat.set_shader_parameter("alpha", 1.0)
+		mat.set_shader_parameter("is_ghost", false)
+		_opaque_mesh.material_override = mat
+	else:
+		var mat := StandardMaterial3D.new()
+		mat.vertex_color_use_as_albedo = true
+		mat.roughness = 0.9
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_VERTEX
+		_opaque_mesh.material_override = mat
+
+
+## Set material for LOD2 (silhouette)
+func _set_lod2_material() -> void:
+	if not _opaque_mesh:
+		return
+
+	# LOD2: Flat shading, single color based on average chunk color
+	var avg_color := _get_average_block_color()
+
+	if _block_shader:
+		var mat := ShaderMaterial.new()
+		mat.shader = _block_shader
+		mat.set_shader_parameter("albedo_color", avg_color)
+		mat.set_shader_parameter("roughness", 1.0)  # Fully matte
+		mat.set_shader_parameter("metallic", 0.0)
+		mat.set_shader_parameter("alpha", 1.0)
+		mat.set_shader_parameter("is_ghost", false)
+		_opaque_mesh.material_override = mat
+	else:
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = avg_color
+		mat.roughness = 1.0
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_opaque_mesh.material_override = mat
+
+
+## Set material for LOD3 (impostor)
+func _set_lod3_material() -> void:
+	if not _opaque_mesh:
+		return
+
+	# LOD3: Simple flat color, possibly tinted to indicate distance
+	var avg_color := _get_average_block_color()
+	# Slightly desaturate and darken for distant objects (atmospheric perspective)
+	avg_color = avg_color.lerp(Color(0.7, 0.75, 0.8), 0.3)
+
+	if _block_shader:
+		var mat := ShaderMaterial.new()
+		mat.shader = _block_shader
+		mat.set_shader_parameter("albedo_color", avg_color)
+		mat.set_shader_parameter("roughness", 1.0)
+		mat.set_shader_parameter("metallic", 0.0)
+		mat.set_shader_parameter("alpha", 1.0)
+		mat.set_shader_parameter("is_ghost", false)
+		_opaque_mesh.material_override = mat
+	else:
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = avg_color
+		mat.roughness = 1.0
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_opaque_mesh.material_override = mat
+
+
+## Calculate average color of all blocks in chunk
+func _get_average_block_color() -> Color:
+	if _blocks.is_empty():
+		return Color(0.6, 0.6, 0.6)  # Default gray
+
+	var total_color := Color(0, 0, 0)
+	var count := 0
+
+	for block_data in _blocks.values():
+		var block_type: String = block_data.get("type", "corridor")
+		total_color += _get_color_for_type(block_type)
+		count += 1
+
+	if count > 0:
+		return Color(
+			total_color.r / count,
+			total_color.g / count,
+			total_color.b / count
+		)
+
+	return Color(0.6, 0.6, 0.6)
+
+
+## Get the LOD reduction factor for current level
+func get_lod_reduction_factor() -> float:
+	return LOD_FACE_REDUCTION.get(_current_lod, 1.0)

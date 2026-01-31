@@ -6,13 +6,20 @@ class_name ChunkManager
 ## Chunks are 8x8x8 grid cells that merge block meshes to reduce draw calls.
 ## Dirty chunks are rebuilt during idle time with a frame budget to prevent stutter.
 ##
+## LOD System Integration:
+## The ChunkManager can optionally use an LODManager to control level-of-detail
+## for distant chunks. Enable with enable_lod().
+##
 ## Usage:
 ##   var manager = ChunkManager.new()
 ##   add_child(manager)
+##   manager.set_camera(camera)
+##   manager.enable_lod()  # Optional: enable LOD system
 ##   manager.add_block(Vector3i(0, 0, 0), "corridor")
 ##   # Chunks rebuild automatically during _process
 
 const ChunkClass := preload("res://src/rendering/chunk.gd")
+const LODManagerClass := preload("res://src/rendering/lod_manager.gd")
 
 # Chunk size in grid cells per axis (must match Chunk.CHUNK_SIZE)
 const CHUNK_SIZE: int = 8
@@ -27,6 +34,8 @@ const REBUILD_TIME_BUDGET_USEC: int = 4000  # 4ms budget
 signal chunk_created(chunk_coord: Vector3i)
 signal chunk_removed(chunk_coord: Vector3i)
 signal chunk_rebuilt(chunk_coord: Vector3i)
+signal lod_enabled()
+signal lod_disabled()
 
 # Chunk storage: Vector3i (chunk coord) -> Chunk node
 var _chunks: Dictionary = {}
@@ -36,6 +45,10 @@ var _dirty_queue: Array[Vector3i] = []
 
 # Camera reference for frustum culling priority
 var _camera: Camera3D = null
+
+# LOD Manager (optional)
+var _lod_manager: Node = null
+var _lod_enabled: bool = false
 
 # Shader for chunk materials
 var _block_shader: Shader = null
@@ -61,6 +74,9 @@ func _process(_delta: float) -> void:
 ## Set camera reference for frustum culling priority
 func set_camera(camera: Camera3D) -> void:
 	_camera = camera
+	# Also update LOD manager camera if enabled
+	if _lod_manager:
+		_lod_manager.set_camera(camera)
 
 
 ## Add a block to the appropriate chunk
@@ -210,6 +226,11 @@ func _get_or_create_chunk(chunk_coord: Vector3i) -> Node3D:
 	_chunks[chunk_coord] = chunk
 	add_child(chunk)
 	_total_chunks += 1
+
+	# Register with LOD manager if enabled
+	if _lod_manager:
+		_lod_manager.register_chunk(chunk)
+
 	chunk_created.emit(chunk_coord)
 	return chunk
 
@@ -219,6 +240,10 @@ func _remove_chunk(chunk_coord: Vector3i) -> void:
 	var chunk: Node3D = _chunks.get(chunk_coord, null)
 	if not chunk:
 		return
+
+	# Unregister from LOD manager if enabled
+	if _lod_manager:
+		_lod_manager.unregister_chunk(chunk)
 
 	_chunks.erase(chunk_coord)
 	_total_chunks -= 1
@@ -315,3 +340,80 @@ func _load_shader() -> void:
 	var shader_path := "res://shaders/block_material.gdshader"
 	if ResourceLoader.exists(shader_path):
 		_block_shader = load(shader_path)
+
+
+# --- LOD System Methods ---
+
+## Enable the LOD system for distance-based detail reduction
+func enable_lod() -> Node:
+	if _lod_manager:
+		return _lod_manager
+
+	_lod_manager = LODManagerClass.new()
+	_lod_manager.name = "LODManager"
+	add_child(_lod_manager)
+
+	# Set camera if already available
+	if _camera:
+		_lod_manager.set_camera(_camera)
+
+	# Register all existing chunks
+	for chunk in _chunks.values():
+		_lod_manager.register_chunk(chunk)
+
+	_lod_enabled = true
+	lod_enabled.emit()
+	return _lod_manager
+
+
+## Disable the LOD system
+func disable_lod() -> void:
+	if not _lod_manager:
+		return
+
+	_lod_manager.clear()
+	_lod_manager.queue_free()
+	_lod_manager = null
+	_lod_enabled = false
+
+	# Reset all chunks to LOD0
+	for chunk in _chunks.values():
+		if chunk.has_method("set_lod"):
+			chunk.set_lod(0)  # LODLevel.LOD0
+
+	lod_disabled.emit()
+
+
+## Check if LOD system is enabled
+func is_lod_enabled() -> bool:
+	return _lod_enabled
+
+
+## Get the LOD manager (null if LOD not enabled)
+func get_lod_manager() -> Node:
+	return _lod_manager
+
+
+## Set custom LOD distance thresholds
+func set_lod_thresholds(lod0_max: float, lod1_max: float, lod2_max: float) -> void:
+	if _lod_manager:
+		_lod_manager.set_thresholds(lod0_max, lod1_max, lod2_max)
+
+
+## Get LOD statistics
+func get_lod_statistics() -> Dictionary:
+	if _lod_manager:
+		return _lod_manager.get_statistics()
+	return {
+		"total_chunks": _total_chunks,
+		"lod0_count": _total_chunks,  # All at LOD0 when disabled
+		"lod1_count": 0,
+		"lod2_count": 0,
+		"lod3_count": 0,
+	}
+
+
+## Force immediate LOD update for all chunks
+func force_lod_update() -> void:
+	if _lod_manager:
+		_lod_manager.force_update()
