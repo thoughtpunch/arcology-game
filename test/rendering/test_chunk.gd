@@ -254,23 +254,24 @@ func _test_grid_to_local_conversion() -> void:
 	print("\n--- Grid to Local Conversion ---")
 	var chunk: Node3D = _ChunkClass.new(Vector3i(0, 0, 0))
 
-	# Block at grid (0,0,0) should be at local (0, 1.75, 0)
+	# Cell size is 6m (true cube). Half height = 3.0
+	# Block at grid (0,0,0) should be at local (0, 3.0, 0)
 	var local0: Vector3 = chunk._grid_to_local(Vector3i(0, 0, 0))
 	_assert(is_equal_approx(local0.x, 0.0), "Grid(0,0,0) local x should be 0")
-	_assert(is_equal_approx(local0.y, 1.75), "Grid(0,0,0) local y should be 1.75 (half height)")
+	_assert(is_equal_approx(local0.y, 3.0), "Grid(0,0,0) local y should be 3.0 (half of 6m cell)")
 	_assert(is_equal_approx(local0.z, 0.0), "Grid(0,0,0) local z should be 0")
 
-	# Block at grid (1,0,0) should be at local (6, 1.75, 0)
+	# Block at grid (1,0,0) should be at local (6, 3.0, 0)
 	var local1: Vector3 = chunk._grid_to_local(Vector3i(1, 0, 0))
 	_assert(is_equal_approx(local1.x, 6.0), "Grid(1,0,0) local x should be 6.0")
 
-	# Block at grid (0,1,0) should be at local (0, 1.75, 6)
+	# Block at grid (0,1,0) should be at local (0, 3.0, 6)
 	var local2: Vector3 = chunk._grid_to_local(Vector3i(0, 1, 0))
 	_assert(is_equal_approx(local2.z, 6.0), "Grid(0,1,0) local z should be 6.0 (grid y -> world z)")
 
-	# Block at grid (0,0,1) should be at local (0, 5.25, 0)
+	# Block at grid (0,0,1) should be at local (0, 9.0, 0) — one floor up = +6m, plus half height = 9.0
 	var local3: Vector3 = chunk._grid_to_local(Vector3i(0, 0, 1))
-	_assert(is_equal_approx(local3.y, 5.25), "Grid(0,0,1) local y should be 5.25 (grid z -> world y)")
+	_assert(is_equal_approx(local3.y, 9.0), "Grid(0,0,1) local y should be 9.0 (grid z -> world y)")
 
 	chunk.free()
 
