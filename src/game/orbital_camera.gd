@@ -10,6 +10,7 @@ extends Node3D
 ##   Alt + left-click + drag: Orbit around point under cursor (3DS Max/Blender style)
 ##   Alt + right-click + drag: Dolly zoom (Hitchcock/Vertigo effect — zoom FOV while
 ##     adjusting distance to maintain subject framing)
+##   Shift + right-click + drag: Roll camera (flight sim style, for cinematic angles)
 ##   Double-click: Handled by parent (focus on object)
 ##
 ## Trackpad gestures (macOS):
@@ -101,6 +102,7 @@ var azimuth: float = 45.0
 var elevation: float = 30.0
 var distance: float = 200.0
 var fov: float = DEFAULT_FOV
+var roll: float = 0.0  # Camera roll in degrees (0 = level, positive = clockwise)
 var is_orthographic: bool = false
 var camera: Camera3D
 
@@ -110,6 +112,13 @@ var _target_elevation: float = 30.0
 var _target_distance: float = 200.0
 var _target_target: Vector3 = Vector3.ZERO
 var _target_fov: float = DEFAULT_FOV
+var _target_roll: float = 0.0
+
+# Roll drag state
+var _roll_drag_pressed: bool = false
+var _roll_drag_active: bool = false
+var _roll_drag_press_pos: Vector2 = Vector2.ZERO
+const ROLL_SENSITIVITY: float = 0.3  # Degrees per pixel of drag
 
 # Home position (saved on _ready)
 var _home_target: Vector3
@@ -426,6 +435,20 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 				_dolly_zoom_pressed = false
 				_dolly_zoom_active = false
 				get_viewport().set_input_as_handled()
+			elif event.pressed and event.shift_pressed:
+				# Shift + right-click: roll camera
+				_roll_drag_pressed = true
+				_roll_drag_active = false
+				_roll_drag_press_pos = event.position
+				_last_mouse_pos = event.position
+				get_viewport().set_input_as_handled()
+			elif not event.pressed and _roll_drag_pressed:
+				if _roll_drag_active:
+					_push_history()
+					_log("Roll drag ended (roll=%.1f)" % _target_roll)
+				_roll_drag_pressed = false
+				_roll_drag_active = false
+				get_viewport().set_input_as_handled()
 			elif event.pressed:
 				_right_pressed = true
 				_right_drag_active = false
@@ -536,6 +559,20 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 			new_distance = clampf(new_distance, MIN_DISTANCE, MAX_DISTANCE)
 			_target_fov = new_fov
 			_target_distance = new_distance
+		get_viewport().set_input_as_handled()
+		return
+
+	# Shift + right-click drag → roll
+	if _roll_drag_pressed:
+		if not _roll_drag_active:
+			if event.position.distance_to(_roll_drag_press_pos) > DRAG_THRESHOLD:
+				_roll_drag_active = true
+				_push_history()
+				_log("Roll drag started (roll=%.1f)" % _target_roll)
+		if _roll_drag_active:
+			# Horizontal drag adjusts roll
+			var roll_delta := delta.x * ROLL_SENSITIVITY * _precision
+			_target_roll = fmod(_target_roll + roll_delta, 360.0)
 		get_viewport().set_input_as_handled()
 		return
 
@@ -682,10 +719,11 @@ func _handle_key(event: InputEventKey) -> void:
 			get_viewport().set_input_as_handled()
 
 		KEY_Z:
-			# Level horizon — reset elevation to comfortable default
+			# Level horizon — reset elevation and roll to defaults
 			_push_history()
 			_target_elevation = 30.0
-			_log("Leveled horizon (elevation → 30°)")
+			_target_roll = 0.0
+			_log("Leveled horizon (elevation → 30°, roll → 0°)")
 			get_viewport().set_input_as_handled()
 
 		KEY_X:
@@ -798,6 +836,7 @@ func _smooth_interpolate(delta: float) -> void:
 	distance = lerpf(distance, _target_distance, t)
 	target = target.lerp(_target_target, t)
 	fov = lerpf(fov, _target_fov, t)
+	roll = lerpf(roll, _target_roll, t)
 
 
 func _update_camera_position() -> void:
@@ -821,6 +860,9 @@ func _update_camera_position() -> void:
 
 	if camera.is_inside_tree():
 		camera.look_at(target, Vector3.UP)
+		# Apply roll rotation around forward axis (flight sim style)
+		if roll != 0.0:
+			camera.rotate_object_local(Vector3.FORWARD, deg_to_rad(roll))
 
 
 # --- Alt-Orbit Raycast ---
