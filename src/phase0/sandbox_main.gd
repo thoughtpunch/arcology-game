@@ -1154,6 +1154,13 @@ func place_block(definition: Resource, origin: Vector3i, rot: int) -> RefCounted
 		)
 		return null
 
+	# Cost check: deduct from treasury (skip if cost is 0)
+	var block_cost: int = definition.cost
+	if block_cost > 0 and not GameState.spend_money(block_cost):
+		_log("place_block FAILED: cannot afford %s (cost=%d, funds=%d)" % [definition.id, block_cost, GameState.get_money()])
+		_show_removal_warning("Not enough funds ($%d needed)" % block_cost)
+		return null
+
 	var block: RefCounted = PlacedBlockScript.new()
 	block.id = next_block_id
 	next_block_id += 1
@@ -1208,6 +1215,11 @@ func remove_block(block_id: int) -> void:
 
 	var block: RefCounted = placed_blocks[block_id]
 	_log("Removing block #%d (%s) at %s" % [block_id, block.definition.id, block.origin])
+
+	# Refund block cost
+	var refund: int = block.definition.cost
+	if refund > 0:
+		GameState.add_money(refund)
 
 	for cell in block.occupied_cells:
 		cell_occupancy.erase(cell)

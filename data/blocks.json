@@ -3,1060 +3,1710 @@
     "name": "Entrance",
     "category": "transit",
     "traversability": "public",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "connects_horizontal": true,
     "connects_vertical": false,
-    "ground_only": true
+    "ground_only": true,
+    "cost": 0
   },
   "corridor": {
     "name": "Corridor",
     "category": "transit",
     "traversability": "public",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "connects_horizontal": true,
-    "connects_vertical": false
+    "connects_vertical": false,
+    "cost": 100
   },
   "corridor_medium": {
     "name": "Medium Corridor",
     "category": "transit",
     "traversability": "public",
-    "size": [2, 1, 1],
+    "size": [
+      2,
+      1,
+      1
+    ],
     "connects_horizontal": true,
-    "connects_vertical": false
+    "connects_vertical": false,
+    "cost": 200
   },
   "corridor_large": {
     "name": "Large Corridor",
     "category": "transit",
     "traversability": "public",
-    "size": [3, 1, 2],
+    "size": [
+      3,
+      1,
+      2
+    ],
     "connects_horizontal": true,
     "connects_vertical": false,
-    "capacity": 150
+    "capacity": 150,
+    "cost": 600
   },
   "grand_promenade": {
     "name": "Grand Promenade",
     "category": "transit",
     "traversability": "public",
-    "size": [5, 1, 2],
+    "size": [
+      5,
+      1,
+      2
+    ],
     "connects_horizontal": true,
     "connects_vertical": false,
-    "capacity": 400
+    "capacity": 400,
+    "cost": 2000
   },
   "stairs": {
     "name": "Stairs",
     "category": "transit",
     "traversability": "public",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "connects_horizontal": true,
-    "connects_vertical": true
+    "connects_vertical": true,
+    "cost": 100
   },
   "elevator_shaft": {
     "name": "Elevator Shaft",
     "category": "transit",
     "traversability": "public",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "connects_horizontal": false,
-    "connects_vertical": true
+    "connects_vertical": true,
+    "cost": 100
   },
   "express_elevator": {
     "name": "Express Elevator",
     "category": "transit",
     "traversability": "public",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "connects_horizontal": false,
     "connects_vertical": true,
-    "max_floors": 30
+    "max_floors": 30,
+    "cost": 800
   },
   "freight_elevator": {
     "name": "Freight Elevator",
     "category": "transit",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "connects_horizontal": false,
     "connects_vertical": true,
-    "freight_capacity": 1000
+    "freight_capacity": 1000,
+    "cost": 400
   },
   "escalator": {
     "name": "Escalator",
     "category": "transit",
     "traversability": "public",
-    "size": [2, 1, 1],
+    "size": [
+      2,
+      1,
+      1
+    ],
     "connects_horizontal": true,
-    "connects_vertical": true
+    "connects_vertical": true,
+    "cost": 200
   },
   "moving_walkway": {
     "name": "Moving Walkway",
     "category": "transit",
     "traversability": "public",
-    "size": [3, 1, 1],
+    "size": [
+      3,
+      1,
+      1
+    ],
     "connects_horizontal": true,
     "connects_vertical": false,
-    "speed_multiplier": 2.0
+    "speed_multiplier": 2.0,
+    "cost": 300
   },
   "sky_lobby": {
     "name": "Sky Lobby",
     "category": "transit",
     "traversability": "public",
-    "size": [4, 2, 4],
+    "size": [
+      4,
+      2,
+      4
+    ],
     "connects_horizontal": true,
-    "connects_vertical": true
+    "connects_vertical": true,
+    "cost": 6000
   },
   "grand_terminal": {
     "name": "Grand Terminal",
     "category": "transit",
     "traversability": "public",
-    "size": [5, 2, 5],
+    "size": [
+      5,
+      2,
+      5
+    ],
     "connects_horizontal": true,
-    "connects_vertical": true
+    "connects_vertical": true,
+    "cost": 10000
   },
   "residential_budget": {
     "name": "Budget Housing",
     "category": "residential",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "capacity": 4,
-    "rent_base": 50
+    "rent_base": 50,
+    "cost": 300
   },
   "residential_standard": {
     "name": "Standard Housing",
     "category": "residential",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "capacity": 2,
-    "rent_base": 100
+    "rent_base": 100,
+    "cost": 300
   },
   "residential_premium": {
     "name": "Premium Housing",
     "category": "residential",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "capacity": 1,
-    "rent_base": 200
+    "rent_base": 200,
+    "cost": 300
   },
   "penthouse": {
     "name": "Penthouse Suite",
     "category": "residential",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "capacity": 1,
-    "rent_base": 500
+    "rent_base": 500,
+    "cost": 5000
   },
   "residential_family": {
     "name": "Family Housing",
     "category": "residential",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "capacity": 6,
-    "rent_base": 150
+    "rent_base": 150,
+    "cost": 1200
   },
   "studio_apartment": {
     "name": "Studio Apartment",
     "category": "residential",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "capacity": 6,
-    "rent_base": 40
+    "rent_base": 40,
+    "cost": 300
   },
   "dormitory": {
     "name": "Dormitory",
     "category": "residential",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "capacity": 20,
-    "rent_base": 30
+    "rent_base": 30,
+    "cost": 1200
   },
   "senior_housing": {
     "name": "Senior Housing",
     "category": "residential",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "capacity": 8,
-    "rent_base": 80
+    "rent_base": 80,
+    "cost": 1200
   },
   "artist_loft": {
     "name": "Artist Loft",
     "category": "residential",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "capacity": 2,
     "rent_base": 75,
-    "purpose_bonus": 10
+    "purpose_bonus": 10,
+    "cost": 300
   },
   "worker_housing": {
     "name": "Worker Housing",
     "category": "residential",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "capacity": 4,
     "rent_base": 30,
-    "noise_tolerance": 50
+    "noise_tolerance": 50,
+    "cost": 300
   },
   "bunker_housing": {
     "name": "Bunker Housing",
     "category": "residential",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "capacity": 8,
     "rent_base": 20,
-    "subterranean_viable": true
+    "subterranean_viable": true,
+    "cost": 300
   },
   "cohousing": {
     "name": "Co-Housing",
     "category": "residential",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "capacity": 6,
     "rent_base": 90,
-    "belonging_bonus": 15
+    "belonging_bonus": 15,
+    "cost": 1200
   },
   "commune": {
     "name": "Commune",
     "category": "residential",
     "traversability": "private",
-    "size": [3, 1, 3],
+    "size": [
+      3,
+      1,
+      3
+    ],
     "capacity": 12,
     "rent_base": 60,
     "belonging_bonus": 20,
-    "purpose_bonus": 10
+    "purpose_bonus": 10,
+    "cost": 2000
   },
   "boarding_house": {
     "name": "Boarding House",
     "category": "residential",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "capacity": 10,
-    "rent_base": 35
+    "rent_base": 35,
+    "cost": 1200
   },
   "commercial_shop": {
     "name": "Small Shop",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 2,
-    "revenue_base": 150
+    "revenue_base": 150,
+    "cost": 500
   },
   "boutique": {
     "name": "Boutique",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 3,
-    "revenue_base": 200
+    "revenue_base": 200,
+    "cost": 500
   },
   "department_store": {
     "name": "Department Store",
     "category": "commercial",
     "traversability": "private",
-    "size": [3, 2, 3],
+    "size": [
+      3,
+      2,
+      3
+    ],
     "jobs": 30,
-    "revenue_base": 800
+    "revenue_base": 800,
+    "cost": 8000
   },
   "grocery": {
     "name": "Grocery",
     "category": "commercial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 12,
-    "revenue_base": 300
+    "revenue_base": 300,
+    "cost": 2000
   },
   "pharmacy": {
     "name": "Pharmacy",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 4,
-    "revenue_base": 180
+    "revenue_base": 180,
+    "cost": 500
   },
   "hardware_store": {
     "name": "Hardware Store",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 4,
-    "revenue_base": 150
+    "revenue_base": 150,
+    "cost": 500
   },
   "bookstore": {
     "name": "Bookstore",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 2,
     "revenue_base": 100,
-    "purpose_bonus": 5
+    "purpose_bonus": 5,
+    "cost": 500
   },
   "commercial_restaurant": {
     "name": "Restaurant",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 4,
-    "revenue_base": 180
+    "revenue_base": 180,
+    "cost": 500
   },
   "cafe": {
     "name": "Cafe",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 2,
-    "revenue_base": 100
+    "revenue_base": 100,
+    "cost": 500
   },
   "bar": {
     "name": "Bar",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 3,
     "revenue_base": 120,
-    "noise_production": 40
+    "noise_production": 40,
+    "cost": 500
   },
   "nightclub": {
     "name": "Nightclub",
     "category": "commercial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 10,
     "revenue_base": 350,
-    "noise_production": 70
+    "noise_production": 70,
+    "cost": 2000
   },
   "fast_food": {
     "name": "Fast Food",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 4,
-    "revenue_base": 150
+    "revenue_base": 150,
+    "cost": 500
   },
   "food_hall": {
     "name": "Food Hall",
     "category": "commercial",
     "traversability": "public",
-    "size": [5, 1, 5],
+    "size": [
+      5,
+      1,
+      5
+    ],
     "jobs": 50,
     "revenue_base": 600,
-    "vibes_bonus": 20
+    "vibes_bonus": 20,
+    "cost": 4000
   },
   "commercial_office": {
     "name": "Office Suite",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 10,
-    "revenue_base": 200
+    "revenue_base": 200,
+    "cost": 500
   },
   "coworking_space": {
     "name": "Coworking Space",
     "category": "commercial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 20,
-    "revenue_base": 350
+    "revenue_base": 350,
+    "cost": 2000
   },
   "law_office": {
     "name": "Law Office",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 6,
-    "revenue_base": 250
+    "revenue_base": 250,
+    "cost": 500
   },
   "medical_office": {
     "name": "Medical Office",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 4,
-    "revenue_base": 200
+    "revenue_base": 200,
+    "cost": 500
   },
   "hair_salon": {
     "name": "Hair Salon",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 3,
     "revenue_base": 100,
-    "belonging_bonus": 5
+    "belonging_bonus": 5,
+    "cost": 500
   },
   "spa": {
     "name": "Spa",
     "category": "commercial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 8,
     "revenue_base": 350,
-    "esteem_bonus": 10
+    "esteem_bonus": 10,
+    "cost": 2000
   },
   "bank_branch": {
     "name": "Bank Branch",
     "category": "commercial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 4,
-    "revenue_base": 180
+    "revenue_base": 180,
+    "cost": 500
   },
   "hotel": {
     "name": "Hotel",
     "category": "commercial",
     "traversability": "private",
-    "size": [3, 3, 3],
+    "size": [
+      3,
+      3,
+      3
+    ],
     "jobs": 25,
     "revenue_base": 600,
-    "visitor_capacity": 100
+    "visitor_capacity": 100,
+    "cost": 13500
   },
   "industrial_light": {
     "name": "Light Manufacturing",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 20,
     "revenue_base": 300,
-    "noise_production": 40
+    "noise_production": 40,
+    "cost": 1600
   },
   "heavy_manufacturing": {
     "name": "Heavy Manufacturing",
     "category": "industrial",
     "traversability": "private",
-    "size": [3, 1, 3],
+    "size": [
+      3,
+      1,
+      3
+    ],
     "jobs": 50,
     "revenue_base": 600,
     "noise_production": 70,
-    "pollution": 50
+    "pollution": 50,
+    "cost": 3600
   },
   "electronics_factory": {
     "name": "Electronics Factory",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 25,
     "revenue_base": 450,
-    "noise_production": 20
+    "noise_production": 20,
+    "cost": 1600
   },
   "textile_mill": {
     "name": "Textile Mill",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 30,
     "revenue_base": 350,
-    "noise_production": 50
+    "noise_production": 50,
+    "cost": 1600
   },
   "metal_fabrication": {
     "name": "Metal Fabrication",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 15,
     "revenue_base": 400,
-    "noise_production": 60
+    "noise_production": 60,
+    "cost": 1600
   },
   "print_farm_3d": {
     "name": "3D Print Farm",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 10,
-    "revenue_base": 350
+    "revenue_base": 350,
+    "cost": 1600
   },
   "maker_space": {
     "name": "Maker Space",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 4,
-    "purpose_bonus": 15
+    "purpose_bonus": 15,
+    "cost": 1600
   },
   "fab_lab": {
     "name": "Fab Lab",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 8,
-    "tech_level": 2
+    "tech_level": 2,
+    "cost": 1600
   },
   "repair_shop": {
     "name": "Repair Shop",
     "category": "industrial",
     "traversability": "private",
-    "size": [1, 1, 1],
-    "jobs": 3
+    "size": [
+      1,
+      1,
+      1
+    ],
+    "jobs": 3,
+    "cost": 400
   },
   "craft_workshop": {
     "name": "Craft Workshop",
     "category": "industrial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 2,
-    "purpose_bonus": 10
+    "purpose_bonus": 10,
+    "cost": 400
   },
   "woodworking_shop": {
     "name": "Woodworking Shop",
     "category": "industrial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 3,
-    "noise_production": 30
+    "noise_production": 30,
+    "cost": 400
   },
   "warehouse": {
     "name": "Warehouse",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 4,
-    "storage_capacity": 500
+    "storage_capacity": 500,
+    "cost": 1600
   },
   "cold_storage": {
     "name": "Cold Storage",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 4,
     "storage_capacity": 300,
-    "power_consumption": 50
+    "power_consumption": 50,
+    "cost": 1600
   },
   "data_center": {
     "name": "Data Center",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 10,
     "power_consumption": 100,
-    "heat_production": 50
+    "heat_production": 50,
+    "cost": 1600
   },
   "recycling_center": {
     "name": "Recycling Center",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
-    "jobs": 15
+    "size": [
+      2,
+      1,
+      2
+    ],
+    "jobs": 15,
+    "cost": 1600
   },
   "waste_processing": {
     "name": "Waste Processing",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 10,
-    "odor_production": 40
+    "odor_production": 40,
+    "cost": 1600
   },
   "vertical_farm": {
     "name": "Vertical Farm",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 10,
-    "food_production": 100
+    "food_production": 100,
+    "cost": 1600
   },
   "hydroponics_bay": {
     "name": "Hydroponics Bay",
     "category": "industrial",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 4,
-    "food_production": 30
+    "food_production": 30,
+    "cost": 400
   },
   "mushroom_farm": {
     "name": "Mushroom Farm",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 6,
     "food_production": 50,
-    "light_required": false
+    "light_required": false,
+    "cost": 1600
   },
   "aquaculture_tank": {
     "name": "Aquaculture Tank",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 8,
-    "food_production": 80
+    "food_production": 80,
+    "cost": 1600
   },
   "food_processing": {
     "name": "Food Processing",
     "category": "industrial",
     "traversability": "private",
-    "size": [2, 1, 2],
-    "jobs": 15
+    "size": [
+      2,
+      1,
+      2
+    ],
+    "jobs": 15,
+    "cost": 1600
   },
   "admin_center": {
     "name": "Admin Center",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
-    "jobs": 30
+    "size": [
+      2,
+      1,
+      2
+    ],
+    "jobs": 30,
+    "cost": 3200
   },
   "city_hall": {
     "name": "City Hall",
     "category": "civic",
     "traversability": "public",
-    "size": [3, 2, 3],
-    "jobs": 50
+    "size": [
+      3,
+      2,
+      3
+    ],
+    "jobs": 50,
+    "cost": 14400
   },
   "courthouse": {
     "name": "Courthouse",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
-    "jobs": 20
+    "size": [
+      2,
+      1,
+      2
+    ],
+    "jobs": 20,
+    "cost": 3200
   },
   "post_office": {
     "name": "Post Office",
     "category": "civic",
     "traversability": "public",
-    "size": [1, 1, 1],
-    "jobs": 4
+    "size": [
+      1,
+      1,
+      1
+    ],
+    "jobs": 4,
+    "cost": 800
   },
   "civic_security": {
     "name": "Security Station",
     "category": "civic",
     "traversability": "public",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 4,
-    "safety_radius": 10
+    "safety_radius": 10,
+    "cost": 800
   },
   "police_hq": {
     "name": "Police HQ",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 20,
-    "safety_radius": 20
+    "safety_radius": 20,
+    "cost": 3200
   },
   "fire_station": {
     "name": "Fire Station",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 10,
-    "fire_safety_radius": 15
+    "fire_safety_radius": 15,
+    "cost": 3200
   },
   "emergency_clinic": {
     "name": "Emergency Clinic",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
-    "jobs": 15
+    "size": [
+      2,
+      1,
+      2
+    ],
+    "jobs": 15,
+    "cost": 3200
   },
   "daycare": {
     "name": "Daycare",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 10,
-    "capacity": 30
+    "capacity": 30,
+    "cost": 3200
   },
   "civic_school": {
     "name": "School",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 15,
-    "education_radius": 15
+    "education_radius": 15,
+    "cost": 3200
   },
   "high_school": {
     "name": "High School",
     "category": "civic",
     "traversability": "public",
-    "size": [3, 1, 3],
+    "size": [
+      3,
+      1,
+      3
+    ],
     "jobs": 30,
-    "education_radius": 20
+    "education_radius": 20,
+    "cost": 7200
   },
   "university": {
     "name": "University",
     "category": "civic",
     "traversability": "public",
-    "size": [4, 2, 4],
+    "size": [
+      4,
+      2,
+      4
+    ],
     "jobs": 100,
-    "tech_level_unlock": 2
+    "tech_level_unlock": 2,
+    "cost": 12000
   },
   "trade_school": {
     "name": "Trade School",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
-    "jobs": 20
+    "size": [
+      2,
+      1,
+      2
+    ],
+    "jobs": 20,
+    "cost": 3200
   },
   "library": {
     "name": "Library",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 8,
-    "purpose_bonus": 10
+    "purpose_bonus": 10,
+    "cost": 3200
   },
   "civic_clinic": {
     "name": "Clinic",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 6,
-    "healthcare_radius": 10
+    "healthcare_radius": 10,
+    "cost": 3200
   },
   "hospital": {
     "name": "Hospital",
     "category": "civic",
     "traversability": "public",
-    "size": [4, 2, 4],
+    "size": [
+      4,
+      2,
+      4
+    ],
     "jobs": 100,
-    "healthcare_radius": 30
+    "healthcare_radius": 30,
+    "cost": 10000
   },
   "mental_health_center": {
     "name": "Mental Health Center",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
-    "jobs": 15
+    "size": [
+      2,
+      1,
+      2
+    ],
+    "jobs": 15,
+    "cost": 3200
   },
   "senior_center": {
     "name": "Senior Center",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 6,
-    "purpose_bonus": 10
+    "purpose_bonus": 10,
+    "cost": 3200
   },
   "chapel": {
     "name": "Chapel",
     "category": "civic",
     "traversability": "public",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 1,
     "belonging_bonus": 10,
-    "purpose_bonus": 5
+    "purpose_bonus": 5,
+    "cost": 800
   },
   "church": {
     "name": "Church/Temple",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 4,
     "belonging_bonus": 15,
-    "purpose_bonus": 10
+    "purpose_bonus": 10,
+    "cost": 3200
   },
   "meditation_center": {
     "name": "Meditation Center",
     "category": "civic",
     "traversability": "public",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 2,
-    "purpose_bonus": 15
+    "purpose_bonus": 15,
+    "cost": 800
   },
   "interfaith_center": {
     "name": "Interfaith Center",
     "category": "civic",
     "traversability": "public",
-    "size": [3, 1, 3],
+    "size": [
+      3,
+      1,
+      3
+    ],
     "jobs": 6,
-    "belonging_bonus": 20
+    "belonging_bonus": 20,
+    "cost": 7200
   },
   "funeral_home": {
     "name": "Funeral Home",
     "category": "civic",
     "traversability": "public",
-    "size": [1, 1, 1],
-    "jobs": 3
+    "size": [
+      1,
+      1,
+      1
+    ],
+    "jobs": 3,
+    "cost": 800
   },
   "community_center": {
     "name": "Community Center",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 6,
-    "belonging_bonus": 20
+    "belonging_bonus": 20,
+    "cost": 3200
   },
   "cultural_center": {
     "name": "Cultural Center",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
-    "jobs": 8
+    "size": [
+      2,
+      1,
+      2
+    ],
+    "jobs": 8,
+    "cost": 3200
   },
   "museum": {
     "name": "Museum",
     "category": "civic",
     "traversability": "public",
-    "size": [3, 2, 3],
-    "jobs": 15
+    "size": [
+      3,
+      2,
+      3
+    ],
+    "jobs": 15,
+    "cost": 14400
   },
   "art_gallery": {
     "name": "Art Gallery",
     "category": "civic",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 6,
-    "vibes_bonus": 15
+    "vibes_bonus": 15,
+    "cost": 3200
   },
   "theater": {
     "name": "Theater",
     "category": "civic",
     "traversability": "public",
-    "size": [3, 2, 3],
+    "size": [
+      3,
+      2,
+      3
+    ],
     "jobs": 20,
-    "capacity": 300
+    "capacity": 300,
+    "cost": 14400
   },
   "entertainment_gym": {
     "name": "Gym",
     "category": "entertainment",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 6,
     "health_bonus": 10,
-    "belonging_bonus": 5
+    "belonging_bonus": 5,
+    "cost": 2000
   },
   "sports_court": {
     "name": "Sports Court",
     "category": "entertainment",
     "traversability": "public",
-    "size": [2, 1, 2],
-    "jobs": 2
+    "size": [
+      2,
+      1,
+      2
+    ],
+    "jobs": 2,
+    "cost": 2000
   },
   "swimming_pool": {
     "name": "Swimming Pool",
     "category": "entertainment",
     "traversability": "public",
-    "size": [3, 1, 3],
-    "jobs": 8
+    "size": [
+      3,
+      1,
+      3
+    ],
+    "jobs": 8,
+    "cost": 4500
   },
   "arena": {
     "name": "Arena",
     "category": "entertainment",
     "traversability": "public",
-    "size": [6, 3, 6],
+    "size": [
+      6,
+      3,
+      6
+    ],
     "jobs": 50,
-    "capacity": 5000
+    "capacity": 5000,
+    "cost": 54000
   },
   "bowling_alley": {
     "name": "Bowling Alley",
     "category": "entertainment",
     "traversability": "public",
-    "size": [2, 1, 2],
-    "jobs": 6
+    "size": [
+      2,
+      1,
+      2
+    ],
+    "jobs": 6,
+    "cost": 2000
   },
   "ice_rink": {
     "name": "Ice Rink",
     "category": "entertainment",
     "traversability": "public",
-    "size": [3, 1, 3],
-    "jobs": 10
+    "size": [
+      3,
+      1,
+      3
+    ],
+    "jobs": 10,
+    "cost": 4500
   },
   "cinema": {
     "name": "Cinema",
     "category": "entertainment",
     "traversability": "public",
-    "size": [2, 2, 2],
+    "size": [
+      2,
+      2,
+      2
+    ],
     "jobs": 8,
-    "capacity": 200
+    "capacity": 200,
+    "cost": 4000
   },
   "arcade": {
     "name": "Arcade",
     "category": "entertainment",
     "traversability": "public",
-    "size": [1, 1, 1],
-    "jobs": 4
+    "size": [
+      1,
+      1,
+      1
+    ],
+    "jobs": 4,
+    "cost": 500
   },
   "vr_lounge": {
     "name": "VR Lounge",
     "category": "entertainment",
     "traversability": "public",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 4,
-    "tech_level": 2
+    "tech_level": 2,
+    "cost": 500
   },
   "comedy_club": {
     "name": "Comedy Club",
     "category": "entertainment",
     "traversability": "public",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 4,
-    "belonging_bonus": 10
+    "belonging_bonus": 10,
+    "cost": 500
   },
   "casino": {
     "name": "Casino",
     "category": "entertainment",
     "traversability": "public",
-    "size": [3, 1, 3],
+    "size": [
+      3,
+      1,
+      3
+    ],
     "jobs": 30,
-    "revenue_base": 800
+    "revenue_base": 800,
+    "cost": 4500
   },
   "sauna": {
     "name": "Sauna",
     "category": "entertainment",
     "traversability": "public",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 2,
-    "health_bonus": 5
+    "health_bonus": 5,
+    "cost": 500
   },
   "social_club": {
     "name": "Social Club",
     "category": "entertainment",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 4,
     "belonging_bonus": 15,
-    "esteem_bonus": 10
+    "esteem_bonus": 10,
+    "cost": 2000
   },
   "game_room": {
     "name": "Game Room",
     "category": "entertainment",
     "traversability": "public",
-    "size": [1, 1, 1],
-    "jobs": 2
+    "size": [
+      1,
+      1,
+      1
+    ],
+    "jobs": 2,
+    "cost": 500
   },
   "karaoke_bar": {
     "name": "Karaoke Bar",
     "category": "entertainment",
     "traversability": "public",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "jobs": 3,
     "belonging_bonus": 10,
-    "noise_production": 50
+    "noise_production": 50,
+    "cost": 500
   },
   "power_plant_fossil": {
     "name": "Power Plant (Fossil)",
     "category": "infrastructure",
     "traversability": "private",
-    "size": [3, 1, 3],
+    "size": [
+      3,
+      1,
+      3
+    ],
     "jobs": 20,
     "power_output": 500,
-    "pollution": 60
+    "pollution": 60,
+    "cost": 5400
   },
   "power_plant_solar": {
     "name": "Power Plant (Solar)",
     "category": "infrastructure",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 4,
     "power_output": 200,
-    "requires_roof": true
+    "requires_roof": true,
+    "cost": 2400
   },
   "power_plant_nuclear": {
     "name": "Power Plant (Nuclear)",
     "category": "infrastructure",
     "traversability": "private",
-    "size": [4, 2, 4],
+    "size": [
+      4,
+      2,
+      4
+    ],
     "jobs": 50,
     "power_output": 1000,
-    "tech_level": 2
+    "tech_level": 2,
+    "cost": 19200
   },
   "geothermal_plant": {
     "name": "Geothermal Plant",
     "category": "infrastructure",
     "traversability": "private",
-    "size": [3, 1, 3],
+    "size": [
+      3,
+      1,
+      3
+    ],
     "jobs": 15,
     "power_output": 400,
-    "requires_deep": true
+    "requires_deep": true,
+    "cost": 5400
   },
   "water_treatment": {
     "name": "Water Treatment",
     "category": "infrastructure",
     "traversability": "private",
-    "size": [3, 1, 3],
+    "size": [
+      3,
+      1,
+      3
+    ],
     "jobs": 15,
-    "water_output": 500
+    "water_output": 500,
+    "cost": 4000
   },
   "water_tower": {
     "name": "Water Tower",
     "category": "infrastructure",
     "traversability": "private",
-    "size": [3, 2, 3],
+    "size": [
+      3,
+      2,
+      3
+    ],
     "jobs": 2,
-    "water_pressure_boost": 20
+    "water_pressure_boost": 20,
+    "cost": 10800
   },
   "hvac_central": {
     "name": "HVAC Central",
     "category": "infrastructure",
     "traversability": "private",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "jobs": 8,
-    "air_coverage_radius": 20
+    "air_coverage_radius": 20,
+    "cost": 2400
   },
   "infra_hvac": {
     "name": "HVAC Vent",
     "category": "infrastructure",
     "traversability": "private",
-    "size": [1, 1, 1],
-    "air_coverage_radius": 5
+    "size": [
+      1,
+      1,
+      1
+    ],
+    "air_coverage_radius": 5,
+    "cost": 600
   },
   "infra_power": {
     "name": "Power Node",
     "category": "infrastructure",
     "traversability": "private",
-    "size": [1, 1, 1],
-    "power_distribution": 50
+    "size": [
+      1,
+      1,
+      1
+    ],
+    "power_distribution": 50,
+    "cost": 600
   },
   "solar_collector": {
     "name": "Solar Collector",
     "category": "infrastructure",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "light_output": 100,
     "power_output": 20,
-    "requires_roof": true
+    "requires_roof": true,
+    "cost": 600
   },
   "light_pipe_junction": {
     "name": "Light Pipe Junction",
     "category": "infrastructure",
     "traversability": "private",
-    "size": [1, 1, 1],
-    "light_distribution": true
+    "size": [
+      1,
+      1,
+      1
+    ],
+    "light_distribution": true,
+    "cost": 600
   },
   "utility_chase": {
     "name": "Utility Chase",
     "category": "infrastructure",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "power_capacity": 100,
     "water_capacity": 50,
-    "data_capacity": 50
+    "data_capacity": 50,
+    "cost": 600
   },
   "utility_corridor": {
     "name": "Utility Corridor",
     "category": "infrastructure",
     "traversability": "public",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "connects_horizontal": true,
     "power_capacity": 50,
-    "water_capacity": 25
+    "water_capacity": 25,
+    "cost": 600
   },
   "green_planter": {
     "name": "Planter",
     "category": "green",
     "traversability": "private",
-    "size": [1, 1, 1],
+    "size": [
+      1,
+      1,
+      1
+    ],
     "vibes_bonus": 5,
-    "air_bonus": 5
+    "air_bonus": 5,
+    "cost": 200
   },
   "green_garden": {
     "name": "Courtyard Garden",
     "category": "green",
     "traversability": "public",
-    "size": [2, 1, 2],
+    "size": [
+      2,
+      1,
+      2
+    ],
     "vibes_bonus": 10,
-    "air_bonus": 15
+    "air_bonus": 15,
+    "cost": 800
   },
   "indoor_forest": {
     "name": "Indoor Forest",
     "category": "green",
     "traversability": "public",
-    "size": [5, 3, 5],
+    "size": [
+      5,
+      3,
+      5
+    ],
     "vibes_bonus": 20,
-    "air_bonus": 30
+    "air_bonus": 30,
+    "cost": 15000
   },
   "rooftop_park": {
     "name": "Rooftop Park",
     "category": "green",
     "traversability": "public",
-    "size": [3, 1, 3],
+    "size": [
+      3,
+      1,
+      3
+    ],
     "vibes_bonus": 15,
     "air_bonus": 20,
-    "requires_roof": true
+    "requires_roof": true,
+    "cost": 1800
   },
   "atrium": {
     "name": "Atrium",
     "category": "green",
     "traversability": "public",
-    "size": [3, 5, 3],
+    "size": [
+      3,
+      5,
+      3
+    ],
     "vibes_bonus": 15,
     "light_transmission": true,
-    "void_space": true
+    "void_space": true,
+    "cost": 9000
   }
 }

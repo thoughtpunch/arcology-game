@@ -74,6 +74,7 @@ func _load_from_json() -> void:
 		def.connects_vertical = entry.get("connects_vertical", false)
 		def.capacity = int(entry.get("capacity", 0))
 		def.jobs = int(entry.get("jobs", 0))
+		def.cost = int(entry.get("cost", 0))
 
 		# Assign color: id override > category color > fallback grey
 		if _id_color_overrides.has(id):

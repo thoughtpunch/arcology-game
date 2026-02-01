@@ -11,3 +11,4 @@ extends Resource
 @export var connects_vertical: bool = false
 @export var capacity: int = 0
 @export var jobs: int = 0
+@export var cost: int = 0
