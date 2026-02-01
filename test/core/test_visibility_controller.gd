@@ -2,10 +2,12 @@ extends SceneTree
 
 ## Unit tests for VisibilityController
 ##
-## Tests cutaway visibility mode functionality:
-## - Mode switching (NORMAL, CUTAWAY)
+## Tests cutaway and section visibility mode functionality:
+## - Mode switching (NORMAL, CUTAWAY, SECTION)
 ## - Cut height adjustment
+## - Section plane angle and offset adjustment
 ## - Floor visibility calculations
+## - 3D position visibility (section mode)
 ## - Cut plane indicator
 ## - Signal emissions
 
@@ -22,7 +24,9 @@ func _init() -> void:
 	_test_initial_mode()
 	_test_set_mode_normal()
 	_test_set_mode_cutaway()
+	_test_set_mode_section()
 	_test_toggle_cutaway()
+	_test_toggle_section()
 	_test_mode_name()
 
 	# Cut Height Tests
@@ -47,9 +51,29 @@ func _init() -> void:
 	_test_cut_plane_indicator_position()
 	_test_cut_plane_indicator_visibility()
 
+	# Section Plane Tests
+	_test_initial_section_state()
+	_test_set_section_angle()
+	_test_set_section_angle_wraps()
+	_test_set_section_angle_negative_wraps()
+	_test_adjust_section_angle()
+	_test_set_section_offset()
+	_test_adjust_section_offset()
+	_test_get_section_normal_0_degrees()
+	_test_get_section_normal_90_degrees()
+	_test_get_section_normal_45_degrees()
+
+	# Section Visibility Tests
+	_test_is_position_visible_3d_normal()
+	_test_is_position_visible_3d_section_behind()
+	_test_is_position_visible_3d_section_in_front()
+	_test_is_position_visible_3d_section_on_plane()
+	_test_is_position_visible_3d_cutaway()
+
 	# Signal Tests
 	_test_mode_changed_signal()
 	_test_cut_height_changed_signal()
+	_test_section_plane_changed_signal()
 
 	print("\n=== Results: %d/%d passed ===" % [_pass_count, _test_count])
 	quit()
@@ -87,6 +111,13 @@ func _test_set_mode_cutaway() -> void:
 	controller.free()
 
 
+func _test_set_mode_section() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_mode(VisibilityControllerClass.Mode.SECTION)
+	_assert(controller.mode == VisibilityControllerClass.Mode.SECTION, "Set mode to SECTION")
+	controller.free()
+
+
 func _test_toggle_cutaway() -> void:
 	var controller: Node = VisibilityControllerClass.new()
 	controller.toggle_cutaway()
@@ -96,10 +127,20 @@ func _test_toggle_cutaway() -> void:
 	controller.free()
 
 
+func _test_toggle_section() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.toggle_section()
+	_assert(controller.mode == VisibilityControllerClass.Mode.SECTION, "Toggle to SECTION")
+	controller.toggle_section()
+	_assert(controller.mode == VisibilityControllerClass.Mode.NORMAL, "Toggle back to NORMAL from SECTION")
+	controller.free()
+
+
 func _test_mode_name() -> void:
 	_assert(VisibilityControllerClass.get_mode_name(VisibilityControllerClass.Mode.NORMAL) == "Normal", "Mode name: Normal")
 	_assert(VisibilityControllerClass.get_mode_name(VisibilityControllerClass.Mode.CUTAWAY) == "Cutaway", "Mode name: Cutaway")
 	_assert(VisibilityControllerClass.get_mode_name(VisibilityControllerClass.Mode.XRAY) == "X-Ray", "Mode name: X-Ray")
+	_assert(VisibilityControllerClass.get_mode_name(VisibilityControllerClass.Mode.SECTION) == "Section", "Mode name: Section")
 
 
 # --- Cut Height Tests ---
@@ -290,4 +331,175 @@ func _test_cut_height_changed_signal() -> void:
 
 	_assert(_signal_test_height_received, "cut_height_changed signal emitted")
 	_assert(is_equal_approx(_signal_test_height_value, 25.0), "cut_height_changed has correct height")
+	controller.free()
+
+
+# --- Section Plane Tests ---
+
+func _test_initial_section_state() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	_assert(is_equal_approx(controller.section_angle, 0.0), "Initial section angle is 0")
+	_assert(is_equal_approx(controller.section_offset, 0.0), "Initial section offset is 0")
+	controller.free()
+
+
+func _test_set_section_angle() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_section_angle(45.0)
+	_assert(is_equal_approx(controller.section_angle, 45.0), "Set section angle to 45")
+	controller.free()
+
+
+func _test_set_section_angle_wraps() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_section_angle(375.0)
+	_assert(is_equal_approx(controller.section_angle, 15.0), "Section angle wraps at 360 (375 -> 15)")
+	controller.free()
+
+
+func _test_set_section_angle_negative_wraps() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_section_angle(-15.0)
+	_assert(is_equal_approx(controller.section_angle, 345.0), "Negative section angle wraps (-15 -> 345)")
+	controller.free()
+
+
+func _test_adjust_section_angle() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_section_angle(30.0)
+	controller.adjust_section_angle(15.0)
+	_assert(is_equal_approx(controller.section_angle, 45.0), "Adjust section angle +15 (30 -> 45)")
+	controller.adjust_section_angle(-60.0)
+	_assert(is_equal_approx(controller.section_angle, 345.0), "Adjust section angle -60 (45 -> 345)")
+	controller.free()
+
+
+func _test_set_section_offset() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_section_offset(18.0)
+	_assert(is_equal_approx(controller.section_offset, 18.0), "Set section offset to 18.0")
+	controller.free()
+
+
+func _test_adjust_section_offset() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_section_offset(12.0)
+	controller.adjust_section_offset(6.0)
+	_assert(is_equal_approx(controller.section_offset, 18.0), "Adjust section offset +6 (12 -> 18)")
+	controller.adjust_section_offset(-24.0)
+	_assert(is_equal_approx(controller.section_offset, -6.0), "Adjust section offset -24 (18 -> -6)")
+	controller.free()
+
+
+func _test_get_section_normal_0_degrees() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_section_angle(0.0)
+	var normal: Vector3 = controller.get_section_normal()
+	# cos(0)=1, sin(0)=0 -> normal = (1, 0, 0)
+	_assert(is_equal_approx(normal.x, 1.0), "Section normal at 0 deg: x=1")
+	_assert(is_equal_approx(normal.y, 0.0), "Section normal at 0 deg: y=0")
+	_assert(is_equal_approx(normal.z, 0.0), "Section normal at 0 deg: z=0")
+	controller.free()
+
+
+func _test_get_section_normal_90_degrees() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_section_angle(90.0)
+	var normal: Vector3 = controller.get_section_normal()
+	# cos(90)=0, sin(90)=1 -> normal = (0, 0, 1)
+	_assert(abs(normal.x) < 0.001, "Section normal at 90 deg: x~0")
+	_assert(is_equal_approx(normal.y, 0.0), "Section normal at 90 deg: y=0")
+	_assert(is_equal_approx(normal.z, 1.0), "Section normal at 90 deg: z=1")
+	controller.free()
+
+
+func _test_get_section_normal_45_degrees() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_section_angle(45.0)
+	var normal: Vector3 = controller.get_section_normal()
+	var expected := sqrt(2.0) / 2.0  # ~0.7071
+	_assert(abs(normal.x - expected) < 0.001, "Section normal at 45 deg: x~0.707")
+	_assert(is_equal_approx(normal.y, 0.0), "Section normal at 45 deg: y=0")
+	_assert(abs(normal.z - expected) < 0.001, "Section normal at 45 deg: z~0.707")
+	controller.free()
+
+
+# --- Section Visibility Tests ---
+
+func _test_is_position_visible_3d_normal() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_mode(VisibilityControllerClass.Mode.NORMAL)
+	_assert(controller.is_position_visible_3d(Vector3(100, 100, 100)), "Normal mode: all 3D positions visible")
+	controller.free()
+
+
+func _test_is_position_visible_3d_section_behind() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_mode(VisibilityControllerClass.Mode.SECTION)
+	controller.set_section_angle(0.0)  # Normal = (1,0,0)
+	controller.set_section_offset(20.0)
+	# Position at x=10, dot(10,0,0).(1,0,0) = 10, 10 - 20 = -10 < 0 => visible
+	_assert(controller.is_position_visible_3d(Vector3(10, 5, 5)), "Section: position behind plane is visible")
+	controller.free()
+
+
+func _test_is_position_visible_3d_section_in_front() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_mode(VisibilityControllerClass.Mode.SECTION)
+	controller.set_section_angle(0.0)  # Normal = (1,0,0)
+	controller.set_section_offset(20.0)
+	# Position at x=30, dot(30,0,0).(1,0,0) = 30, 30 - 20 = 10 > 0 => hidden
+	_assert(not controller.is_position_visible_3d(Vector3(30, 5, 5)), "Section: position in front of plane is NOT visible")
+	controller.free()
+
+
+func _test_is_position_visible_3d_section_on_plane() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_mode(VisibilityControllerClass.Mode.SECTION)
+	controller.set_section_angle(0.0)  # Normal = (1,0,0)
+	controller.set_section_offset(20.0)
+	# Position at x=20, dot(20,0,0).(1,0,0) = 20, 20 - 20 = 0 <= 0 => visible (on the plane)
+	_assert(controller.is_position_visible_3d(Vector3(20, 5, 5)), "Section: position on plane is visible")
+	controller.free()
+
+
+func _test_is_position_visible_3d_cutaway() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	controller.set_mode(VisibilityControllerClass.Mode.CUTAWAY)
+	controller.set_cut_height(20.0)
+	_assert(controller.is_position_visible_3d(Vector3(5, 15, 5)), "Cutaway 3D: position below cut visible")
+	_assert(not controller.is_position_visible_3d(Vector3(5, 25, 5)), "Cutaway 3D: position above cut NOT visible")
+	controller.free()
+
+
+# --- Section Signal Test ---
+
+var _signal_test_section_received := false
+var _signal_test_section_normal := Vector3.ZERO
+var _signal_test_section_offset: float = -1.0
+
+
+func _on_test_section_plane_changed(normal: Vector3, offset: float) -> void:
+	_signal_test_section_received = true
+	_signal_test_section_normal = normal
+	_signal_test_section_offset = offset
+
+
+func _test_section_plane_changed_signal() -> void:
+	var controller: Node = VisibilityControllerClass.new()
+	_signal_test_section_received = false
+	_signal_test_section_normal = Vector3.ZERO
+	_signal_test_section_offset = -1.0
+
+	controller.section_plane_changed.connect(_on_test_section_plane_changed)
+	controller.set_section_angle(90.0)
+
+	_assert(_signal_test_section_received, "section_plane_changed signal emitted on angle change")
+	_assert(abs(_signal_test_section_normal.z - 1.0) < 0.001, "section_plane_changed has correct normal.z at 90 deg")
+
+	_signal_test_section_received = false
+	controller.set_section_offset(12.0)
+
+	_assert(_signal_test_section_received, "section_plane_changed signal emitted on offset change")
+	_assert(is_equal_approx(_signal_test_section_offset, 12.0), "section_plane_changed has correct offset")
 	controller.free()

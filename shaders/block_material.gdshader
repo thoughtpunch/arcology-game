@@ -6,6 +6,8 @@ shader_type spatial;
 // Global shader parameters (set by VisibilityController)
 global uniform int visibility_mode;  // 0=normal, 1=cutaway, 2=xray, 3=isolate, 4=section
 global uniform float cut_height;     // Y coordinate of cut plane
+global uniform vec3 section_plane_normal;   // Normal of section plane (horizontal)
+global uniform float section_plane_offset;  // Distance from origin along normal
 
 // Instance parameters (per-block)
 uniform vec4 albedo_color : source_color = vec4(0.8, 0.8, 0.8, 1.0);
@@ -65,8 +67,16 @@ void fragment() {
         // Would need floor number comparison
     }
     else if (visibility_mode == 4) {
-        // SECTION mode: placeholder for future implementation
-        // Would need vertical plane distance calculation
+        // SECTION mode: vertical slice along a plane defined by normal + offset
+        float dist = dot(world_position, section_plane_normal) - section_plane_offset;
+        if (dist > 0.0) {
+            discard;
+        }
+        // Fade near section edge for softer visual
+        if (dist > -CUT_FADE_MARGIN) {
+            float fade = -dist / CUT_FADE_MARGIN;
+            color.rgb *= mix(0.7, 1.0, fade);
+        }
     }
 
     // Apply final color

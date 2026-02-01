@@ -90,3 +90,11 @@ cut_height={
 "type": "float",
 "value": 7.0
 }
+section_plane_normal={
+"type": "vec3",
+"value": Vector3(1, 0, 0)
+}
+section_plane_offset={
+"type": "float",
+"value": 0.0
+}

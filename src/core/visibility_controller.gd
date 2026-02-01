@@ -14,6 +14,7 @@ extends Node
 
 signal mode_changed(new_mode: Mode)
 signal cut_height_changed(new_height: float)
+signal section_plane_changed(normal: Vector3, offset: float)
 
 # Visibility modes
 # NORMAL: All blocks visible, CUTAWAY: Hide above cut plane, XRAY: Transparent exteriors
@@ -29,6 +30,10 @@ const MIN_CUT_HEIGHT: float = 0.0  # Ground level
 const MAX_CUT_HEIGHT: float = 100.0  # ~28 floors
 const CUT_HEIGHT_STEP: float = CUBE_HEIGHT  # One floor per step
 
+# Section plane settings
+const SECTION_ANGLE_STEP: float = 15.0  # Degrees per rotation step
+const SECTION_OFFSET_STEP: float = CELL_SIZE  # World units per scroll step
+
 # Default height (just above ground floor)
 const DEFAULT_CUT_HEIGHT: float = CUBE_HEIGHT * 2.0
 
@@ -36,6 +41,10 @@ const DEFAULT_CUT_HEIGHT: float = CUBE_HEIGHT * 2.0
 var mode: Mode = Mode.NORMAL
 var cut_height: float = DEFAULT_CUT_HEIGHT
 var _previous_mode: Mode = Mode.NORMAL
+
+# Section plane state
+var section_angle: float = 0.0  # Degrees around Y axis
+var section_offset: float = 0.0  # Distance from origin along plane normal
 
 # Cut plane indicator (optional visual)
 var _cut_plane_indicator: MeshInstance3D = null
@@ -60,16 +69,40 @@ func _unhandled_input(event: InputEvent) -> void:
 				else:
 					set_mode(Mode.CUTAWAY)
 				get_viewport().set_input_as_handled()
+			KEY_V:
+				# Toggle section mode
+				if mode == Mode.SECTION:
+					set_mode(Mode.NORMAL)
+				else:
+					set_mode(Mode.SECTION)
+				get_viewport().set_input_as_handled()
 			KEY_BRACKETLEFT:
-				# Lower cut height (see more floors)
 				if mode == Mode.CUTAWAY:
+					# Lower cut height (see more floors)
 					adjust_cut_height(-CUT_HEIGHT_STEP)
 					get_viewport().set_input_as_handled()
+				elif mode == Mode.SECTION:
+					# Rotate section plane counter-clockwise
+					adjust_section_angle(-SECTION_ANGLE_STEP)
+					get_viewport().set_input_as_handled()
 			KEY_BRACKETRIGHT:
-				# Raise cut height (hide more floors)
 				if mode == Mode.CUTAWAY:
+					# Raise cut height (hide more floors)
 					adjust_cut_height(CUT_HEIGHT_STEP)
 					get_viewport().set_input_as_handled()
+				elif mode == Mode.SECTION:
+					# Rotate section plane clockwise
+					adjust_section_angle(SECTION_ANGLE_STEP)
+					get_viewport().set_input_as_handled()
+
+	# Scroll to move section plane along its normal
+	if event is InputEventMouseButton and mode == Mode.SECTION:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+			adjust_section_offset(SECTION_OFFSET_STEP)
+			get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+			adjust_section_offset(-SECTION_OFFSET_STEP)
+			get_viewport().set_input_as_handled()
 
 
 ## Set the visibility mode
@@ -153,6 +186,48 @@ func toggle_cutaway() -> void:
 		set_mode(Mode.CUTAWAY)
 
 
+## Toggle section mode on/off
+func toggle_section() -> void:
+	if mode == Mode.SECTION:
+		set_mode(_previous_mode if _previous_mode != Mode.SECTION else Mode.NORMAL)
+	else:
+		set_mode(Mode.SECTION)
+
+
+## Set the section plane angle (degrees around Y axis)
+func set_section_angle(angle_degrees: float) -> void:
+	section_angle = fmod(angle_degrees, 360.0)
+	if section_angle < 0.0:
+		section_angle += 360.0
+	_set_shader_globals()
+	section_plane_changed.emit(get_section_normal(), section_offset)
+	print("Section angle: %.0f deg" % section_angle)
+
+
+## Adjust section plane angle by delta degrees
+func adjust_section_angle(delta_degrees: float) -> void:
+	set_section_angle(section_angle + delta_degrees)
+
+
+## Set the section plane offset (distance from origin along normal)
+func set_section_offset(offset: float) -> void:
+	section_offset = offset
+	_set_shader_globals()
+	section_plane_changed.emit(get_section_normal(), section_offset)
+	print("Section offset: %.1fm" % section_offset)
+
+
+## Adjust section plane offset by delta
+func adjust_section_offset(delta: float) -> void:
+	set_section_offset(section_offset + delta)
+
+
+## Get the section plane normal vector from the current angle
+func get_section_normal() -> Vector3:
+	var angle_rad := deg_to_rad(section_angle)
+	return Vector3(cos(angle_rad), 0.0, sin(angle_rad))
+
+
 ## Connect to a BlockRenderer3D for direct updates
 func connect_to_renderer(renderer: Node3D) -> void:
 	_renderer = renderer
@@ -160,10 +235,24 @@ func connect_to_renderer(renderer: Node3D) -> void:
 
 
 ## Check if a world position is visible in current mode
+## For SECTION mode, use is_position_visible_3d() which takes full Vector3
 func is_position_visible(world_y: float) -> bool:
 	match mode:
 		Mode.CUTAWAY:
 			return world_y <= cut_height
+		_:
+			return true
+
+
+## Check if a 3D world position is visible (supports section mode)
+func is_position_visible_3d(world_pos: Vector3) -> bool:
+	match mode:
+		Mode.CUTAWAY:
+			return world_pos.y <= cut_height
+		Mode.SECTION:
+			var normal := get_section_normal()
+			var dist := world_pos.dot(normal) - section_offset
+			return dist <= 0.0
 		_:
 			return true
 
@@ -232,6 +321,10 @@ func hide_cut_plane_indicator() -> void:
 func _set_shader_globals() -> void:
 	RenderingServer.global_shader_parameter_set("visibility_mode", mode)
 	RenderingServer.global_shader_parameter_set("cut_height", cut_height)
+	if mode == Mode.SECTION:
+		var normal := get_section_normal()
+		RenderingServer.global_shader_parameter_set("section_plane_normal", normal)
+		RenderingServer.global_shader_parameter_set("section_plane_offset", section_offset)
 
 
 ## Update cut plane indicator position
