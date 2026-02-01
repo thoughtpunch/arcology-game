@@ -1568,12 +1568,21 @@ func _generate_panels_for_block(block: RefCounted) -> void:
 
 func _generate_interiors_for_block(block: RefCounted) -> void:
 	## Generate interior furniture/fixture meshes for cutaway visualization.
+	## Passes block size so multi-height blocks get appropriate tall-space interiors.
+	var effective_size: Vector3i = block.definition.size
+	if block.rotation == 90 or block.rotation == 270:
+		effective_size = Vector3i(
+			block.definition.size.z,
+			block.definition.size.y,
+			block.definition.size.x,
+		)
 	InteriorMeshSystemScript.create_interior_meshes_for_block(
 		block.node,
 		block.occupied_cells,
 		block.origin,
 		block.definition.category,
 		block.definition.color,
+		effective_size,
 	)
 
 
