@@ -140,6 +140,9 @@ var _last_mouse_pos: Vector2 = Vector2.ZERO
 var _movement_speed: float = 1.0
 var _precision: float = 1.0
 var _prev_speed_mode: String = "normal"
+var _sticky_sprint: bool = false  # Toggled by middle-click (no drag)
+var _middle_press_pos: Vector2 = Vector2.ZERO  # Track for click vs drag detection
+const MIDDLE_CLICK_DRAG_THRESHOLD: float = 5.0  # Pixels before middle-click becomes pan
 
 # History
 var _history: Array[Dictionary] = []
@@ -164,6 +167,12 @@ var _inertia_velocity: Vector2 = Vector2.ZERO  # degrees/sec for azimuth (x) and
 var _orbit_velocity_samples: Array[Vector2] = []  # Recent velocity samples for smoothing
 const VELOCITY_SAMPLE_COUNT: int = 3  # Number of samples to average
 
+# --- Double-Tap Dash ---
+const DOUBLE_TAP_WINDOW: float = 0.3  # Seconds to detect double-tap
+const DASH_DISTANCE_MULTIPLIER: float = 5.0  # How far dash moves (relative to normal movement)
+var _last_tap_times: Dictionary = {}  # KEY_* -> float (timestamp of last tap)
+
+signal dash_triggered(direction: Vector3)
 signal inertia_toggled(enabled: bool)
 signal bookmark_saved(slot: int)
 signal bookmark_recalled(slot: int)
@@ -248,8 +257,13 @@ static func _log(msg: String) -> void:
 func _update_speed_factors() -> void:
 	var shift := Input.is_key_pressed(KEY_SHIFT)
 	var ctrl := Input.is_key_pressed(KEY_CTRL)
+	var caps := Input.is_key_pressed(KEY_CAPSLOCK)
 	_precision = 0.25 if shift else 1.0
 	var mode_name: String
+
+	# Caps Lock or sticky sprint acts like permanent sprint toggle
+	var sprint_active := _sticky_sprint or caps
+
 	if shift and ctrl:
 		_movement_speed = 10.0
 		mode_name = "sprint (10x)"
@@ -259,6 +273,9 @@ func _update_speed_factors() -> void:
 	elif shift:
 		_movement_speed = 0.25
 		mode_name = "precision (0.25x)"
+	elif sprint_active:
+		_movement_speed = 10.0
+		mode_name = "sticky sprint (10x)"
 	else:
 		_movement_speed = 1.0
 		mode_name = "normal"
@@ -428,12 +445,20 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 		MOUSE_BUTTON_MIDDLE:
 			if event.pressed:
 				_middle_pressed = true
+				_middle_press_pos = event.position
 				_last_mouse_pos = event.position
-				_log("Pan drag started")
 			else:
 				if _middle_pressed:
-					_push_history()
-					_log("Pan drag ended")
+					# Check if it was a click (no drag) vs a pan drag
+					var drag_distance := event.position.distance_to(_middle_press_pos)
+					if drag_distance < MIDDLE_CLICK_DRAG_THRESHOLD:
+						# Click without drag → toggle sticky sprint
+						_sticky_sprint = not _sticky_sprint
+						_log("Sticky sprint %s" % ("ON (10x)" if _sticky_sprint else "OFF"))
+					else:
+						# Was a pan drag
+						_push_history()
+						_log("Pan drag ended")
 				_middle_pressed = false
 
 		MOUSE_BUTTON_WHEEL_UP:
@@ -620,6 +645,13 @@ func _handle_magnify_gesture(event: InputEventMagnifyGesture) -> void:
 
 
 func _handle_key(event: InputEventKey) -> void:
+	# Double-tap WASD to dash
+	if event.keycode in [KEY_W, KEY_A, KEY_S, KEY_D]:
+		if _check_double_tap(event.keycode):
+			_trigger_dash(event.keycode)
+			get_viewport().set_input_as_handled()
+			return
+
 	# Ctrl+R: toggle path recording
 	if event.keycode == KEY_R and event.ctrl_pressed and not event.alt_pressed:
 		toggle_path_recording()
@@ -701,6 +733,59 @@ func _handle_key(event: InputEventKey) -> void:
 		KEY_KP_5:
 			_toggle_orthographic()
 			get_viewport().set_input_as_handled()
+
+
+# --- Double-Tap Dash ---
+
+
+func _check_double_tap(keycode: int) -> bool:
+	## Check if this keypress is a double-tap (within DOUBLE_TAP_WINDOW of last press).
+	## Always updates the last tap time for this key.
+	var now := Time.get_ticks_msec() / 1000.0
+	var last_time: float = _last_tap_times.get(keycode, 0.0)
+	var is_double := (now - last_time) < DOUBLE_TAP_WINDOW
+	_last_tap_times[keycode] = now
+	return is_double
+
+
+func _trigger_dash(keycode: int) -> void:
+	## Execute a dash movement in the direction of the pressed key.
+	var dash_dir := Vector2.ZERO
+	match keycode:
+		KEY_W:
+			dash_dir = Vector2(0, -1)  # Forward
+		KEY_S:
+			dash_dir = Vector2(0, 1)   # Backward
+		KEY_A:
+			dash_dir = Vector2(-1, 0)  # Left
+		KEY_D:
+			dash_dir = Vector2(1, 0)   # Right
+
+	if dash_dir == Vector2.ZERO:
+		return
+
+	# Calculate world-space movement based on camera orientation
+	var fwd := Vector3(
+		sin(deg_to_rad(azimuth)),
+		0,
+		cos(deg_to_rad(azimuth)),
+	)
+	var right := Vector3(
+		cos(deg_to_rad(azimuth)),
+		0,
+		-sin(deg_to_rad(azimuth)),
+	)
+
+	# Dash distance scales with current zoom level
+	var dash_amount := PAN_BASE_SPEED * (distance / 100.0) * DASH_DISTANCE_MULTIPLIER * 0.1
+	var world_dir := (fwd * dash_dir.y + right * dash_dir.x).normalized()
+
+	_push_history()
+	_target_target += world_dir * dash_amount
+	_target_target.y = maxf(_target_target.y, MIN_TARGET_Y)
+
+	dash_triggered.emit(world_dir)
+	_log("Dash! dir=%s amount=%.1f" % [world_dir, dash_amount])
 
 
 # --- Interpolation ---
