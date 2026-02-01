@@ -1063,8 +1063,6 @@ func _unhandled_input(event: InputEvent) -> void:
 					_try_start_corridor_drag()
 				else:
 					_try_place_block()
-					_placing = true
-					_place_cooldown = PLACE_INTERVAL
 			else:
 				if _corridor_drag_active:
 					_finish_corridor_drag()
