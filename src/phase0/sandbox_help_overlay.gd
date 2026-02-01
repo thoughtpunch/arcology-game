@@ -14,6 +14,8 @@ const COLOR_DIM := Color(0.5, 0.5, 0.55)
 const CONTROLS := [
 	["BUILDING", ""],
 	["LMB", "Place block"],
+	["LMB drag (corridors)", "Draw corridor path (Manhattan routing)"],
+	["RMB / ESC (during drag)", "Cancel corridor drag"],
 	["RMB (tap)", "Remove block / dig ground"],
 	["Double-click", "Focus camera on target"],
 	[",  (comma)", "Rotate block counter-clockwise"],

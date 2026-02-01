@@ -19,6 +19,7 @@ const SelectionManagerScript = preload("res://src/phase0/selection_manager.gd")
 const PanelSystemScript = preload("res://src/phase0/panel_system.gd")
 const PanelMatScript = preload("res://src/phase0/panel_material.gd")
 const InteriorMeshSystemScript = preload("res://src/phase0/interior_mesh_system.gd")
+const CorridorDragScript = preload("res://src/phase0/corridor_drag_builder.gd")
 const CELL_SIZE: float = 6.0
 const PLACE_INTERVAL: float = 0.1  # 100ms = 10 blocks/sec
 const BLOCK_INSET: float = 0.15  # Visual gap between adjacent blocks (per side)
@@ -90,6 +91,15 @@ var _placing: bool = false
 var _place_cooldown: float = 0.0
 var _last_place_origin: Vector3i = Vector3i(-9999, -9999, -9999)
 
+# Corridor drag-to-build state
+var _corridor_drag_active: bool = false
+var _corridor_drag_start: Vector3i = Vector3i.ZERO
+var _corridor_drag_end: Vector3i = Vector3i.ZERO
+var _corridor_drag_path: Array[Vector3i] = []
+var _corridor_drag_ghosts: Array[MeshInstance3D] = []
+var _corridor_drag_ghost_container: Node3D
+var _corridor_drag_label: Label  # HUD label showing path length + cost
+
 # Cached ghost state to avoid unnecessary mesh rebuilds
 var _ghost_def_id: String = ""
 var _ghost_rotation: int = -1
@@ -139,6 +149,7 @@ func _build_world() -> void:
 	_setup_river()
 	_setup_block_container()
 	_setup_ghost()
+	_setup_corridor_drag()
 	_setup_face_highlight()
 	_setup_compass_markers()
 	_setup_ui()
@@ -591,6 +602,13 @@ func _setup_ghost() -> void:
 		_ghost_face_labels[dir] = lbl
 
 
+func _setup_corridor_drag() -> void:
+	_corridor_drag_ghost_container = Node3D.new()
+	_corridor_drag_ghost_container.name = "CorridorDragGhosts"
+	_corridor_drag_ghost_container.visible = false
+	add_child(_corridor_drag_ghost_container)
+
+
 func _setup_face_highlight() -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(CELL_SIZE, CELL_SIZE)
@@ -681,6 +699,17 @@ func _setup_ui() -> void:
 	_face_label.visible = false
 	canvas.add_child(_face_label)
 
+	# Corridor drag info label (top-left, below face label)
+	_corridor_drag_label = Label.new()
+	_corridor_drag_label.name = "CorridorDragLabel"
+	_corridor_drag_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	_corridor_drag_label.offset_left = 20
+	_corridor_drag_label.offset_top = 42
+	_corridor_drag_label.add_theme_font_size_override("font_size", 16)
+	_corridor_drag_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
+	_corridor_drag_label.visible = false
+	canvas.add_child(_corridor_drag_label)
+
 	_controls_label = Label.new()
 	_controls_label.name = "ControlsLabel"
 	_controls_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
@@ -690,6 +719,7 @@ func _setup_ui() -> void:
 	_controls_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
 	_controls_label.text = (
 		"LMB: Place  |  RMB: Remove  |  Double-click: Focus  |  ,/.: Rotate\n"
+		+ "LMB Drag (corridors): Draw path  |  RMB/ESC: Cancel drag\n"
 		+ "Ctrl+LMB: Select  |  Shift+LMB: Add to selection  |  Ctrl+Shift+LMB: Deselect\n"
 		+ "WASD: Pan  |  Q/E: Up/Down  |  Scroll: Zoom  |  Shift+RMB: Zoom  |  RMB: Orbit\n"
 		+ "Alt+LMB: Orbit around cursor  |  Shift: Precision  |  Ctrl: Boost\n"
@@ -808,9 +838,14 @@ func _process(delta: float) -> void:
 		_face_highlight.visible = false
 		_face_label.visible = false
 		_placing = false
+		if _corridor_drag_active:
+			_cancel_corridor_drag()
 		return
-	_update_ghost()
-	_handle_rapid_fire(delta)
+	if _corridor_drag_active:
+		_update_corridor_drag_preview()
+	else:
+		_update_ghost()
+		_handle_rapid_fire(delta)
 
 
 func _update_debug_stats() -> void:
@@ -947,21 +982,36 @@ func _unhandled_input(event: InputEvent) -> void:
 					# Selection mode: Ctrl/Shift + click
 					_try_select_block(event.ctrl_pressed, event.shift_pressed, event.alt_pressed)
 					get_viewport().set_input_as_handled()
+				elif CorridorDragScript.is_drag_buildable(current_definition):
+					# Corridor drag mode: start drag
+					_try_start_corridor_drag()
 				else:
 					_try_place_block()
 					_placing = true
 					_place_cooldown = PLACE_INTERVAL
 			else:
+				if _corridor_drag_active:
+					_finish_corridor_drag()
 				_placing = false
 		elif event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+			if _corridor_drag_active:
+				_finish_corridor_drag()
 			_placing = false
 		elif event.button_index == MOUSE_BUTTON_RIGHT and not event.pressed:
+			if _corridor_drag_active:
+				# Right-click cancels corridor drag
+				_cancel_corridor_drag()
+				return
 			# Right-click release — only arrives here if the camera didn't
 			# consume it (meaning it was a tap, not an orbit drag).
 			_log("RMB tap at screen %s" % event.position)
 			_try_remove_block()
 
 	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE and _corridor_drag_active:
+			_cancel_corridor_drag()
+			get_viewport().set_input_as_handled()
+			return
 		_log("Key: %s" % OS.get_keycode_string(event.keycode))
 		match event.keycode:
 			KEY_COMMA:
@@ -1978,6 +2028,199 @@ func _try_remove_block() -> void:
 		remove_block(block_id)
 	else:
 		_log("Remove: no block found at hit position")
+
+
+# --- Corridor Drag-to-Build ---
+
+
+func _try_start_corridor_drag() -> void:
+	## Start a corridor drag from the current mouse raycast position.
+	var hit := _raycast_from_mouse()
+	if hit.is_empty() or not hit.get("hit", false):
+		_log("Corridor drag: no raycast hit — falling back to single placement")
+		_try_place_block()
+		return
+
+	var normal_offset := Vector3i(
+		int(round(hit.normal.x)), int(round(hit.normal.y)), int(round(hit.normal.z))
+	)
+	var place_origin: Vector3i = hit.grid_pos + normal_offset
+
+	# When hitting ground, snap to the actual top surface
+	var collider = hit.get("collider")
+	if collider and collider.has_meta("is_ground"):
+		var top_y := _find_top_ground_y(hit.grid_pos.x, hit.grid_pos.z)
+		if top_y >= -(_config.ground_depth):
+			place_origin = Vector3i(hit.grid_pos.x, top_y + 1, hit.grid_pos.z)
+
+	_corridor_drag_active = true
+	_corridor_drag_start = place_origin
+	_corridor_drag_end = place_origin
+	_corridor_drag_path = [place_origin]
+	_ghost_node.visible = false
+	_corridor_drag_ghost_container.visible = true
+	_update_corridor_drag_ghosts()
+	_log("Corridor drag started at %s" % place_origin)
+
+
+func _update_corridor_drag_preview() -> void:
+	## Called every frame during corridor drag. Updates the path based on current mouse pos.
+	var hit := _raycast_from_mouse()
+	if hit.is_empty() or not hit.get("hit", false):
+		return
+
+	var normal_offset := Vector3i(
+		int(round(hit.normal.x)), int(round(hit.normal.y)), int(round(hit.normal.z))
+	)
+	var drag_end: Vector3i = hit.grid_pos + normal_offset
+
+	# When hitting ground, snap to the actual top surface
+	var collider = hit.get("collider")
+	if collider and collider.has_meta("is_ground"):
+		var top_y := _find_top_ground_y(hit.grid_pos.x, hit.grid_pos.z)
+		if top_y >= -(_config.ground_depth):
+			drag_end = Vector3i(hit.grid_pos.x, top_y + 1, hit.grid_pos.z)
+
+	# Force same Y as start (horizontal only)
+	drag_end.y = _corridor_drag_start.y
+
+	if drag_end == _corridor_drag_end:
+		return  # No change
+
+	_corridor_drag_end = drag_end
+	_corridor_drag_path = CorridorDragScript.compute_path(_corridor_drag_start, _corridor_drag_end)
+	_update_corridor_drag_ghosts()
+
+
+func _update_corridor_drag_ghosts() -> void:
+	## Rebuild the ghost preview meshes for the current drag path.
+	# Clear existing ghosts
+	for ghost in _corridor_drag_ghosts:
+		ghost.queue_free()
+	_corridor_drag_ghosts.clear()
+
+	if _corridor_drag_path.is_empty():
+		_corridor_drag_ghost_container.visible = false
+		_update_corridor_drag_label(0, 0, 0)
+		return
+
+	# Validate the path
+	var validation := CorridorDragScript.validate_path(
+		_corridor_drag_path,
+		current_definition,
+		cell_occupancy,
+		_has_entrance,
+		build_zone_origin,
+		build_zone_size,
+		_config.ground_depth,
+	)
+
+	var valid_cells: Array = validation.valid
+	var invalid_cells: Array = validation.invalid
+	var cost: int = validation.cost
+
+	var ghost_shader := load("res://shaders/ghost_preview.gdshader") as Shader
+
+	# Create ghost mesh for each cell in the path
+	for cell in _corridor_drag_path:
+		# Skip occupied cells (auto-junction: they'll be left as-is)
+		if cell_occupancy.has(cell):
+			continue
+
+		var ghost := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3.ONE * CELL_SIZE - Vector3.ONE * BLOCK_INSET * 2.0
+		ghost.mesh = box
+
+		var mat := ShaderMaterial.new()
+		mat.shader = ghost_shader
+		var is_valid: bool = valid_cells.has(cell)
+		mat.set_shader_parameter("is_valid", is_valid)
+		ghost.material_override = mat
+
+		ghost.position = GridUtilsScript.grid_to_world_center(cell)
+		_corridor_drag_ghost_container.add_child(ghost)
+		_corridor_drag_ghosts.append(ghost)
+
+	_corridor_drag_ghost_container.visible = true
+	var skipped: int = 0
+	for cell in _corridor_drag_path:
+		if cell_occupancy.has(cell):
+			skipped += 1
+	_update_corridor_drag_label(valid_cells.size(), invalid_cells.size(), cost)
+
+
+func _update_corridor_drag_label(valid_count: int, invalid_count: int, cost: int) -> void:
+	## Update the HUD label showing corridor drag info.
+	if not _corridor_drag_label:
+		return
+	if not _corridor_drag_active:
+		_corridor_drag_label.visible = false
+		return
+	var total: int = valid_count + invalid_count
+	if total == 0:
+		_corridor_drag_label.text = "Drag to draw corridor path"
+	elif invalid_count > 0:
+		_corridor_drag_label.text = "Corridor: %d cells ($%d) — %d invalid" % [total, cost, invalid_count]
+	else:
+		_corridor_drag_label.text = "Corridor: %d cells ($%d)" % [total, cost]
+	_corridor_drag_label.visible = not _ui_hidden
+
+
+func _finish_corridor_drag() -> void:
+	## Place all valid cells in the corridor drag path and clean up.
+	if not _corridor_drag_active:
+		return
+
+	_log("Corridor drag finished: %d cells in path" % _corridor_drag_path.size())
+
+	if _corridor_drag_path.size() <= 1:
+		# Single cell — just do a normal placement
+		if _corridor_drag_path.size() == 1:
+			var origin: Vector3i = _corridor_drag_path[0]
+			if can_place_block(current_definition, origin, current_rotation):
+				place_block(current_definition, origin, current_rotation)
+		_cancel_corridor_drag()
+		return
+
+	# Validate and place
+	var validation := CorridorDragScript.validate_path(
+		_corridor_drag_path,
+		current_definition,
+		cell_occupancy,
+		_has_entrance,
+		build_zone_origin,
+		build_zone_size,
+		_config.ground_depth,
+	)
+
+	var placed_count: int = 0
+	for cell in validation.valid:
+		# Double-check cell is still free (earlier placements in this loop may affect it)
+		if cell_occupancy.has(cell):
+			continue
+		var result := place_block(current_definition, cell, 0)
+		if result != null:
+			placed_count += 1
+
+	_log("Corridor drag placed %d blocks" % placed_count)
+	_cancel_corridor_drag()
+
+
+func _cancel_corridor_drag() -> void:
+	## Cancel corridor drag and clean up preview.
+	_corridor_drag_active = false
+	_corridor_drag_path.clear()
+
+	for ghost in _corridor_drag_ghosts:
+		if is_instance_valid(ghost):
+			ghost.queue_free()
+	_corridor_drag_ghosts.clear()
+	_corridor_drag_ghost_container.visible = false
+
+	if _corridor_drag_label:
+		_corridor_drag_label.visible = false
+	_log("Corridor drag cancelled/ended")
 
 
 # --- Selection ---
