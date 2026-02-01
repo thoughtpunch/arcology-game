@@ -3,7 +3,7 @@
 > **Version:** 0.3
 > **Purpose:** Establish core 3D block placement mechanics before any game systems
 > **Scope:** Digital LEGO — nothing more
-> **Status:** ACTIVE — This is the current priority
+> **Status:** IMPLEMENTED — See [milestones/phase-0-sandbox.md](../architecture/milestones/phase-0-sandbox.md)
 
 ---
 
