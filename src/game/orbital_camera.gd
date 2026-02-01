@@ -53,6 +53,9 @@ extends Node3D
 ##   Ctrl+R: Start/stop recording camera path (captures keyframes)
 ##   Ctrl+P: Start/stop playback of recorded path (smooth interpolation, loops)
 ##
+## Keyboard — Cursor-Look:
+##   L: Toggle cursor-look tracking mode (camera follows mouse position without clicking)
+##
 ## Right-click behavior:
 ##   A right-click that is released without significant mouse movement
 ##   is NOT consumed by the camera, allowing the parent scene to handle
@@ -181,6 +184,11 @@ const DOUBLE_TAP_WINDOW: float = 0.3  # Seconds to detect double-tap
 const DASH_DISTANCE_MULTIPLIER: float = 5.0  # How far dash moves (relative to normal movement)
 var _last_tap_times: Dictionary = {}  # KEY_* -> float (timestamp of last tap)
 
+# --- Cursor-Look Mode ---
+const CURSOR_LOOK_SENSITIVITY: float = 0.15  # Degrees per frame at edge of screen
+const CURSOR_LOOK_DEADZONE: float = 0.1  # Fraction of screen center where no movement occurs
+var _cursor_look_mode: bool = false  # Toggle with L key
+
 signal dash_triggered(direction: Vector3)
 signal inertia_toggled(enabled: bool)
 signal bookmark_saved(slot: int)
@@ -191,6 +199,7 @@ signal path_playback_started(keyframe_count: int)
 signal path_playback_stopped()
 signal path_keyframe_added(index: int)
 signal ground_snap(position: Vector3)
+signal cursor_look_toggled(enabled: bool)
 
 
 func _ready() -> void:
@@ -234,6 +243,7 @@ func _process(delta: float) -> void:
 	else:
 		_update_speed_factors()
 		_handle_keyboard(delta)
+		_apply_cursor_look(delta)
 		_apply_inertia(delta)
 	_smooth_interpolate(delta)
 	_update_camera_position()
@@ -311,6 +321,46 @@ func _apply_inertia(delta: float) -> void:
 
 	# Decay velocity exponentially
 	_inertia_velocity *= exp(-INERTIA_DECAY_RATE * delta)
+
+
+func _apply_cursor_look(delta: float) -> void:
+	## When cursor-look mode is active, orbit camera based on mouse position.
+	## Mouse near screen edges rotates camera; center is a deadzone.
+	if not _cursor_look_mode:
+		return
+	# Don't apply cursor look while dragging or during playback
+	if _right_drag_active or _middle_pressed or _alt_orbit_active or _is_playing:
+		return
+
+	var viewport := get_viewport()
+	if not viewport:
+		return
+	var mouse_pos := viewport.get_mouse_position()
+	var viewport_size := viewport.get_visible_rect().size
+
+	# Normalize mouse position to -1..1 range (0,0 = center)
+	var normalized := Vector2(
+		(mouse_pos.x / viewport_size.x) * 2.0 - 1.0,
+		(mouse_pos.y / viewport_size.y) * 2.0 - 1.0
+	)
+
+	# Apply deadzone in center
+	if abs(normalized.x) < CURSOR_LOOK_DEADZONE:
+		normalized.x = 0.0
+	else:
+		# Remap from deadzone edge to 1
+		normalized.x = sign(normalized.x) * (abs(normalized.x) - CURSOR_LOOK_DEADZONE) / (1.0 - CURSOR_LOOK_DEADZONE)
+
+	if abs(normalized.y) < CURSOR_LOOK_DEADZONE:
+		normalized.y = 0.0
+	else:
+		normalized.y = sign(normalized.y) * (abs(normalized.y) - CURSOR_LOOK_DEADZONE) / (1.0 - CURSOR_LOOK_DEADZONE)
+
+	# Apply orbit based on normalized position
+	var orbit_speed := CURSOR_LOOK_SENSITIVITY * _movement_speed * delta * 60.0  # Scale by delta, target 60fps
+	_target_azimuth += normalized.x * orbit_speed
+	var new_el := _target_elevation - normalized.y * orbit_speed
+	_target_elevation = clampf(new_el, MIN_ELEVATION, MAX_ELEVATION)
 
 
 func _start_orbit_inertia() -> void:
@@ -736,6 +786,11 @@ func _handle_key(event: InputEventKey) -> void:
 			snap_to_ground_at_target()
 			get_viewport().set_input_as_handled()
 
+		KEY_L:
+			# Toggle cursor-look mode
+			toggle_cursor_look()
+			get_viewport().set_input_as_handled()
+
 		KEY_BRACKETLEFT:
 			var step := FOV_FINE_STEP if event.shift_pressed else FOV_STEP
 			_target_fov = clampf(_target_fov - step, MIN_FOV, MAX_FOV)
@@ -990,6 +1045,30 @@ func stop_inertia() -> void:
 func get_inertia_velocity() -> Vector2:
 	## Returns the current inertia velocity (for debugging/UI).
 	return _inertia_velocity
+
+
+# --- Cursor-Look Mode ---
+
+
+func toggle_cursor_look() -> void:
+	## Toggle cursor-look tracking mode.
+	## When enabled, camera orbits based on mouse position without clicking.
+	_cursor_look_mode = not _cursor_look_mode
+	cursor_look_toggled.emit(_cursor_look_mode)
+	_log("Cursor-look mode %s" % ("ON" if _cursor_look_mode else "OFF"))
+
+
+func set_cursor_look_enabled(enabled: bool) -> void:
+	## Enable or disable cursor-look tracking mode.
+	if _cursor_look_mode != enabled:
+		_cursor_look_mode = enabled
+		cursor_look_toggled.emit(enabled)
+		_log("Cursor-look mode %s" % ("ON" if enabled else "OFF"))
+
+
+func is_cursor_look_enabled() -> bool:
+	## Returns true if cursor-look tracking mode is active.
+	return _cursor_look_mode
 
 
 # --- Bookmarks ---
