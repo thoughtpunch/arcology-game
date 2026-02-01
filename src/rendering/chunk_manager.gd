@@ -55,6 +55,16 @@ var _block_shader: Shader = null
 # Material cache (shared across chunks)
 var _material_cache: Dictionary = {}
 
+# Frustum culling toggle
+var _frustum_culling_enabled: bool = false
+var _culled_chunk_count: int = 0
+
+# Face culling toggle (skip interior faces between adjacent blocks)
+var _face_culling_enabled: bool = false
+
+# GPU instancing toggle
+var _instancing_enabled: bool = false
+
 # Statistics
 var _total_blocks: int = 0
 var _total_chunks: int = 0
@@ -68,6 +78,8 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	_rebuild_dirty_chunks()
+	if _frustum_culling_enabled:
+		_update_frustum_culling()
 
 
 ## Set camera reference for frustum culling priority
@@ -89,6 +101,10 @@ func add_block(
 	_enqueue_dirty(chunk_coord)
 	_total_blocks += 1
 
+	# If face culling is enabled, dirty neighboring chunks at boundary positions
+	if _face_culling_enabled:
+		_dirty_neighbor_chunks(grid_pos, chunk_coord)
+
 
 ## Remove a block from its chunk
 func remove_block(grid_pos: Vector3i) -> void:
@@ -104,6 +120,10 @@ func remove_block(grid_pos: Vector3i) -> void:
 			_remove_chunk(chunk_coord)
 		else:
 			_enqueue_dirty(chunk_coord)
+
+		# If face culling is enabled, dirty neighboring chunks at boundary positions
+		if _face_culling_enabled:
+			_dirty_neighbor_chunks(grid_pos, chunk_coord)
 
 
 ## Check if a block exists at the given position
@@ -215,7 +235,110 @@ func get_visible_chunks() -> Array:
 	return visible
 
 
+## Enable frustum culling (chunks outside camera view are hidden)
+func enable_frustum_culling() -> void:
+	_frustum_culling_enabled = true
+
+
+## Disable frustum culling (all chunks always visible)
+func disable_frustum_culling() -> void:
+	_frustum_culling_enabled = false
+	# Make all chunks visible again
+	for chunk in _chunks.values():
+		chunk.visible = true
+	_culled_chunk_count = 0
+
+
+## Check if frustum culling is enabled
+func is_frustum_culling_enabled() -> bool:
+	return _frustum_culling_enabled
+
+
+## Get the number of chunks currently culled (hidden)
+func get_culled_chunk_count() -> int:
+	return _culled_chunk_count
+
+
+## Get the number of chunks currently visible
+func get_visible_chunk_count() -> int:
+	return _total_chunks - _culled_chunk_count
+
+
+## Enable interior face culling (skip rendering faces between adjacent blocks)
+func enable_face_culling() -> void:
+	_face_culling_enabled = true
+	for chunk in _chunks.values():
+		chunk.enable_face_culling()
+
+
+## Disable interior face culling
+func disable_face_culling() -> void:
+	_face_culling_enabled = false
+	for chunk in _chunks.values():
+		chunk.disable_face_culling()
+
+
+## Check if face culling is enabled
+func is_face_culling_enabled() -> bool:
+	return _face_culling_enabled
+
+
+## Enable GPU instancing (uses MultiMesh for repeated block types within chunks)
+func enable_instancing() -> void:
+	_instancing_enabled = true
+	for chunk in _chunks.values():
+		chunk.enable_instancing()
+
+
+## Disable GPU instancing
+func disable_instancing() -> void:
+	_instancing_enabled = false
+	for chunk in _chunks.values():
+		chunk.disable_instancing()
+
+
+## Check if GPU instancing is enabled
+func is_instancing_enabled() -> bool:
+	return _instancing_enabled
+
+
+## Get rendering statistics for performance monitoring
+func get_render_statistics() -> Dictionary:
+	var visible := get_visible_chunk_count() if _frustum_culling_enabled else _total_chunks
+	return {
+		"total_chunks": _total_chunks,
+		"total_blocks": _total_blocks,
+		"visible_chunks": visible,
+		"culled_chunks": _culled_chunk_count,
+		"dirty_chunks": _dirty_queue.size(),
+		"frustum_culling": _frustum_culling_enabled,
+		"face_culling": _face_culling_enabled,
+		"instancing": _instancing_enabled,
+		"lod_enabled": _lod_enabled,
+	}
+
+
 # --- Internal Methods ---
+
+
+## Update chunk visibility based on camera frustum
+func _update_frustum_culling() -> void:
+	if not _camera:
+		return
+
+	var frustum := _camera.get_frustum()
+	_culled_chunk_count = 0
+
+	for chunk in _chunks.values():
+		var aabb: AABB = chunk.get_aabb()
+		if aabb.size == Vector3.ZERO:
+			chunk.visible = true
+			continue
+
+		var in_frustum := _aabb_in_frustum(aabb, frustum)
+		chunk.visible = in_frustum
+		if not in_frustum:
+			_culled_chunk_count += 1
 
 
 ## Get or create a chunk at the given coordinate
@@ -225,6 +348,11 @@ func _get_or_create_chunk(chunk_coord: Vector3i) -> Node3D:
 
 	var chunk: Node3D = ChunkClass.new(chunk_coord)
 	chunk.set_shader(_block_shader)
+	chunk.set_chunk_manager(self)
+	if _face_culling_enabled:
+		chunk.enable_face_culling()
+	if _instancing_enabled:
+		chunk.enable_instancing()
 	_chunks[chunk_coord] = chunk
 	add_child(chunk)
 	_total_chunks += 1
@@ -257,6 +385,21 @@ func _remove_chunk(chunk_coord: Vector3i) -> void:
 
 	chunk.queue_free()
 	chunk_removed.emit(chunk_coord)
+
+
+## Dirty neighboring chunks when a block at a chunk boundary is added/removed.
+## This ensures cross-chunk face culling stays correct.
+func _dirty_neighbor_chunks(grid_pos: Vector3i, this_chunk_coord: Vector3i) -> void:
+	var neighbor_offsets: Array[Vector3i] = [
+		Vector3i(1, 0, 0), Vector3i(-1, 0, 0),
+		Vector3i(0, 1, 0), Vector3i(0, -1, 0),
+		Vector3i(0, 0, 1), Vector3i(0, 0, -1),
+	]
+	for offset in neighbor_offsets:
+		var neighbor_pos: Vector3i = grid_pos + offset
+		var neighbor_chunk: Vector3i = get_chunk_coord(neighbor_pos)
+		if neighbor_chunk != this_chunk_coord and _chunks.has(neighbor_chunk):
+			_enqueue_dirty(neighbor_chunk)
 
 
 ## Enqueue a chunk for rebuild

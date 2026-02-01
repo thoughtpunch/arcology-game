@@ -81,6 +81,18 @@ var _block_shader: Shader = null
 # Material cache (passed from manager)
 var _material_cache: Dictionary = {}
 
+# Interior face culling toggle
+var _face_culling_enabled: bool = false
+
+# Reference to ChunkManager for cross-chunk neighbor queries
+var _chunk_manager: Node3D = null
+
+# GPU instancing toggle
+var _instancing_enabled: bool = false
+
+# MultiMesh instances per block type (for instanced rendering)
+var _multimesh_instances: Dictionary = {}  # block_type -> MultiMeshInstance3D
+
 
 func _init(coord: Vector3i = Vector3i.ZERO) -> void:
 	chunk_coord = coord
@@ -192,11 +204,18 @@ func mark_dirty() -> void:
 
 ## Rebuild the merged mesh for this chunk.
 ## Creates individual BoxMesh per block merged into an ArrayMesh.
+## With face culling enabled, interior faces (between adjacent blocks) are skipped.
+## With instancing enabled, uses MultiMesh for GPU instancing instead.
 func rebuild() -> void:
 	_dirty = false
 
 	if is_empty():
 		_clear_meshes()
+		_clear_multimesh_instances()
+		return
+
+	if _instancing_enabled:
+		_rebuild_instanced()
 		return
 
 	# Build merged mesh from all blocks
@@ -215,10 +234,18 @@ func rebuild() -> void:
 		# Set material color as vertex color for merged mesh
 		var color := _get_color_for_type(block_type)
 
-		# Create box vertices for this block
-		_add_box_to_surface(
-			surface_tool, local_pos, Vector3(CUBE_WIDTH, CUBE_HEIGHT, CUBE_DEPTH), color, rotation
-		)
+		if _face_culling_enabled:
+			# Only add visible faces (skip faces adjacent to other blocks)
+			var visible_faces := _get_visible_faces(grid_pos)
+			_add_box_faces_to_surface(
+				surface_tool, local_pos, Vector3(CUBE_WIDTH, CUBE_HEIGHT, CUBE_DEPTH),
+				color, rotation, visible_faces
+			)
+		else:
+			# Add all 6 faces (no culling)
+			_add_box_to_surface(
+				surface_tool, local_pos, Vector3(CUBE_WIDTH, CUBE_HEIGHT, CUBE_DEPTH), color, rotation
+			)
 
 		# Track collision shapes
 		var box_shape := BoxShape3D.new()
@@ -243,6 +270,148 @@ func rebuild() -> void:
 
 	# Update AABB
 	_update_aabb()
+
+
+## Get which faces of a block are visible (not adjacent to another block).
+## Returns array of face indices: 0=front(+Z), 1=back(-Z), 2=right(+X), 3=left(-X), 4=top(+Y), 5=bottom(-Y)
+func _get_visible_faces(grid_pos: Vector3i) -> Array[bool]:
+	# Direction offsets for each face: front(+Z), back(-Z), right(+X), left(-X), top(+Y), bottom(-Y)
+	# Note: in grid space, Y corresponds to depth (world Z) and Z corresponds to height (world Y)
+	var neighbor_offsets: Array[Vector3i] = [
+		Vector3i(0, 1, 0),   # face 0: front (+Y in grid = +Z in world)
+		Vector3i(0, -1, 0),  # face 1: back (-Y in grid = -Z in world)
+		Vector3i(1, 0, 0),   # face 2: right (+X)
+		Vector3i(-1, 0, 0),  # face 3: left (-X)
+		Vector3i(0, 0, 1),   # face 4: top (+Z in grid = +Y in world)
+		Vector3i(0, 0, -1),  # face 5: bottom (-Z in grid = -Y in world)
+	]
+
+	var visible: Array[bool] = [true, true, true, true, true, true]
+
+	for i in range(6):
+		var neighbor: Vector3i = grid_pos + neighbor_offsets[i]
+		if _has_neighbor_block(neighbor):
+			visible[i] = false
+
+	return visible
+
+
+## Check if a block exists at the given grid position (within this chunk or in neighbors)
+func _has_neighbor_block(grid_pos: Vector3i) -> bool:
+	# Check within this chunk first (common case)
+	if _blocks.has(grid_pos):
+		return true
+
+	# Check neighboring chunks via ChunkManager
+	if _chunk_manager and _chunk_manager.has_method("has_block"):
+		return _chunk_manager.has_block(grid_pos)
+
+	return false
+
+
+## Rebuild using GPU instancing (MultiMesh per block type).
+## Groups blocks by type and creates one MultiMeshInstance3D per type.
+func _rebuild_instanced() -> void:
+	# Hide SurfaceTool mesh (we're using instancing instead)
+	if _opaque_mesh:
+		_opaque_mesh.mesh = null
+
+	# Group blocks by type
+	var blocks_by_type: Dictionary = {}  # block_type -> Array of {grid_pos, rotation}
+	for grid_pos in _blocks:
+		var block_data: Dictionary = _blocks[grid_pos]
+		var block_type: String = block_data.get("type", "corridor")
+		if not blocks_by_type.has(block_type):
+			blocks_by_type[block_type] = []
+		blocks_by_type[block_type].append({
+			"grid_pos": grid_pos,
+			"rotation": block_data.get("rotation", 0),
+		})
+
+	# Remove old MultiMesh instances for types no longer present
+	for btype in _multimesh_instances.keys():
+		if not blocks_by_type.has(btype):
+			var old_mmi: MultiMeshInstance3D = _multimesh_instances[btype]
+			remove_child(old_mmi)
+			old_mmi.queue_free()
+			_multimesh_instances.erase(btype)
+
+	# Create/update MultiMesh for each type
+	for block_type in blocks_by_type:
+		var block_list: Array = blocks_by_type[block_type]
+		var mm_instance: MultiMeshInstance3D
+
+		if _multimesh_instances.has(block_type):
+			mm_instance = _multimesh_instances[block_type]
+		else:
+			mm_instance = MultiMeshInstance3D.new()
+			mm_instance.name = "MM_%s" % block_type
+			mm_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			add_child(mm_instance)
+			_multimesh_instances[block_type] = mm_instance
+
+		# Create MultiMesh
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.instance_count = block_list.size()
+
+		# Create shared BoxMesh
+		var box := BoxMesh.new()
+		box.size = Vector3(CUBE_WIDTH, CUBE_HEIGHT, CUBE_DEPTH)
+		mm.mesh = box
+
+		# Set per-instance transforms
+		for i in range(block_list.size()):
+			var block_info: Dictionary = block_list[i]
+			var local_pos := _grid_to_local(block_info["grid_pos"])
+			var rot: int = block_info["rotation"]
+
+			var basis := Basis()
+			if rot != 0:
+				basis = Basis(Vector3.UP, deg_to_rad(rot * 90.0))
+
+			mm.set_instance_transform(i, Transform3D(basis, local_pos))
+
+		mm_instance.multimesh = mm
+
+		# Apply material for this block type
+		var color := _get_color_for_type(block_type)
+		var mat: Material
+		if _block_shader:
+			mat = ShaderMaterial.new()
+			mat.shader = _block_shader
+			mat.set_shader_parameter("albedo_color", color)
+			mat.set_shader_parameter("roughness", 0.7)
+			mat.set_shader_parameter("metallic", 0.0)
+			mat.set_shader_parameter("alpha", 1.0)
+			mat.set_shader_parameter("is_ghost", false)
+		else:
+			var std_mat := StandardMaterial3D.new()
+			std_mat.albedo_color = color
+			std_mat.roughness = 0.7
+			mat = std_mat
+		mm_instance.material_override = mat
+
+	# Still need collision shapes for raycasting
+	var collision_shapes: Array[BoxShape3D] = []
+	var collision_transforms: Array[Transform3D] = []
+	for grid_pos in _blocks:
+		var local_pos := _grid_to_local(grid_pos)
+		var box_shape := BoxShape3D.new()
+		box_shape.size = Vector3(CUBE_WIDTH, CUBE_HEIGHT, CUBE_DEPTH)
+		collision_shapes.append(box_shape)
+		collision_transforms.append(Transform3D(Basis(), local_pos))
+
+	_rebuild_collision(collision_shapes, collision_transforms)
+	_update_aabb()
+
+
+## Clear all MultiMesh instances
+func _clear_multimesh_instances() -> void:
+	for mm_instance in _multimesh_instances.values():
+		if is_instance_valid(mm_instance):
+			mm_instance.queue_free()
+	_multimesh_instances.clear()
 
 
 ## Clear all mesh data
@@ -305,6 +474,73 @@ func _add_box_to_surface(
 	]
 
 	for face in faces:
+		var v: Array = face.verts
+		var n: Vector3 = face.normal
+
+		st.set_normal(n)
+
+		# Triangle 1: v[0], v[1], v[2]
+		st.add_vertex(corners[v[0]])
+		st.add_vertex(corners[v[1]])
+		st.add_vertex(corners[v[2]])
+
+		# Triangle 2: v[0], v[2], v[3]
+		st.add_vertex(corners[v[0]])
+		st.add_vertex(corners[v[2]])
+		st.add_vertex(corners[v[3]])
+
+
+## Add only visible faces of a box to the SurfaceTool (face-culled version)
+func _add_box_faces_to_surface(
+	st: SurfaceTool, center: Vector3, size: Vector3, color: Color,
+	rotation: int, visible_faces: Array[bool]
+) -> void:
+	var half := size / 2.0
+	st.set_color(color)
+
+	# Apply rotation around Y axis
+	var rot_basis := Basis()
+	if rotation != 0:
+		rot_basis = Basis(Vector3.UP, deg_to_rad(rotation * 90.0))
+
+	# Define the 8 corners of the box (before rotation)
+	var corners := [
+		Vector3(-half.x, -half.y, -half.z),  # 0: left-bottom-back
+		Vector3(half.x, -half.y, -half.z),   # 1: right-bottom-back
+		Vector3(half.x, half.y, -half.z),    # 2: right-top-back
+		Vector3(-half.x, half.y, -half.z),   # 3: left-top-back
+		Vector3(-half.x, -half.y, half.z),   # 4: left-bottom-front
+		Vector3(half.x, -half.y, half.z),    # 5: right-bottom-front
+		Vector3(half.x, half.y, half.z),     # 6: right-top-front
+		Vector3(-half.x, half.y, half.z),    # 7: left-top-front
+	]
+
+	# Apply rotation and offset
+	for i in range(corners.size()):
+		corners[i] = rot_basis * corners[i] + center
+
+	# Define 6 faces as quads (2 triangles each), with normals
+	# Order matches visible_faces: front(+Z), back(-Z), right(+X), left(-X), top(+Y), bottom(-Y)
+	var faces := [
+		# Face 0: Front face (+Z)
+		{"verts": [4, 5, 6, 7], "normal": rot_basis * Vector3.BACK},
+		# Face 1: Back face (-Z)
+		{"verts": [1, 0, 3, 2], "normal": rot_basis * Vector3.FORWARD},
+		# Face 2: Right face (+X)
+		{"verts": [5, 1, 2, 6], "normal": rot_basis * Vector3.RIGHT},
+		# Face 3: Left face (-X)
+		{"verts": [0, 4, 7, 3], "normal": rot_basis * Vector3.LEFT},
+		# Face 4: Top face (+Y)
+		{"verts": [7, 6, 2, 3], "normal": Vector3.UP},
+		# Face 5: Bottom face (-Y)
+		{"verts": [0, 1, 5, 4], "normal": Vector3.DOWN},
+	]
+
+	for face_idx in range(6):
+		if not visible_faces[face_idx]:
+			continue  # Skip culled face
+
+		var face: Dictionary = faces[face_idx]
 		var v: Array = face.verts
 		var n: Vector3 = face.normal
 
@@ -406,6 +642,50 @@ func set_shader(shader: Shader) -> void:
 ## Set material cache reference
 func set_material_cache(cache: Dictionary) -> void:
 	_material_cache = cache
+
+
+## Enable interior face culling (skip rendering faces between adjacent blocks)
+func enable_face_culling() -> void:
+	_face_culling_enabled = true
+	if not is_empty():
+		mark_dirty()
+
+
+## Disable interior face culling
+func disable_face_culling() -> void:
+	_face_culling_enabled = false
+	if not is_empty():
+		mark_dirty()
+
+
+## Check if face culling is enabled
+func is_face_culling_enabled() -> bool:
+	return _face_culling_enabled
+
+
+## Set reference to ChunkManager for cross-chunk neighbor queries
+func set_chunk_manager(manager: Node3D) -> void:
+	_chunk_manager = manager
+
+
+## Enable GPU instancing (uses MultiMesh for repeated block types)
+func enable_instancing() -> void:
+	_instancing_enabled = true
+	if not is_empty():
+		mark_dirty()
+
+
+## Disable GPU instancing (falls back to SurfaceTool merged mesh)
+func disable_instancing() -> void:
+	_instancing_enabled = false
+	_clear_multimesh_instances()
+	if not is_empty():
+		mark_dirty()
+
+
+## Check if GPU instancing is enabled
+func is_instancing_enabled() -> bool:
+	return _instancing_enabled
 
 
 # --- LOD Methods ---
