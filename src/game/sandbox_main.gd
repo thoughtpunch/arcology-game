@@ -24,6 +24,7 @@ const PlacementValidatorScript = preload("res://src/game/placement_validator.gd"
 const CoreScenarioConfigScript = preload("res://src/game/structural_scenario_config.gd")
 const ViewCubeScript = preload("res://src/ui/view_cube.gd")
 const LODManagerScript = preload("res://src/game/lod_manager.gd")
+const SceneryBuilderScript = preload("res://src/game/scenery_builder.gd")
 const VisibilityControllerScript = preload("res://src/game/visibility_controller.gd")
 const UndergroundWallScript = preload("res://src/game/underground_wall_system.gd")
 const ExcavationSystemScript = preload("res://src/game/excavation_system.gd")
@@ -426,194 +427,15 @@ func _add_grid_at_y(y_level: int) -> void:
 
 
 func _setup_skyline() -> void:
-	if _config.skyline_type == ScenarioConfigScript.SkylineType.NONE:
-		_log("Skyline skipped (type=NONE)")
-		return
-	if _config.skyline_building_count <= 0:
-		_log("Skyline skipped (building_count=0)")
-		return
-
-	# Three rings of buildings: near (just outside build zone), mid, far.
-	# Near buildings are smaller and denser, blending into the play area.
-	# Far buildings are taller and sparser, forming a dramatic skyline.
-	var rng := RandomNumberGenerator.new()
-	rng.seed = _config.skyline_seed
-
-	var center_offset := float(_config.ground_size) * CELL_SIZE / 2.0
-	var center := Vector3(center_offset, 0, center_offset)
-
-	# Distribute building count across rings proportionally
-	var bc: int = _config.skyline_building_count
-	var near_count := int(bc * 0.4)
-	var mid_count := int(bc * 0.33)
-	var far_count := bc - near_count - mid_count
-
-	var rings := [
-		# [count, min_radius, max_radius, min_height, max_height, min_width, max_width]
-		[near_count, 80.0, 250.0, 8.0, 60.0, 6.0, 18.0],  # Near: small/medium, dense
-		[mid_count, 200.0, 500.0, 15.0, 120.0, 8.0, 24.0],  # Mid: medium, some tall
-		[far_count, 400.0, 1000.0, 30.0, 250.0, 10.0, 30.0],  # Far: tall skyline
-	]
-
-	var total_count := 0
-	for ring in rings:
-		total_count += ring[0]
-
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.instance_count = total_count
-
-	var box := BoxMesh.new()
-	box.size = Vector3.ONE
-	mm.mesh = box
-
-	var idx := 0
-	for ring in rings:
-		var count: int = ring[0]
-		var r_min: float = ring[1]
-		var r_max: float = ring[2]
-		var h_min: float = ring[3]
-		var h_max: float = ring[4]
-		var w_min: float = ring[5]
-		var w_max: float = ring[6]
-
-		for _i in range(count):
-			var angle := rng.randf() * TAU
-			var radius := rng.randf_range(r_min, r_max)
-			var pos := center + Vector3(cos(angle) * radius, 0, sin(angle) * radius)
-
-			var width := rng.randf_range(w_min, w_max)
-			var depth := rng.randf_range(w_min, w_max)
-			var height := rng.randf_range(h_min, h_max) * pow(rng.randf(), 0.8)
-			height = maxf(height, h_min)
-
-			var basis := Basis.IDENTITY.scaled(Vector3(width, height, depth))
-			var t := Transform3D(basis, pos + Vector3(0, height / 2.0, 0))
-			mm.set_instance_transform(idx, t)
-
-			# Near buildings are warmer/darker, far buildings are cooler/lighter (aerial perspective)
-			var dist_t := clampf((radius - r_min) / maxf(r_max - r_min, 1.0), 0.0, 1.0)
-			var grey := rng.randf_range(0.25, 0.42)
-			var blue_shift := lerpf(0.01, 0.1, dist_t) + rng.randf_range(0.0, 0.03)
-			var fade := lerpf(0.0, 0.08, dist_t)  # Slight lightening with distance
-			(
-				mm
-				. set_instance_color(
-					idx,
-					Color(
-						grey - blue_shift + fade,
-						grey + fade,
-						grey + blue_shift + fade,
-					)
-				)
-			)
-			idx += 1
-
-	var mm_instance := MultiMeshInstance3D.new()
-	mm_instance.name = "Skyline"
-	mm_instance.multimesh = mm
-	mm_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
-	add_child(mm_instance)
-	_log("Skyline ready: %d buildings in 3 rings" % total_count)
+	SceneryBuilderScript.build_skyline(self, _config)
 
 
 func _setup_mountains() -> void:
-	if not _config.mountains_enabled or _config.mountain_count <= 0:
-		_log("Mountains skipped (disabled or count=0)")
-		return
-
-	var rng := RandomNumberGenerator.new()
-	rng.seed = _config.mountain_seed
-
-	var center_offset := float(_config.ground_size) * CELL_SIZE / 2.0
-	var center := Vector3(center_offset, 0, center_offset)
-
-	var count: int = _config.mountain_count
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.instance_count = count
-
-	# Hexagonal cone — CylinderMesh with top_radius=0
-	var cone := CylinderMesh.new()
-	cone.top_radius = 0.0
-	cone.bottom_radius = 1.0
-	cone.height = 1.0
-	cone.radial_segments = 6
-	cone.rings = 0
-	mm.mesh = cone
-
-	for i in range(count):
-		var angle := rng.randf() * TAU
-		var radius := rng.randf_range(500.0, 1200.0)
-		var pos := center + Vector3(cos(angle) * radius, 0, sin(angle) * radius)
-
-		var height := rng.randf_range(_config.mountain_min_height, _config.mountain_max_height)
-		var base_radius := rng.randf_range(_config.mountain_min_radius, _config.mountain_max_radius)
-		# Scale: x/z = base diameter, y = height
-		var basis := Basis.IDENTITY.scaled(Vector3(base_radius * 2.0, height, base_radius * 2.0))
-		var t := Transform3D(basis, pos + Vector3(0, height / 2.0, 0))
-		mm.set_instance_transform(i, t)
-
-		# Aerial perspective: near = green/dark, far = blue/light
-		var dist_t := clampf((radius - 500.0) / 700.0, 0.0, 1.0)
-		var col: Color = _config.mountain_base_color.lerp(_config.mountain_peak_color, dist_t)
-		col = col.lerp(Color(0.6, 0.65, 0.75), dist_t * 0.3)  # Atmospheric haze
-		mm.set_instance_color(i, col)
-
-	var mm_instance := MultiMeshInstance3D.new()
-	mm_instance.name = "Mountains"
-	mm_instance.multimesh = mm
-	mm_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mm_instance)
-	_log("Mountains ready: %d cones" % count)
+	SceneryBuilderScript.build_mountains(self, _config)
 
 
 func _setup_river() -> void:
-	if not _config.river_enabled or _config.river_width <= 0.0:
-		_log("River skipped (disabled or width=0)")
-		return
-
-	var gs := float(_config.ground_size) * CELL_SIZE
-	var river_length := gs * 1.5  # Extends past visible edges
-
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(river_length, _config.river_width)
-
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = _config.river_color
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.metallic = 0.3
-	mat.roughness = 0.2
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-
-	var mesh_inst := MeshInstance3D.new()
-	mesh_inst.name = "River"
-	mesh_inst.mesh = plane
-	mesh_inst.material_override = mat
-	mesh_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
-	# Position at center of ground, offset perpendicular to flow direction
-	var center := gs / 2.0
-	var angle_rad := deg_to_rad(_config.river_flow_angle)
-	var offset_x: float = sin(angle_rad) * _config.river_offset
-	var offset_z: float = cos(angle_rad) * _config.river_offset
-	mesh_inst.position = Vector3(center + offset_x, 0.02, center + offset_z)
-	mesh_inst.rotation_degrees = Vector3(0, _config.river_flow_angle, 0)
-
-	add_child(mesh_inst)
-	_log(
-		(
-			"River ready: width=%.0f angle=%.0f offset=%.0f"
-			% [
-				_config.river_width,
-				_config.river_flow_angle,
-				_config.river_offset,
-			]
-		)
-	)
+	SceneryBuilderScript.build_river(self, _config)
 
 
 func _setup_block_container() -> void:
@@ -684,34 +506,7 @@ func _setup_face_highlight() -> void:
 
 
 func _setup_compass_markers() -> void:
-	# Place N/S/E/W labels on the ground at the edges of the build zone.
-	# Godot convention: NORTH = -Z, SOUTH = +Z, EAST = +X, WEST = -X
-	var zone_center_x := (float(build_zone_origin.x) + float(build_zone_size.x) / 2.0) * CELL_SIZE
-	var zone_center_z := (float(build_zone_origin.y) + float(build_zone_size.y) / 2.0) * CELL_SIZE
-	var half_x := float(build_zone_size.x) / 2.0 * CELL_SIZE
-	var half_z := float(build_zone_size.y) / 2.0 * CELL_SIZE
-	var marker_y := 2.0  # Slightly above ground
-
-	var markers := {
-		"N": Vector3(zone_center_x, marker_y, zone_center_z - half_z - 8.0),
-		"S": Vector3(zone_center_x, marker_y, zone_center_z + half_z + 8.0),
-		"E": Vector3(zone_center_x + half_x + 8.0, marker_y, zone_center_z),
-		"W": Vector3(zone_center_x - half_x - 8.0, marker_y, zone_center_z),
-	}
-
-	for text in markers:
-		var label := Label3D.new()
-		label.text = text
-		label.font_size = 72
-		label.pixel_size = 0.1
-		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		label.no_depth_test = true
-		label.modulate = Color(0.0, 0.9, 0.9, 0.7)
-		label.outline_modulate = Color(0.0, 0.0, 0.0, 0.8)
-		label.outline_size = 12
-		label.position = markers[text]
-		label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(label)
+	SceneryBuilderScript.build_compass_markers(self, build_zone_origin, build_zone_size)
 
 
 func _setup_ui() -> void:
