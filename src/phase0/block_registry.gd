@@ -2,6 +2,7 @@
 ## Loads from data/blocks.json and assigns greybox colors by category.
 
 const BlockDefScript = preload("res://src/phase0/block_definition.gd")
+const PanelMatScript = preload("res://src/phase0/panel_material.gd")
 
 # Explicit ordering for the palette UI, grouped by category.
 var palette_order: Array[String] = []
@@ -75,6 +76,13 @@ func _load_from_json() -> void:
 		def.capacity = int(entry.get("capacity", 0))
 		def.jobs = int(entry.get("jobs", 0))
 		def.cost = int(entry.get("cost", 0))
+
+		# Assign panel material: JSON override > category default > SOLID
+		var json_panel_mat = entry.get("panel_material", "")
+		if json_panel_mat is String and json_panel_mat != "":
+			def.panel_material = _parse_panel_material(json_panel_mat)
+		else:
+			def.panel_material = PanelMatScript.get_default_for_category(def.category)
 
 		# Assign color: id override > category color > fallback grey
 		if _id_color_overrides.has(id):
@@ -152,3 +160,23 @@ func get_category_display_name(cat: String) -> String:
 			return "Entertainment"
 		_:
 			return cat.capitalize()
+
+
+func _parse_panel_material(name: String) -> int:
+	## Parse a panel material name from JSON into a PanelMaterial.Type value.
+	match name.to_lower():
+		"solid":
+			return PanelMatScript.Type.SOLID
+		"glass":
+			return PanelMatScript.Type.GLASS
+		"metal":
+			return PanelMatScript.Type.METAL
+		"solar":
+			return PanelMatScript.Type.SOLAR
+		"garden":
+			return PanelMatScript.Type.GARDEN
+		"force_field":
+			return PanelMatScript.Type.FORCE_FIELD
+		_:
+			push_warning("[BlockRegistry] Unknown panel material: %s" % name)
+			return PanelMatScript.Type.SOLID

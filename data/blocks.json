@@ -1495,7 +1495,8 @@
     "jobs": 4,
     "power_output": 200,
     "requires_roof": true,
-    "cost": 2400
+    "cost": 2400,
+    "panel_material": "solar"
   },
   "power_plant_nuclear": {
     "name": "Power Plant (Nuclear)",
@@ -1600,7 +1601,8 @@
     "light_output": 100,
     "power_output": 20,
     "requires_roof": true,
-    "cost": 600
+    "cost": 600,
+    "panel_material": "solar"
   },
   "light_pipe_junction": {
     "name": "Light Pipe Junction",
@@ -1707,6 +1709,7 @@
     "vibes_bonus": 15,
     "light_transmission": true,
     "void_space": true,
-    "cost": 9000
+    "cost": 9000,
+    "panel_material": "glass"
   }
 }

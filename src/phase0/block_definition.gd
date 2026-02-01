@@ -12,3 +12,4 @@ extends Resource
 @export var capacity: int = 0
 @export var jobs: int = 0
 @export var cost: int = 0
+@export var panel_material: int = -1  # -1 = use category default (PanelMaterial.Type)

@@ -16,6 +16,8 @@ const FaceScript = preload("res://src/phase0/face.gd")
 const ScenarioConfigScript = preload("res://src/phase0/scenario_config.gd")
 const ScenarioPickerScript = preload("res://src/phase0/scenario_picker.gd")
 const SelectionManagerScript = preload("res://src/phase0/selection_manager.gd")
+const PanelSystemScript = preload("res://src/phase0/panel_system.gd")
+const PanelMatScript = preload("res://src/phase0/panel_material.gd")
 const CELL_SIZE: float = 6.0
 const PLACE_INTERVAL: float = 0.1  # 100ms = 10 blocks/sec
 const BLOCK_INSET: float = 0.15  # Visual gap between adjacent blocks (per side)
@@ -1181,6 +1183,12 @@ func place_block(definition: Resource, origin: Vector3i, rot: int) -> RefCounted
 
 	block.node = _create_block_node(block)
 	_block_container.add_child(block.node)
+
+	# Generate panels on exterior faces
+	_generate_panels_for_block(block)
+	# Update neighbor blocks' panels (their faces may now be interior)
+	_update_neighbor_panels(block)
+
 	_animate_placement(block.node)
 
 	placed_blocks[block.id] = block
@@ -1216,6 +1224,11 @@ func remove_block(block_id: int) -> void:
 	var block: RefCounted = placed_blocks[block_id]
 	_log("Removing block #%d (%s) at %s" % [block_id, block.definition.id, block.origin])
 
+	# Find neighbor blocks that need panel updates BEFORE erasing occupancy
+	var affected_ids: Array[int] = PanelSystemScript.get_affected_block_ids(
+		block.occupied_cells, cell_occupancy, block_id
+	)
+
 	# Refund block cost
 	var refund: int = block.definition.cost
 	if refund > 0:
@@ -1223,6 +1236,13 @@ func remove_block(block_id: int) -> void:
 
 	for cell in block.occupied_cells:
 		cell_occupancy.erase(cell)
+
+	# Update affected neighbors' panels (their faces may now be exterior)
+	for nid in affected_ids:
+		if placed_blocks.has(nid):
+			var neighbor: RefCounted = placed_blocks[nid]
+			if is_instance_valid(neighbor.node):
+				_regenerate_panels(neighbor)
 
 	# Track entrance removal
 	if _entrance_block_ids.has(block_id):
@@ -1468,6 +1488,83 @@ func _create_mesh_for(_definition: Resource, effective_size: Vector3i) -> Mesh:
 	return box
 
 
+# --- Panel System ---
+
+
+func _get_panel_material_type(definition: Resource) -> int:
+	## Get the panel material type for a block, using the definition's override
+	## or falling back to the category default.
+	if definition.panel_material >= 0:
+		return definition.panel_material
+	return PanelMatScript.get_default_for_category(definition.category)
+
+
+func _generate_panels_for_block(block: RefCounted) -> void:
+	## Generate panel meshes for all exterior faces of a block.
+	var panel_mat_type: int = _get_panel_material_type(block.definition)
+	PanelSystemScript.create_panel_meshes_for_block(
+		block.node,
+		block.occupied_cells,
+		block.origin,
+		cell_occupancy,
+		block.id,
+		panel_mat_type,
+		block.definition.color,
+	)
+
+
+func _update_neighbor_panels(block: RefCounted) -> void:
+	## After placing a block, update panels on all neighboring blocks
+	## whose faces may now be interior (shared with the new block).
+	var affected_ids: Array[int] = PanelSystemScript.get_affected_block_ids(
+		block.occupied_cells, cell_occupancy, block.id
+	)
+	for nid in affected_ids:
+		if placed_blocks.has(nid):
+			var neighbor: RefCounted = placed_blocks[nid]
+			if is_instance_valid(neighbor.node):
+				_regenerate_panels(neighbor)
+
+
+func _regenerate_panels(block: RefCounted) -> void:
+	## Regenerate panels for a block (removing old ones first).
+	var panel_mat_type: int = _get_panel_material_type(block.definition)
+	PanelSystemScript.update_panels_for_block(
+		block.node,
+		block.occupied_cells,
+		block.origin,
+		cell_occupancy,
+		block.id,
+		panel_mat_type,
+		block.definition.color,
+	)
+
+
+func _set_panel_selection_emission(block_node: Node3D, color: Color, energy: float) -> void:
+	## Set emission on all panel materials in a block for selection highlight.
+	var panels: Node3D = block_node.get_node_or_null("Panels")
+	if not panels:
+		return
+	for child in panels.get_children():
+		if child is MeshInstance3D and child.material_override is StandardMaterial3D:
+			var mat: StandardMaterial3D = child.material_override
+			mat.emission = color
+			mat.emission_energy_multiplier = energy
+
+
+func _reset_panel_selection_emission(block_node: Node3D) -> void:
+	## Reset panel materials to their default emission values after deselection.
+	var panels: Node3D = block_node.get_node_or_null("Panels")
+	if not panels:
+		return
+	for child in panels.get_children():
+		if child is MeshInstance3D and child.material_override is StandardMaterial3D:
+			var mat: StandardMaterial3D = child.material_override
+			# Restore to panel material's own emission (may be non-zero for solar/force_field)
+			mat.emission = Color.WHITE
+			mat.emission_energy_multiplier = 0.0
+
+
 # --- Placement / Removal Animation ---
 
 
@@ -1516,6 +1613,16 @@ func _animate_placement(block_node: Node3D) -> void:
 				0.2,
 			)
 		)
+
+	# Flash panel materials too
+	var panels: Node3D = block_node.get_node_or_null("Panels")
+	if panels:
+		for child in panels.get_children():
+			if child is MeshInstance3D and child.material_override is StandardMaterial3D:
+				var pmat: StandardMaterial3D = child.material_override
+				pmat.emission_energy_multiplier = 0.5
+				var ptween := create_tween()
+				ptween.tween_property(pmat, "emission_energy_multiplier", 0.0, 0.2)
 
 	# Play audio
 	if _place_audio and _place_audio.stream:
@@ -1937,6 +2044,8 @@ func _on_block_selected(block_id: int) -> void:
 		var mat: StandardMaterial3D = mesh_inst.material_override
 		mat.emission = SELECTION_OUTLINE_COLOR
 		mat.emission_energy_multiplier = SELECTION_EMISSION_ENERGY
+	# Also highlight panel materials
+	_set_panel_selection_emission(block.node, SELECTION_OUTLINE_COLOR, SELECTION_EMISSION_ENERGY)
 	_update_selection_label()
 
 
@@ -1952,6 +2061,8 @@ func _on_block_deselected(block_id: int) -> void:
 		var mat: StandardMaterial3D = mesh_inst.material_override
 		mat.emission = Color.WHITE
 		mat.emission_energy_multiplier = 0.0
+	# Reset panel emission to their default values
+	_reset_panel_selection_emission(block.node)
 	_update_selection_label()
 
 
