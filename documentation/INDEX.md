@@ -6,8 +6,12 @@
 
 ## By Topic
 
+### 0-9
+- **3D Grid Math** - Coordinate conversion, face normals, cell math, see [3d-grid-math.md](./quick-reference/3d-grid-math.md)
+- **3D Refactor Specification** - Full 3D architecture spec, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md)
+
 ### A
-- **Above Grade** - Floors Z > 0, see [economy/permits.md](./game-design/economy/permits.md)
+- **Above Grade** - Floors Y > 0, see [economy/permits.md](./game-design/economy/permits.md)
 - **Accessibility** - Part of desirability calc, see [formulas.md](./quick-reference/formulas.md#residential-rent)
 - **Acquaintance** - Relationship type, see [human-simulation/relationships.md](./game-design/human-simulation/relationships.md)
 - **AEI (Arcology Eudaimonia Index)** - Win condition metric, see [dynamics/eudaimonia.md](./game-design/dynamics/eudaimonia.md)
@@ -18,7 +22,7 @@
 - **Atrium** - Mega-block light well, see [blocks/green.md](./game-design/blocks/green.md)
 
 ### B
-- **Below Grade** - Floors Z < 0, see [economy/permits.md](./game-design/economy/permits.md)
+- **Below Grade** - Floors Y < 0, see [economy/permits.md](./game-design/economy/permits.md)
 - **Belonging** - Human need, see [human-simulation/needs.md](./game-design/human-simulation/needs.md)
 - **Block** - Atomic construction unit, see [game-design/core-concepts.md](./game-design/core-concepts.md)
 - **Block Catalog** - All block types, see [blocks/README.md](./game-design/blocks/)
@@ -28,6 +32,8 @@
 ### C
 - **Camera Controls** - Pan, zoom, rotate, view modes, see [ui/camera-controls.md](./ui/camera-controls.md)
 - **Cantilever** - Structural rules, see [core-concepts.md](./game-design/core-concepts.md#structural-rules)
+- **Cell** - Fundamental 6m x 6m x 6m unit of 3D space (true cube), see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#1-the-cell-foundational-unit)
+- **Chunk** - 8x8x8 cell region (48m cube) for rendering optimization, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#35-chunk-system)
 - **Civic Blocks** - Government, education, healthcare, see [blocks/civic.md](./game-design/blocks/civic.md)
 - **CNC-U** - Carbonic Nano-Cement material, see [core-concepts.md](./game-design/core-concepts.md#structural-rules)
 - **Code Conventions** - GDScript style, see [code-conventions.md](./quick-reference/code-conventions.md)
@@ -38,6 +44,7 @@
 - **Conveyor** - Escalator/walkway, see [transit/elevators.md](./game-design/transit/elevators.md)
 - **Corridor** - Transit block, see [transit/corridors.md](./game-design/transit/corridors.md)
 - **Crime** - Safety system, see [environment/safety-system.md](./game-design/environment/safety-system.md)
+- **Cutaway Mode** - Visibility mode removing geometry above a horizontal cut plane, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#51-cutaway-mode)
 
 ### D
 - **Data Model** - Technical structure, see [technical/data-model.md](./technical/data-model.md)
@@ -53,22 +60,28 @@
 - **Environment Systems** - Light, air, noise, safety, see [environment/README.md](./game-design/environment/)
 - **Esteem** - Human need, see [human-simulation/needs.md](./game-design/human-simulation/needs.md)
 - **Eudaimonia** - Win condition, see [dynamics/eudaimonia.md](./game-design/dynamics/eudaimonia.md)
+- **Excavation** - Removing terrain to create buildable underground space, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#92-excavation)
 - **Excavation Permit** - Digging permission, see [economy/permits.md](./game-design/economy/permits.md)
 
 ### F
+- **Face** - One of 6 sides of a cell (TOP, BOTTOM, NORTH, SOUTH, EAST, WEST), see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#24-cube-faces)
 - **Flight Risk** - Emigration probability, see [human-simulation/flourishing.md](./game-design/human-simulation/flourishing.md#flight-risk)
+- **Floor Isolate Mode** - Shows only a single floor, hiding all others, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#53-floor-isolate-mode)
 - **Floor Navigation** - Multi-floor view, see [architecture/milestones/milestone-2-floor-navigation.md](./architecture/milestones/milestone-2-floor-navigation.md)
 - **Flourishing** - Human success metric, see [human-simulation/flourishing.md](./game-design/human-simulation/flourishing.md)
 - **Food Blocks** - Restaurants, groceries, see [blocks/commercial.md](./game-design/blocks/commercial.md#food)
 - **Food Hall** - Public mega-block, see [blocks/commercial.md](./game-design/blocks/commercial.md#food-hall)
 - **Force Field** - Mars/Space panel, see [core-concepts.md](./game-design/core-concepts.md#panel-materials)
 - **Formulas** - All calculations, see [formulas.md](./quick-reference/formulas.md)
+- **Free Camera** - Perspective camera with full 360° orbital control, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#41-two-camera-modes)
 
 ### G
+- **Ghost Preview** - Semi-transparent preview of block being placed, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#64-ghost-preview-states)
 - **Glossary** - Term definitions, see [glossary.md](./quick-reference/glossary.md)
 - **Green Blocks** - Parks, gardens, see [blocks/green.md](./game-design/blocks/green.md)
 - **Grid** - 3D voxel structure, see [core-concepts.md](./game-design/core-concepts.md#grid-architecture)
-- **Grid Math** - 3D grid coordinate conversion, see `src/phase0/grid_utils.gd`
+- **Grid Math** - 3D grid coordinate conversion, see [3d-grid-math.md](./quick-reference/3d-grid-math.md) and `src/phase0/grid_utils.gd`
+- **Grid Position** - Integer (x, y, z) coordinates in cell units, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#22-grid-position)
 
 ### H
 - **Human Nature** - Behavioral dynamics, see [dynamics/human-nature.md](./game-design/dynamics/human-nature.md)
@@ -78,7 +91,6 @@
 ### I
 - **Industrial Blocks** - Manufacturing, see [blocks/industrial.md](./game-design/blocks/industrial.md)
 - **Infrastructure Blocks** - Power, water, HVAC, see [blocks/infrastructure.md](./game-design/blocks/infrastructure.md)
-- **3D Grid Math** - Coordinate conversion, face normals, cell math, see [3d-grid-math.md](./quick-reference/3d-grid-math.md)
 - **Isolation Score** - Self-sufficiency, see [scenarios.md](./game-design/scenarios.md)
 
 ### J-K
@@ -87,6 +99,7 @@
 ### L
 - **Light Pipe** - Interior lighting, see [environment/light-system.md](./game-design/environment/light-system.md#light-pipes)
 - **Light System** - Environment, see [environment/light-system.md](./game-design/environment/light-system.md)
+- **LOD (Level of Detail)** - Simplified meshes for distant objects (4 levels: LOD0-LOD3), see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#34-level-of-detail-lod)
 
 ### M
 - **Maintenance** - Decay prevention, see [dynamics/entropy.md](./game-design/dynamics/entropy.md#physical-entropy)
@@ -101,9 +114,11 @@
 - **Notable Residents** - Highlighted agents, see [human-simulation/agents.md](./game-design/human-simulation/agents.md#notable-residents)
 
 ### O
+- **Ortho View** - Orthographic camera with no perspective distortion, snaps to 90° increments, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#43-orthographic-views)
 - **Overlays** - Visual layers, see [ui/overlays.md](./ui/overlays.md)
 
 ### P
+- **Panel** - Auto-generated surface on exterior-facing cube faces, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#36-panel-materials-3d)
 - **Panel Materials** - Envelope surfaces, see [core-concepts.md](./game-design/core-concepts.md#panel-materials)
 - **Pathfinding** - Route calculation, see [transit/pathfinding.md](./game-design/transit/pathfinding.md)
 - **Patterns** - Code patterns, see [architecture/patterns.md](./architecture/patterns.md)
@@ -127,8 +142,10 @@
 - **Safety System** - Crime/security, see [environment/safety-system.md](./game-design/environment/safety-system.md)
 - **Saturation** - Corridor traffic %, see [transit/corridors.md](./game-design/transit/corridors.md#capacity)
 - **Scenarios** - Game settings, see [scenarios.md](./game-design/scenarios.md)
+- **Section Mode** - Vertical slice cross-section view, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#54-section-mode)
 - **Simulation Tick** - Update frequency, see [technical/simulation-tick.md](./technical/simulation-tick.md)
 - **Sky Lobby** - Transit hub, see [transit/elevators.md](./game-design/transit/elevators.md)
+- **Snap Placement** - Automatic alignment of blocks to grid via face clicking, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#61-snap-placement-minecraft-style)
 - **Subterranean** - Below-grade, see [economy/permits.md](./game-design/economy/permits.md#subterranean)
 - **Survival** - Human need, see [human-simulation/needs.md](./game-design/human-simulation/needs.md)
 - **Sustainability** - AEI component, see [dynamics/eudaimonia.md](./game-design/dynamics/eudaimonia.md)
@@ -145,15 +162,22 @@
 - **UI** - User interface, see [ui/README.md](./ui/)
 - **Utility Blocks** - Chase, conduit, see [blocks/infrastructure.md](./game-design/blocks/infrastructure.md)
 - **Vibes** - Composite quality score, see [environment/vibes-system.md](./game-design/environment/vibes-system.md)
+- **View Cube** - Corner widget for quick view switching between orthographic angles, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#44-view-cube-widget)
 - **Views** - Display modes, see [ui/views.md](./ui/views.md)
+- **Visibility Modes** - Cutaway, X-Ray, Floor Isolate, Section views for seeing inside structures, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#5-visibility-modes)
 
 ### W-Z
 - **Win Conditions** - Victory states, see [dynamics/eudaimonia.md](./game-design/dynamics/eudaimonia.md#victory-conditions)
+- **X-Ray Mode** - Visibility mode making exterior walls transparent while keeping interiors solid, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#52-x-ray-mode)
 - **Zoning** - Auto-fill areas, see [core-concepts.md](./game-design/core-concepts.md#zoning)
 
 ---
 
 ## By File Type
+
+### Architecture Docs
+- [3d-refactor/specification.md](./architecture/3d-refactor/specification.md) - Full 3D architecture specification
+- [3d-refactor/README.md](./architecture/3d-refactor/README.md) - 3D refactor overview
 
 ### Milestone Docs
 - [milestone-0-skeleton.md](./architecture/milestones/milestone-0-skeleton.md)
@@ -194,3 +218,5 @@
 3. **Looking for a block?** → [blocks/README.md](./game-design/blocks/)
 4. **Looking for code style?** → [code-conventions.md](./quick-reference/code-conventions.md)
 5. **Looking for milestone?** → [architecture/](./architecture/)
+6. **Looking for 3D architecture?** → [3d-refactor/specification.md](./architecture/3d-refactor/specification.md)
+7. **Looking for 3D math?** → [3d-grid-math.md](./quick-reference/3d-grid-math.md)
