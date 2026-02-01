@@ -1,21 +1,21 @@
 # Milestone 0: Skeleton
 
-**Goal:** Empty Godot project that runs
+**Goal:** Empty Godot project that runs with a 3D viewport
 
 ---
 
 ## Checklist
 
 ```
-✓ Project created with folder structure
-✓ Main scene loads
-✓ Can see a placeholder sprite
-✓ Basic input handling (camera pan/zoom)
+Done  Project created with folder structure
+Done  Main scene loads
+Done  Can see a placeholder 3D mesh (BoxMesh cube)
+Done  Basic input handling (3D orbital camera)
 ```
 
 ## Deliverable
 
-You can run the game and move a camera around an empty space.
+You can run the game and orbit a 3D camera around an empty scene with a placeholder block.
 
 ---
 
@@ -25,81 +25,82 @@ You can run the game and move a camera around an empty space.
 
 ```
 arcology/
-├── project.godot
-├── src/
-│   ├── core/
-│   ├── blocks/
-│   ├── environment/
-│   ├── agents/
-│   ├── transit/
-│   ├── economy/
-│   └── ui/
-├── scenes/
-│   └── main.tscn
-├── assets/
-│   └── sprites/
-│       └── blocks/
-├── data/
-└── documentation/
+ project.godot
+ src/
+   core/
+   phase0/
+   blocks/
+   environment/
+   agents/
+   transit/
+   economy/
+   rendering/
+   ui/
+ scenes/
+   main.tscn
+   phase0_sandbox.tscn
+ shaders/
+ assets/
+ data/
+ documentation/
 ```
 
 ### 2. Main Scene
 
-Create `scenes/main.tscn`:
-- Node2D root
-- Camera2D child with zoom/pan
-- Placeholder sprite to verify rendering
+Create `scenes/phase0_sandbox.tscn`:
+- Node3D root
+- Orbital camera (spherical coordinates: azimuth, elevation, distance)
+- DirectionalLight3D for sun
+- WorldEnvironment with sky
+- Placeholder BoxMesh to verify 3D rendering
 
 ### 3. Camera Controls
 
-Basic isometric camera:
-- WASD or arrow keys to pan
-- Scroll wheel to zoom
-- Optional: middle-click drag to pan
+3D orbital camera (`src/phase0/orbital_camera.gd`):
+- Right-click drag to orbit (azimuth/elevation)
+- WASD to pan relative to camera orientation
+- Q/E for vertical movement
+- Scroll wheel to zoom (proportional to distance)
+- Shift+LMB drag to zoom (MacBook-friendly)
+- Alt+LMB to orbit around point under cursor (3DS Max/Blender style)
+- Middle-click drag to pan in camera plane
+- Smooth interpolation via exponential lerp
 
 ```gdscript
-# src/ui/camera.gd
-extends Camera2D
+# src/phase0/orbital_camera.gd
+extends Node3D
 
-var zoom_speed: float = 0.1
-var pan_speed: float = 400
+var target: Vector3 = Vector3.ZERO
+var azimuth: float = 45.0      # degrees, rotation around Y
+var elevation: float = 30.0    # degrees, angle from horizontal
+var distance: float = 200.0    # units from target
 
-func _process(delta):
-    # Pan
-    var input = Vector2.ZERO
-    if Input.is_action_pressed("ui_right"):
-        input.x += 1
-    if Input.is_action_pressed("ui_left"):
-        input.x -= 1
-    if Input.is_action_pressed("ui_down"):
-        input.y += 1
-    if Input.is_action_pressed("ui_up"):
-        input.y -= 1
-
-    position += input * pan_speed * delta / zoom.x
-
-func _input(event):
-    if event is InputEventMouseButton:
-        if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-            zoom *= 1 + zoom_speed
-        elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-            zoom *= 1 - zoom_speed
-        zoom = zoom.clamp(Vector2(0.5, 0.5), Vector2(3, 3))
+func _update_camera_position() -> void:
+    var az_rad := deg_to_rad(azimuth)
+    var el_rad := deg_to_rad(elevation)
+    var offset := Vector3(
+        sin(az_rad) * cos(el_rad),
+        sin(el_rad),
+        cos(az_rad) * cos(el_rad)
+    ) * distance
+    camera.global_position = target + offset
+    camera.look_at(target, Vector3.UP)
 ```
 
-### 4. Placeholder Sprite
+### 4. Placeholder Block
 
-Create a simple 64x32 isometric tile in `assets/sprites/blocks/`:
-- Can be a colored rectangle for now
-- Verifies rendering pipeline works
+Create a simple 6m BoxMesh in the scene:
+- Verifies 3D rendering pipeline works
+- Uses `CELL_SIZE = 6.0` from `grid_utils.gd`
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `project.godot` opens in Godot 4 without errors
-- [ ] Main scene runs without crashes
-- [ ] Can see placeholder sprite
-- [ ] Camera pans with arrow keys/WASD
-- [ ] Camera zooms with scroll wheel
-- [ ] All folders created per structure
+- [x] `project.godot` opens in Godot 4 without errors
+- [x] Main scene runs without crashes
+- [x] Can see placeholder 3D block in the viewport
+- [x] Camera orbits with right-click drag
+- [x] Camera pans with WASD
+- [x] Camera zooms with scroll wheel
+- [x] All folders created per structure
