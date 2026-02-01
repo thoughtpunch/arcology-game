@@ -12,6 +12,11 @@ extends Node3D
 ##     adjusting distance to maintain subject framing)
 ##   Double-click: Handled by parent (focus on object)
 ##
+## Trackpad gestures (macOS):
+##   Two-finger swipe: Pan (no click needed)
+##   Pinch: Zoom in/out
+##   Alt + two-finger swipe: Orbit (rotate + tilt, no click needed)
+##
 ## Keyboard — Movement:
 ##   WASD: Pan horizontally (speed scales with zoom distance)
 ##   Q / Space: Ascend (move camera target up)
@@ -63,6 +68,9 @@ const PAN_MOUSE_SENSITIVITY: float = 0.15
 const ZOOM_SCROLL_FACTOR: float = 0.12
 const ZOOM_DRAG_SENSITIVITY: float = 0.005
 const DOLLY_ZOOM_SENSITIVITY: float = 0.3  # Degrees of FOV change per pixel of vertical drag
+const TRACKPAD_PAN_SENSITIVITY: float = 2.0  # Multiplier for InputEventPanGesture delta
+const TRACKPAD_ORBIT_SENSITIVITY: float = 8.0  # Degrees per unit of PanGesture delta (with Alt)
+const TRACKPAD_ZOOM_SENSITIVITY: float = 0.5  # Zoom blend factor for InputEventMagnifyGesture
 const FOV_STEP: float = 5.0
 const FOV_FINE_STEP: float = 1.0
 const LERP_FACTOR: float = 14.0
@@ -178,6 +186,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handle_mouse_button(event)
 	elif event is InputEventMouseMotion:
 		_handle_mouse_motion(event)
+	elif event is InputEventPanGesture:
+		_handle_pan_gesture(event)
+	elif event is InputEventMagnifyGesture:
+		_handle_magnify_gesture(event)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		_handle_key(event)
 
@@ -467,6 +479,50 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 		_target_target -= right * delta.x * pan_scale
 		_target_target -= fwd * delta.y * pan_scale
 		get_viewport().set_input_as_handled()
+
+
+# --- Trackpad Gestures ---
+
+
+func _handle_pan_gesture(event: InputEventPanGesture) -> void:
+	if Input.is_key_pressed(KEY_ALT):
+		# Alt + two-finger swipe → orbit (rotate + tilt)
+		_target_azimuth -= event.delta.x * TRACKPAD_ORBIT_SENSITIVITY * _precision
+		var new_el := _target_elevation + event.delta.y * TRACKPAD_ORBIT_SENSITIVITY * _precision
+		_target_elevation = clampf(new_el, MIN_ELEVATION, MAX_ELEVATION)
+		get_viewport().set_input_as_handled()
+	else:
+		# Two-finger swipe → pan in camera plane
+		var pan_scale := TRACKPAD_PAN_SENSITIVITY * (distance / 100.0) * _movement_speed
+		var fwd := Vector3(
+			sin(deg_to_rad(azimuth)),
+			0,
+			cos(deg_to_rad(azimuth)),
+		)
+		var right := Vector3(
+			cos(deg_to_rad(azimuth)),
+			0,
+			-sin(deg_to_rad(azimuth)),
+		)
+		_target_target += right * event.delta.x * pan_scale
+		_target_target += fwd * event.delta.y * pan_scale
+		get_viewport().set_input_as_handled()
+
+
+func _handle_magnify_gesture(event: InputEventMagnifyGesture) -> void:
+	# Pinch-to-zoom: factor > 1 = spread (zoom in), factor < 1 = pinch (zoom out)
+	var zoom_amount := lerpf(1.0, event.factor, TRACKPAD_ZOOM_SENSITIVITY)
+	if is_orthographic:
+		camera.size = clampf(camera.size / zoom_amount, 5.0, 500.0)
+		_log("Trackpad zoom (ortho) → size=%.1f" % camera.size)
+	else:
+		_target_distance = clampf(
+			_target_distance / zoom_amount,
+			MIN_DISTANCE,
+			MAX_DISTANCE,
+		)
+		_log("Trackpad zoom → dist=%.1f" % _target_distance)
+	get_viewport().set_input_as_handled()
 
 
 # --- Special Keys (single-press) ---
