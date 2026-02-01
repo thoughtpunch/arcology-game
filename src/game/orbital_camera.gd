@@ -79,6 +79,11 @@ const FOV_STEP: float = 5.0
 const FOV_FINE_STEP: float = 1.0
 const LERP_FACTOR: float = 14.0
 
+# --- Inertia ---
+const INERTIA_DECAY_RATE: float = 4.0  # How quickly momentum decays (higher = faster decay)
+const INERTIA_MIN_VELOCITY: float = 0.5  # Stop inertia below this velocity (degrees/sec)
+const INERTIA_VELOCITY_SCALE: float = 60.0  # Convert mouse delta to degrees/sec
+
 # --- Thresholds ---
 const DRAG_THRESHOLD: float = 4.0  # Pixels before a click becomes a drag
 const HISTORY_MIN_DISTANCE: float = 20.0  # Min target movement to push history
@@ -149,6 +154,13 @@ const PATH_PLAYBACK_DURATION: float = 2.0  # Seconds between keyframes during pl
 const MIN_KEYFRAME_INTERVAL: float = 0.5  # Minimum seconds between auto-captured keyframes
 var _last_keyframe_time: float = 0.0
 
+# Inertia state
+var inertia_enabled: bool = true  # Toggle in settings
+var _inertia_velocity: Vector2 = Vector2.ZERO  # degrees/sec for azimuth (x) and elevation (y)
+var _orbit_velocity_samples: Array[Vector2] = []  # Recent velocity samples for smoothing
+const VELOCITY_SAMPLE_COUNT: int = 3  # Number of samples to average
+
+signal inertia_toggled(enabled: bool)
 signal bookmark_saved(slot: int)
 signal bookmark_recalled(slot: int)
 signal path_recording_started()
@@ -199,6 +211,7 @@ func _process(delta: float) -> void:
 	else:
 		_update_speed_factors()
 		_handle_keyboard(delta)
+		_apply_inertia(delta)
 	_smooth_interpolate(delta)
 	_update_camera_position()
 
@@ -247,6 +260,45 @@ func _update_speed_factors() -> void:
 	if mode_name != _prev_speed_mode:
 		_log("Speed mode: %s" % mode_name)
 		_prev_speed_mode = mode_name
+
+
+func _apply_inertia(delta: float) -> void:
+	## Apply decaying momentum from orbit release.
+	if not inertia_enabled:
+		return
+	if _inertia_velocity.length() < INERTIA_MIN_VELOCITY:
+		_inertia_velocity = Vector2.ZERO
+		return
+	# Don't apply inertia while actively dragging
+	if _right_drag_active or _alt_orbit_active:
+		return
+
+	# Apply velocity to target angles
+	_target_azimuth += _inertia_velocity.x * delta
+	var new_el := _target_elevation + _inertia_velocity.y * delta
+	_target_elevation = clampf(new_el, MIN_ELEVATION, MAX_ELEVATION)
+
+	# Decay velocity exponentially
+	_inertia_velocity *= exp(-INERTIA_DECAY_RATE * delta)
+
+
+func _start_orbit_inertia() -> void:
+	## Calculate and apply inertia velocity from recent orbit drag samples.
+	if not inertia_enabled or _orbit_velocity_samples.is_empty():
+		_inertia_velocity = Vector2.ZERO
+		return
+
+	# Average recent velocity samples for smooth inertia start
+	var avg_velocity := Vector2.ZERO
+	for sample in _orbit_velocity_samples:
+		avg_velocity += sample
+	avg_velocity /= _orbit_velocity_samples.size()
+
+	_inertia_velocity = avg_velocity
+	_orbit_velocity_samples.clear()
+
+	if _inertia_velocity.length() > INERTIA_MIN_VELOCITY:
+		_log("Orbit inertia started (vel=%.1f, %.1f)" % [_inertia_velocity.x, _inertia_velocity.y])
 
 
 # --- Keyboard (continuous, polled each frame) ---
@@ -357,10 +409,13 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 				_right_drag_active = false
 				_right_press_pos = event.position
 				_last_mouse_pos = event.position
+				_orbit_velocity_samples.clear()
 			else:
 				if _right_drag_active:
 					_push_history()
 					get_viewport().set_input_as_handled()
+					# Apply inertia from accumulated velocity samples
+					_start_orbit_inertia()
 					_log("Orbit drag ended")
 				_right_pressed = false
 				_right_drag_active = false
@@ -478,11 +533,20 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 		if not _right_drag_active:
 			if event.position.distance_to(_right_press_pos) > DRAG_THRESHOLD:
 				_right_drag_active = true
+				_orbit_velocity_samples.clear()
 				_log("Orbit drag started")
 		if _right_drag_active:
-			_target_azimuth += delta.x * ORBIT_SENSITIVITY * _precision
-			var new_el := _target_elevation - delta.y * ORBIT_SENSITIVITY * _precision
+			var az_delta := delta.x * ORBIT_SENSITIVITY * _precision
+			var el_delta := -delta.y * ORBIT_SENSITIVITY * _precision
+			_target_azimuth += az_delta
+			var new_el := _target_elevation + el_delta
 			_target_elevation = clampf(new_el, MIN_ELEVATION, MAX_ELEVATION)
+			# Track velocity for inertia (convert to degrees/sec)
+			if inertia_enabled:
+				var velocity := Vector2(az_delta, el_delta) * INERTIA_VELOCITY_SCALE
+				_orbit_velocity_samples.append(velocity)
+				if _orbit_velocity_samples.size() > VELOCITY_SAMPLE_COUNT:
+					_orbit_velocity_samples.pop_front()
 			get_viewport().set_input_as_handled()
 
 	# Middle-click drag → pan
@@ -707,6 +771,35 @@ func go_home() -> void:
 	_target_elevation = _home_elevation
 	_target_distance = _home_distance
 	_log("Go home")
+
+
+# --- Inertia Settings ---
+
+
+func set_inertia_enabled(enabled: bool) -> void:
+	## Enable or disable orbit inertia (momentum on mouse release).
+	if inertia_enabled != enabled:
+		inertia_enabled = enabled
+		if not enabled:
+			_inertia_velocity = Vector2.ZERO
+			_orbit_velocity_samples.clear()
+		inertia_toggled.emit(enabled)
+		_log("Inertia %s" % ("enabled" if enabled else "disabled"))
+
+
+func is_inertia_enabled() -> bool:
+	## Returns true if orbit inertia is enabled.
+	return inertia_enabled
+
+
+func stop_inertia() -> void:
+	## Immediately stop any active inertia momentum.
+	_inertia_velocity = Vector2.ZERO
+
+
+func get_inertia_velocity() -> Vector2:
+	## Returns the current inertia velocity (for debugging/UI).
+	return _inertia_velocity
 
 
 # --- Bookmarks ---
