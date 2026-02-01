@@ -40,6 +40,10 @@ extends Node3D
 ##   Numpad 7: Top view
 ##   Numpad 5: Toggle perspective / orthographic
 ##
+## Keyboard — Ground Snap:
+##   X: Snap target to ground (Y=0) at cursor XZ position (raycast)
+##   V: Snap target to ground (Y=0) at current target XZ position
+##
 ## Keyboard — Bookmarks:
 ##   Ctrl+1-9: Save camera bookmark to slot
 ##   Alt+1-9: Recall camera bookmark from slot
@@ -168,6 +172,7 @@ signal path_recording_stopped(keyframe_count: int)
 signal path_playback_started(keyframe_count: int)
 signal path_playback_stopped()
 signal path_keyframe_added(index: int)
+signal ground_snap(position: Vector3)
 
 
 func _ready() -> void:
@@ -651,6 +656,16 @@ func _handle_key(event: InputEventKey) -> void:
 			_log("Leveled horizon (elevation → 30°)")
 			get_viewport().set_input_as_handled()
 
+		KEY_X:
+			# Snap to ground at cursor XZ position
+			snap_to_ground_at_cursor()
+			get_viewport().set_input_as_handled()
+
+		KEY_V:
+			# Snap to ground at current target XZ position
+			snap_to_ground_at_target()
+			get_viewport().set_input_as_handled()
+
 		KEY_BRACKETLEFT:
 			var step := FOV_FINE_STEP if event.shift_pressed else FOV_STEP
 			_target_fov = clampf(_target_fov - step, MIN_FOV, MAX_FOV)
@@ -771,6 +786,54 @@ func go_home() -> void:
 	_target_elevation = _home_elevation
 	_target_distance = _home_distance
 	_log("Go home")
+
+
+# --- Ground Snap ---
+
+
+func snap_to_ground_at_cursor() -> void:
+	## Snap camera target to ground level (Y=0) at the XZ position under the cursor.
+	## Uses a raycast to find where the cursor intersects the ground plane.
+	var mouse_pos := get_viewport().get_mouse_position()
+	var ground_pos = _raycast_ground_plane(mouse_pos)  # Variant (nullable Vector3)
+	if ground_pos != null:
+		_push_history()
+		_target_target = ground_pos as Vector3
+		ground_snap.emit(ground_pos as Vector3)
+		_log("Snap to ground at cursor (XZ=%.0f, %.0f)" % [ground_pos.x, ground_pos.z])
+
+
+func snap_to_ground_at_target() -> void:
+	## Snap camera target to ground level (Y=0) at current target XZ position.
+	_push_history()
+	var ground_pos := Vector3(_target_target.x, 0.0, _target_target.z)
+	_target_target = ground_pos
+	ground_snap.emit(ground_pos)
+	_log("Snap to ground at target (XZ=%.0f, %.0f)" % [ground_pos.x, ground_pos.z])
+
+
+func _raycast_ground_plane(screen_pos: Vector2):
+	## Cast a ray from the camera through screen_pos to find intersection with Y=0 plane.
+	## Returns Vector3 on hit (with Y=0), null on miss (ray parallel or pointing away).
+	if not camera or not camera.is_inside_tree():
+		return null
+	var from := camera.project_ray_origin(screen_pos)
+	var dir := camera.project_ray_normal(screen_pos)
+
+	# Find intersection with Y=0 plane
+	# Ray: P = from + t * dir
+	# Plane: Y = 0
+	# Solve: from.y + t * dir.y = 0  =>  t = -from.y / dir.y
+	if abs(dir.y) < 0.0001:
+		# Ray is nearly parallel to ground plane
+		return null
+	var t := -from.y / dir.y
+	if t < 0.0:
+		# Intersection is behind the camera
+		return null
+
+	var hit_pos := from + dir * t
+	return Vector3(hit_pos.x, 0.0, hit_pos.z)
 
 
 # --- Inertia Settings ---
