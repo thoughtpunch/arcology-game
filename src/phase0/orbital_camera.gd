@@ -8,6 +8,8 @@ extends Node3D
 ##   Scroll wheel: Zoom in/out (proportional to distance)
 ##   Shift + left-click + drag: Zoom (vertical drag, MacBook-friendly)
 ##   Alt + left-click + drag: Orbit around point under cursor (3DS Max/Blender style)
+##   Alt + right-click + drag: Dolly zoom (Hitchcock/Vertigo effect — zoom FOV while
+##     adjusting distance to maintain subject framing)
 ##   Double-click: Handled by parent (focus on object)
 ##
 ## Keyboard — Movement:
@@ -56,6 +58,7 @@ const ORBIT_SENSITIVITY: float = 0.25
 const PAN_MOUSE_SENSITIVITY: float = 0.15
 const ZOOM_SCROLL_FACTOR: float = 0.12
 const ZOOM_DRAG_SENSITIVITY: float = 0.005
+const DOLLY_ZOOM_SENSITIVITY: float = 0.3  # Degrees of FOV change per pixel of vertical drag
 const FOV_STEP: float = 5.0
 const FOV_FINE_STEP: float = 1.0
 const LERP_FACTOR: float = 14.0
@@ -102,6 +105,10 @@ var _alt_orbit_active: bool = false
 var _alt_orbit_press_pos: Vector2 = Vector2.ZERO
 var _alt_orbit_pivot: Vector3 = Vector3.ZERO  # World-space raycast hit point
 var _alt_orbit_original_target: Vector3 = Vector3.ZERO  # Target before alt-orbit began
+var _dolly_zoom_pressed: bool = false
+var _dolly_zoom_active: bool = false
+var _dolly_zoom_press_pos: Vector2 = Vector2.ZERO
+var _dolly_zoom_frame_height: float = 0.0  # distance * tan(fov/2) — kept constant during dolly
 var _last_mouse_pos: Vector2 = Vector2.ZERO
 
 # Speed modulation (recomputed each frame)
@@ -285,7 +292,23 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 				get_viewport().set_input_as_handled()
 
 		MOUSE_BUTTON_RIGHT:
-			if event.pressed:
+			if event.pressed and event.alt_pressed:
+				# Alt + right-click: dolly zoom (Hitchcock/Vertigo effect)
+				_dolly_zoom_pressed = true
+				_dolly_zoom_active = false
+				_dolly_zoom_press_pos = event.position
+				_last_mouse_pos = event.position
+				# Store the frame height so we can maintain it as FOV changes
+				_dolly_zoom_frame_height = _target_distance * tan(deg_to_rad(_target_fov * 0.5))
+				get_viewport().set_input_as_handled()
+			elif not event.pressed and _dolly_zoom_pressed:
+				if _dolly_zoom_active:
+					_push_history()
+					_log("Dolly zoom ended (fov=%.1f dist=%.1f)" % [_target_fov, _target_distance])
+				_dolly_zoom_pressed = false
+				_dolly_zoom_active = false
+				get_viewport().set_input_as_handled()
+			elif event.pressed:
 				_right_pressed = true
 				_right_drag_active = false
 				_right_press_pos = event.position
@@ -363,6 +386,27 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 			_target_azimuth += delta.x * ORBIT_SENSITIVITY * _precision
 			var new_el := _target_elevation - delta.y * ORBIT_SENSITIVITY * _precision
 			_target_elevation = clampf(new_el, MIN_ELEVATION, MAX_ELEVATION)
+		get_viewport().set_input_as_handled()
+		return
+
+	# Alt + right-click drag → dolly zoom (Vertigo effect)
+	if _dolly_zoom_pressed:
+		if not _dolly_zoom_active:
+			if event.position.distance_to(_dolly_zoom_press_pos) > DRAG_THRESHOLD:
+				_dolly_zoom_active = true
+				_push_history()
+				_log("Dolly zoom started (fov=%.1f dist=%.1f)" % [_target_fov, _target_distance])
+		if _dolly_zoom_active:
+			# Vertical drag changes FOV; distance adjusts to maintain framing
+			var fov_delta := -delta.y * DOLLY_ZOOM_SENSITIVITY * _precision
+			var new_fov := clampf(_target_fov + fov_delta, MIN_FOV, MAX_FOV)
+			# Recompute distance to keep frame height constant:
+			# frame_height = distance * tan(fov/2)  →  distance = frame_height / tan(fov/2)
+			var half_fov_rad := deg_to_rad(new_fov * 0.5)
+			var new_distance := _dolly_zoom_frame_height / tan(half_fov_rad)
+			new_distance = clampf(new_distance, MIN_DISTANCE, MAX_DISTANCE)
+			_target_fov = new_fov
+			_target_distance = new_distance
 		get_viewport().set_input_as_handled()
 		return
 
