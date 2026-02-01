@@ -49,8 +49,8 @@ Block {
   block_type: String
 
   # Visual
-  sprite: Sprite2D
-  status_icon: Sprite2D
+  node: Node3D           # Scene node (MeshInstance3D + StaticBody3D)
+  occupied_cells: Array[Vector3i]  # All cells this block occupies
 
   # State
   connected: bool

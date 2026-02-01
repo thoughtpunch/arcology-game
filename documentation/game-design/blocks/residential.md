@@ -96,11 +96,11 @@ Residents leave if:
 
 Housing below grade suffers penalties:
 
-| Depth | Light Penalty | Vibes Penalty | Crime Risk |
-|-------|---------------|---------------|------------|
-| Z = -1 | -20% | -25 | +15% |
-| Z = -2 | -40% | -35 | +20% |
-| Z = -3 | -60% | -45 | +25% |
+| Depth (Y-level) | Light Penalty | Vibes Penalty | Crime Risk |
+|-----------------|---------------|---------------|------------|
+| Y = -1 | -20% | -25 | +15% |
+| Y = -2 | -40% | -35 | +20% |
+| Y = -3 | -60% | -45 | +25% |
 | Deeper | -100% | -55+ | +30%+ |
 
 **Bunker Housing** tolerates these conditions with reduced expectations.

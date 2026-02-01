@@ -132,10 +132,12 @@ Only simulate visible areas in detail:
 
 ```gdscript
 func update_agents():
-    var visible_area = get_camera_rect()
+    var camera_pos: Vector3 = camera.global_position
+    var max_detail_dist: float = 500.0
 
     for agent in agents:
-        if visible_area.has_point(agent.screen_position):
+        var dist := camera_pos.distance_to(agent.world_position)
+        if dist < max_detail_dist:
             agent.full_update()  # Detailed
         else:
             agent.statistical_update()  # Simplified

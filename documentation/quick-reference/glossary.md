@@ -6,14 +6,14 @@ All game terms and their definitions.
 
 | Term | Definition |
 |------|------------|
-| **Above Grade** | Floors above the ground plane (Z > 0); requires airspace permits |
+| **Above Grade** | Floors above the ground plane (Y > 0); requires airspace permits |
 | **AEI (Arcology Eudaimonia Index)** | The primary success metric combining flourishing, community, sustainability, and resilience |
 | **Agent** | An individual simulated resident with needs, personality, relationships, and daily schedule |
 | **Airspace Permit** | Permission to build at a specific height; cost escalates with elevation |
 | **Archetype** | Category of resident (Young Professional, Family, Retiree, Artist, Entrepreneur) affecting needs and behavior |
 | **Arcology** | A self-contained megastructure combining architecture and ecology |
 | **Attachment** | Factors keeping a resident in the arcology (friends, family, tenure, community involvement) |
-| **Below Grade** | Floors below the ground plane (Z < 0); requires excavation permits |
+| **Below Grade** | Floors below the ground plane (Y < 0); requires excavation permits |
 | **Belonging** | Human need for relationships, community, love, and acceptance |
 | **Block** | The atomic unit of construction in the game |
 | **Cohesion** | Community-wide measure of social connectivity and trust (0-100) |
@@ -34,7 +34,7 @@ All game terms and their definitions.
 | **Food Hall** | Mega-block public food court; traversable, captures through-traffic |
 | **Force Field** | Panel type for Mars/Space allowing light and access while maintaining seal |
 | **Grand Promenade** | Largest corridor type (5×2); 400 capacity, flagship public space |
-| **Ground Plane** | The Z=0 level where external connections exist |
+| **Ground Plane** | The Y=0 level where external connections exist |
 | **Human Nature** | Built-in behavioral tendencies (NIMBYism, tribalism, short-term thinking) that challenge community |
 | **Isolation Score** | Measure of self-sufficiency vs external connection (0-100) |
 | **Junction Block** | Corridor block handling turns and intersections (corners, T, 4-way) |

@@ -90,12 +90,12 @@ Large special-purpose structures (5×5+ footprint):
     "traversable": false,
     "needs": { "power": 5, "light_min": 40 },
     "produces": { "rent_base": 100 },
-    "sprite": "res://assets/sprites/blocks/block_id.png"
+    "mesh": "res://assets/models/blocks/block_id.tscn"
   }
 }
 ```
 
-2. Create sprite in `assets/sprites/blocks/`
+2. Create 3D mesh in `assets/models/blocks/` (or use procedural geometry)
 
 3. If special behavior needed, create script in `src/blocks/`
 
