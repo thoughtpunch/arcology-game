@@ -18,6 +18,7 @@ const ScenarioPickerScript = preload("res://src/phase0/scenario_picker.gd")
 const SelectionManagerScript = preload("res://src/phase0/selection_manager.gd")
 const PanelSystemScript = preload("res://src/phase0/panel_system.gd")
 const PanelMatScript = preload("res://src/phase0/panel_material.gd")
+const InteriorMeshSystemScript = preload("res://src/phase0/interior_mesh_system.gd")
 const CELL_SIZE: float = 6.0
 const PLACE_INTERVAL: float = 0.1  # 100ms = 10 blocks/sec
 const BLOCK_INSET: float = 0.15  # Visual gap between adjacent blocks (per side)
@@ -1186,6 +1187,8 @@ func place_block(definition: Resource, origin: Vector3i, rot: int) -> RefCounted
 
 	# Generate panels on exterior faces
 	_generate_panels_for_block(block)
+	# Generate interior furniture/fixtures (visible in cutaway mode)
+	_generate_interiors_for_block(block)
 	# Update neighbor blocks' panels (their faces may now be interior)
 	_update_neighbor_panels(block)
 
@@ -1513,6 +1516,17 @@ func _generate_panels_for_block(block: RefCounted) -> void:
 	)
 
 
+func _generate_interiors_for_block(block: RefCounted) -> void:
+	## Generate interior furniture/fixture meshes for cutaway visualization.
+	InteriorMeshSystemScript.create_interior_meshes_for_block(
+		block.node,
+		block.occupied_cells,
+		block.origin,
+		block.definition.category,
+		block.definition.color,
+	)
+
+
 func _update_neighbor_panels(block: RefCounted) -> void:
 	## After placing a block, update panels on all neighboring blocks
 	## whose faces may now be interior (shared with the new block).
@@ -1541,28 +1555,30 @@ func _regenerate_panels(block: RefCounted) -> void:
 
 
 func _set_panel_selection_emission(block_node: Node3D, color: Color, energy: float) -> void:
-	## Set emission on all panel materials in a block for selection highlight.
-	var panels: Node3D = block_node.get_node_or_null("Panels")
-	if not panels:
-		return
-	for child in panels.get_children():
-		if child is MeshInstance3D and child.material_override is StandardMaterial3D:
-			var mat: StandardMaterial3D = child.material_override
-			mat.emission = color
-			mat.emission_energy_multiplier = energy
+	## Set emission on all panel and interior materials in a block for selection highlight.
+	for container_name in ["Panels", "Interiors"]:
+		var container: Node3D = block_node.get_node_or_null(container_name)
+		if not container:
+			continue
+		for child in container.get_children():
+			if child is MeshInstance3D and child.material_override is StandardMaterial3D:
+				var mat: StandardMaterial3D = child.material_override
+				mat.emission = color
+				mat.emission_energy_multiplier = energy
 
 
 func _reset_panel_selection_emission(block_node: Node3D) -> void:
-	## Reset panel materials to their default emission values after deselection.
-	var panels: Node3D = block_node.get_node_or_null("Panels")
-	if not panels:
-		return
-	for child in panels.get_children():
-		if child is MeshInstance3D and child.material_override is StandardMaterial3D:
-			var mat: StandardMaterial3D = child.material_override
-			# Restore to panel material's own emission (may be non-zero for solar/force_field)
-			mat.emission = Color.WHITE
-			mat.emission_energy_multiplier = 0.0
+	## Reset panel and interior materials to their default emission values after deselection.
+	for container_name in ["Panels", "Interiors"]:
+		var container: Node3D = block_node.get_node_or_null(container_name)
+		if not container:
+			continue
+		for child in container.get_children():
+			if child is MeshInstance3D and child.material_override is StandardMaterial3D:
+				var mat: StandardMaterial3D = child.material_override
+				# Restore to default emission (may be non-zero for solar/force_field panels)
+				mat.emission = Color.WHITE
+				mat.emission_energy_multiplier = 0.0
 
 
 # --- Placement / Removal Animation ---
