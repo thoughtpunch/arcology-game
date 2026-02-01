@@ -25,6 +25,7 @@ const CoreScenarioConfigScript = preload("res://src/game/structural_scenario_con
 const ViewCubeScript = preload("res://src/ui/view_cube.gd")
 const LODManagerScript = preload("res://src/game/lod_manager.gd")
 const SceneryBuilderScript = preload("res://src/game/scenery_builder.gd")
+const BlockAnimationScript = preload("res://src/game/block_animation.gd")
 const VisibilityControllerScript = preload("res://src/game/visibility_controller.gd")
 const UndergroundWallScript = preload("res://src/game/underground_wall_system.gd")
 const ExcavationSystemScript = preload("res://src/game/excavation_system.gd")
@@ -104,6 +105,8 @@ var _building_height: int = 0
 var _building_volume: int = 0
 var _building_footprint: int = 0
 var _building_stats_hud: Label
+var _treasury_label: Label  # HUD label showing current funds
+var _treasury_flash_tween: Tween  # For flash animation on change
 var _entrance_block_ids: Dictionary = {}  # block_id -> true
 var _has_entrance: bool = false
 var _selection_label: Label
@@ -592,13 +595,25 @@ func _setup_ui() -> void:
 	)
 	canvas.add_child(_controls_label)
 
-	# Building stats HUD (top-right, always visible when blocks exist)
+	# Treasury HUD (top-right, always visible)
+	_treasury_label = Label.new()
+	_treasury_label.name = "TreasuryLabel"
+	_treasury_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_treasury_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_treasury_label.offset_right = -20
+	_treasury_label.offset_top = 4
+	_treasury_label.add_theme_font_size_override("font_size", 18)
+	_treasury_label.add_theme_color_override("font_color", Color(0.2, 0.9, 0.3))  # Green for money
+	_update_treasury_display()  # Initialize with current value
+	canvas.add_child(_treasury_label)
+
+	# Building stats HUD (top-right, below treasury, visible when blocks exist)
 	_building_stats_hud = Label.new()
 	_building_stats_hud.name = "BuildingStatsHUD"
 	_building_stats_hud.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_building_stats_hud.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_building_stats_hud.offset_right = -20
-	_building_stats_hud.offset_top = 20
+	_building_stats_hud.offset_top = 28
 	_building_stats_hud.add_theme_font_size_override("font_size", 15)
 	_building_stats_hud.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9, 0.85))
 	_building_stats_hud.visible = false
@@ -610,7 +625,7 @@ func _setup_ui() -> void:
 	_selection_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_selection_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_selection_label.offset_right = -20
-	_selection_label.offset_top = 42
+	_selection_label.offset_top = 50
 	_selection_label.add_theme_font_size_override("font_size", 14)
 	_selection_label.add_theme_color_override("font_color", SELECTION_OUTLINE_COLOR)
 	_selection_label.visible = false
@@ -659,7 +674,12 @@ func _setup_ui() -> void:
 	_stats_footprint_label = _debug_panel.add_info_label("Footprint")
 	_stats_camera_label = _debug_panel.add_info_label("Camera")
 	_stats_mouse_label = _debug_panel.add_info_label("Mouse")
-	_log("UI ready (palette, debug panel, help overlay, pause menu)")
+
+	# Connect treasury to GameState money changes
+	if _game_state:
+		_game_state.money_changed.connect(_on_money_changed)
+
+	_log("UI ready (palette, debug panel, help overlay, pause menu, treasury display)")
 
 
 func _setup_audio() -> void:
@@ -941,6 +961,68 @@ func _update_building_stats_hud() -> void:
 	_building_stats_hud.visible = not _ui_hidden
 
 
+func _update_treasury_display() -> void:
+	## Update the treasury label with current funds.
+	if not _treasury_label:
+		return
+	var current_money := 0
+	if _game_state:
+		current_money = _game_state.get_money()
+	_treasury_label.text = "$%s" % _format_money(current_money)
+	_treasury_label.visible = not _ui_hidden
+
+
+func _on_money_changed(new_amount: int) -> void:
+	## Called when GameState.money_changed fires.
+	var old_text := _treasury_label.text if _treasury_label else ""
+	_update_treasury_display()
+	# Flash animation on change
+	if _treasury_label and old_text != _treasury_label.text:
+		_flash_treasury(new_amount > _parse_money(old_text))
+
+
+func _flash_treasury(is_gain: bool) -> void:
+	## Flash the treasury label green (gain) or red (loss).
+	if not _treasury_label:
+		return
+	# Cancel any existing flash
+	if _treasury_flash_tween and _treasury_flash_tween.is_valid():
+		_treasury_flash_tween.kill()
+
+	var flash_color := Color(0.2, 1.0, 0.4) if is_gain else Color(1.0, 0.3, 0.3)
+	var normal_color := Color(0.2, 0.9, 0.3)
+
+	_treasury_label.add_theme_color_override("font_color", flash_color)
+	_treasury_flash_tween = create_tween()
+	_treasury_flash_tween.tween_callback(func():
+		_treasury_label.add_theme_color_override("font_color", normal_color)
+	).set_delay(0.15)
+
+
+func _format_money(amount: int) -> String:
+	## Format money with commas (e.g., 1234567 -> "1,234,567").
+	var s := str(abs(amount))
+	var result := ""
+	var count := 0
+	for i in range(s.length() - 1, -1, -1):
+		if count > 0 and count % 3 == 0:
+			result = "," + result
+		result = s[i] + result
+		count += 1
+	return ("-" if amount < 0 else "") + result
+
+
+func _parse_money(text: String) -> int:
+	## Parse money string like "$1,234" to integer.
+	var num_str := ""
+	for c in text:
+		if c.is_valid_int():
+			num_str += c
+	if num_str.is_empty():
+		return 0
+	return int(num_str)
+
+
 # --- Input ---
 
 
@@ -1149,6 +1231,8 @@ func _toggle_ui() -> void:
 	_controls_label.visible = not _ui_hidden
 	if _prompt_label:
 		_prompt_label.visible = not _ui_hidden and not _has_entrance
+	if _treasury_label:
+		_treasury_label.visible = not _ui_hidden
 	if _building_stats_hud:
 		_building_stats_hud.visible = not _ui_hidden and not placed_blocks.is_empty()
 	if _selection_label:
@@ -1794,97 +1878,11 @@ func _reset_panel_selection_emission(block_node: Node3D) -> void:
 
 
 func _animate_placement(block_node: Node3D) -> void:
-	# Drop-in: start scaled to 0 and offset up, tween to final position
-	var final_pos := block_node.position
-	block_node.position = final_pos + Vector3(0, CELL_SIZE * 2.0, 0)
-	block_node.scale = Vector3(0.01, 0.01, 0.01)
-
-	var tween := create_tween().set_parallel(true)
-	(
-		tween
-		. tween_property(
-			block_node,
-			"scale",
-			Vector3.ONE,
-			0.15,
-		)
-		. set_ease(Tween.EASE_OUT)
-		. set_trans(Tween.TRANS_BACK)
-	)
-	(
-		tween
-		. tween_property(
-			block_node,
-			"position",
-			final_pos,
-			0.15,
-		)
-		. set_ease(Tween.EASE_OUT)
-		. set_trans(Tween.TRANS_QUAD)
-	)
-
-	# Emission flash on the mesh material
-	var mesh_inst: MeshInstance3D = block_node.get_child(0)
-	if mesh_inst and mesh_inst.material_override:
-		var mat: StandardMaterial3D = mesh_inst.material_override
-		mat.emission_energy_multiplier = 0.5
-		var flash_tween := create_tween()
-		(
-			flash_tween
-			. tween_property(
-				mat,
-				"emission_energy_multiplier",
-				0.0,
-				0.2,
-			)
-		)
-
-	# Flash panel materials too
-	var panels: Node3D = block_node.get_node_or_null("Panels")
-	if panels:
-		for child in panels.get_children():
-			if child is MeshInstance3D and child.material_override is StandardMaterial3D:
-				var pmat: StandardMaterial3D = child.material_override
-				pmat.emission_energy_multiplier = 0.5
-				var ptween := create_tween()
-				ptween.tween_property(pmat, "emission_energy_multiplier", 0.0, 0.2)
-
-	# Play audio
-	if _place_audio and _place_audio.stream:
-		_place_audio.play()
+	BlockAnimationScript.animate_placement(block_node, self, _place_audio)
 
 
 func _animate_removal(block_node: Node3D) -> void:
-	# Disable collision immediately so raycasts don't hit it
-	for child in block_node.get_children():
-		if child is StaticBody3D:
-			child.collision_layer = 0
-
-	# Shrink and drop slightly before freeing
-	var tween := create_tween().set_parallel(true)
-	(
-		tween
-		. tween_property(
-			block_node,
-			"scale",
-			Vector3.ZERO,
-			0.15,
-		)
-		. set_ease(Tween.EASE_IN)
-		. set_trans(Tween.TRANS_BACK)
-	)
-	(
-		tween
-		. tween_property(
-			block_node,
-			"position",
-			block_node.position + Vector3(0, -CELL_SIZE, 0),
-			0.15,
-		)
-		. set_ease(Tween.EASE_IN)
-		. set_trans(Tween.TRANS_QUAD)
-	)
-	tween.chain().tween_callback(block_node.queue_free)
+	BlockAnimationScript.animate_removal(block_node, self)
 
 
 # --- Ghost Preview ---
