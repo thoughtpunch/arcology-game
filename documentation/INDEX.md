@@ -78,7 +78,7 @@
 ### I
 - **Industrial Blocks** - Manufacturing, see [blocks/industrial.md](./game-design/blocks/industrial.md)
 - **Infrastructure Blocks** - Power, water, HVAC, see [blocks/infrastructure.md](./game-design/blocks/infrastructure.md)
-- **Isometric Math** - *(superseded)* Old 2D system, see [isometric-math.md](./quick-reference/isometric-math.md)
+- **3D Grid Math** - Coordinate conversion, face normals, cell math, see [3d-grid-math.md](./quick-reference/3d-grid-math.md)
 - **Isolation Score** - Self-sufficiency, see [scenarios.md](./game-design/scenarios.md)
 
 ### J-K

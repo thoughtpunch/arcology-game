@@ -54,4 +54,4 @@ Ralph is an autonomous coding agent that builds Arcology incrementally, one task
 
 - [../../quick-reference/code-conventions.md](../../quick-reference/code-conventions.md) - Code style
 - [../../architecture/](../../architecture/) - Build milestones
-- [../../quick-reference/isometric-math.md](../../quick-reference/isometric-math.md) - Grid math reference
+- [../../quick-reference/3d-grid-math.md](../../quick-reference/3d-grid-math.md) - 3D grid math reference

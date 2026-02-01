@@ -307,5 +307,5 @@ depth_multiplier = 1.5 ^ abs(z)
 ## See Also
 
 - [scenarios.md](../scenarios.md) - Scenario parameters
-- [../../quick-reference/isometric-math.md](../../quick-reference/isometric-math.md) - Grid coordinates
+- [../../quick-reference/3d-grid-math.md](../../quick-reference/3d-grid-math.md) - 3D grid coordinates
 - [../../architecture/milestones/](../../architecture/milestones/) - Implementation phases

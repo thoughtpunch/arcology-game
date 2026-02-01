@@ -16,7 +16,7 @@ Fast lookup tables for common development tasks.
 |-------|-------------|------|
 | **Tech Stack** | Engine, language, tools | [tech-stack.md](./tech-stack.md) |
 | **Code Conventions** | Naming, style, patterns | [code-conventions.md](./code-conventions.md) |
-| **Isometric Math** | *(superseded)* Old 2D system | [isometric-math.md](./isometric-math.md) |
+| **3D Grid Math** | Coordinates, faces, cell math | [3d-grid-math.md](./3d-grid-math.md) |
 | **Formulas** | Game balance calculations | [formulas.md](./formulas.md) |
 | **Glossary** | Term definitions | [glossary.md](./glossary.md) |
 

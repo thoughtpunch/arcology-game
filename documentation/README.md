@@ -35,7 +35,7 @@ documentation/
 ├── quick-reference/          ← Fast lookup for common tasks
 │   ├── tech-stack.md
 │   ├── code-conventions.md
-│   ├── isometric-math.md
+│   ├── 3d-grid-math.md
 │   ├── formulas.md
 │   └── glossary.md
 │
