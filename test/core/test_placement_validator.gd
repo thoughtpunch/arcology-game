@@ -12,6 +12,7 @@ extends SceneTree
 
 var _grid_script: GDScript
 var _validator_script: GDScript
+var _scenario_config_script: GDScript
 var _passed: int = 0
 var _failed: int = 0
 
@@ -22,6 +23,7 @@ func _init() -> void:
 	# Load scripts
 	_grid_script = load("res://src/core/grid.gd")
 	_validator_script = load("res://src/core/placement_validator.gd")
+	_scenario_config_script = load("res://src/data/scenario_config.gd")
 
 	# Run tests
 	_test_space_empty()
@@ -46,6 +48,16 @@ func _init() -> void:
 	_test_get_placement_state()
 	_test_private_block_no_corridor_warning()
 	_test_multiple_warnings()
+	_test_prerequisite_requires_roof_blocked()
+	_test_prerequisite_requires_roof_valid()
+	_test_prerequisite_requires_deep_blocked()
+	_test_prerequisite_requires_deep_valid()
+	_test_cantilever_limit_with_scenario_config()
+	_test_cantilever_limit_lunar_gravity()
+	_test_warning_at_cantilever_limit()
+	_test_warning_far_from_utilities()
+	_test_warning_far_from_utilities_not_for_infra()
+	_test_warning_at_cantilever_limit_not_on_ground()
 
 	# Summary
 	print("\n=== Results: %d passed, %d failed ===" % [_passed, _failed])
@@ -66,8 +78,8 @@ func _create_grid() -> Node:
 	return grid
 
 
-func _create_validator(grid: Node = null) -> RefCounted:
-	var validator: RefCounted = _validator_script.new(grid, null)
+func _create_validator(grid: Node = null, registry = null, scenario_config: Resource = null) -> RefCounted:
+	var validator: RefCounted = _validator_script.new(grid, registry, scenario_config)
 	return validator
 
 
@@ -420,3 +432,210 @@ func _test_multiple_warnings() -> void:
 
 	_assert(result.valid, "Should be valid even with multiple warnings")
 	_assert(result.warnings.size() >= 2, "Should have at least 2 warnings: got %d" % result.warnings.size())
+
+
+# --- Prerequisite Tests ---
+
+
+func _create_mock_registry() -> RefCounted:
+	## Create a mock block registry with get_block_data method
+	var mock := MockBlockRegistry.new()
+	return mock
+
+
+func _create_mock_block_with_category(block_type: String, pos: Vector3i, category: String) -> Dictionary:
+	## Create a mock block with category info
+	return {
+		"block_type": block_type,
+		"grid_position": pos,
+		"traversability": "private",
+		"category": category,
+		"connected": false
+	}
+
+
+func _test_prerequisite_requires_roof_blocked() -> void:
+	print("\nTest: Prerequisite - requires_roof Blocked (block above)")
+	var grid := _create_grid()
+	var registry := _create_mock_registry()
+	var validator := _create_validator(grid, registry)
+
+	# Place a block above the target position
+	grid.set_block(Vector3i(0, 0, 1), _create_mock_block("corridor", Vector3i(0, 0, 1)))
+
+	# solar_collector has requires_roof: true
+	var result = validator.validate_placement(Vector3i(0, 0, 0), "solar_collector")
+	_assert(not result.valid, "requires_roof block with block above should be invalid")
+	_assert("roof" in result.reason.to_lower() or "sky" in result.reason.to_lower(),
+		"Should report roof/sky requirement: got '%s'" % result.reason)
+
+
+func _test_prerequisite_requires_roof_valid() -> void:
+	print("\nTest: Prerequisite - requires_roof Valid (nothing above)")
+	var grid := _create_grid()
+	var registry := _create_mock_registry()
+	var validator := _create_validator(grid, registry)
+
+	# solar_collector at ground level with nothing above should be valid
+	var result = validator.validate_placement(Vector3i(0, 0, 0), "solar_collector")
+	_assert(result.valid, "requires_roof block with no block above should be valid")
+
+
+func _test_prerequisite_requires_deep_blocked() -> void:
+	print("\nTest: Prerequisite - requires_deep Blocked (above ground)")
+	var grid := _create_grid()
+	var registry := _create_mock_registry()
+	var validator := _create_validator(grid, registry)
+
+	# geothermal_plant has requires_deep: true
+	var result = validator.validate_placement(Vector3i(0, 0, 0), "geothermal_plant")
+	_assert(not result.valid, "requires_deep block at Z=0 should be invalid")
+	_assert("underground" in result.reason.to_lower(),
+		"Should report underground requirement: got '%s'" % result.reason)
+
+
+func _test_prerequisite_requires_deep_valid() -> void:
+	print("\nTest: Prerequisite - requires_deep Valid (underground)")
+	var grid := _create_grid()
+	var registry := _create_mock_registry()
+	var validator := _create_validator(grid, registry)
+
+	# geothermal_plant underground should be valid
+	var result = validator.validate_placement(Vector3i(0, 0, -1), "geothermal_plant")
+	_assert(result.valid, "requires_deep block at Z=-1 should be valid")
+
+
+func _test_cantilever_limit_with_scenario_config() -> void:
+	print("\nTest: Cantilever Limit with ScenarioConfig (Earth gravity)")
+	var grid := _create_grid()
+	var config: Resource = _scenario_config_script.callv("from_dict", [{"gravity": 1.0}])
+	var validator := _create_validator(grid, null, config)
+
+	# Build a column at (0,0)
+	grid.set_block(Vector3i(0, 0, 0), _create_mock_block("corridor", Vector3i(0, 0, 0)))
+	grid.set_block(Vector3i(0, 0, 1), _create_mock_block("corridor", Vector3i(0, 0, 1)))
+
+	# Add two cantilever blocks (max_cantilever=2 for Earth)
+	grid.set_block(Vector3i(1, 0, 1), _create_mock_block("corridor", Vector3i(1, 0, 1)))
+	grid.set_block(Vector3i(2, 0, 1), _create_mock_block("corridor", Vector3i(2, 0, 1)))
+
+	# Third cantilever at (3,0,1) should exceed limit
+	var result = validator.validate_placement(Vector3i(3, 0, 1), "corridor")
+	_assert(not result.valid, "Third cantilever should exceed Earth cantilever limit")
+
+
+func _test_cantilever_limit_lunar_gravity() -> void:
+	print("\nTest: Cantilever Limit with Lunar Gravity (extended)")
+	var grid := _create_grid()
+	var config: Resource = _scenario_config_script.callv("from_dict", [{"gravity": 0.16}])
+	var validator := _create_validator(grid, null, config)
+
+	# Build a column at (0,0)
+	grid.set_block(Vector3i(0, 0, 0), _create_mock_block("corridor", Vector3i(0, 0, 0)))
+	grid.set_block(Vector3i(0, 0, 1), _create_mock_block("corridor", Vector3i(0, 0, 1)))
+
+	# Build a long cantilever chain — lunar max_cantilever = floor(2/0.16) = 12
+	for x in range(1, 13):
+		grid.set_block(Vector3i(x, 0, 1), _create_mock_block("corridor", Vector3i(x, 0, 1)))
+
+	# Cantilever at 12 should still be valid (within limit)
+	var result_12 = validator.validate_placement(Vector3i(12, 0, 1), "corridor")
+	# Block at x=12 already placed, check x=13 instead (13th extension)
+	var result_13 = validator.validate_placement(Vector3i(13, 0, 1), "corridor")
+	_assert(not result_13.valid, "13th cantilever extension should exceed lunar limit (12)")
+
+
+func _test_warning_at_cantilever_limit() -> void:
+	print("\nTest: Warning - At Cantilever Limit")
+	var grid := _create_grid()
+	var validator := _create_validator(grid)
+
+	# Build a column at (0,0)
+	grid.set_block(Vector3i(0, 0, 0), _create_mock_block("corridor", Vector3i(0, 0, 0)))
+	grid.set_block(Vector3i(0, 0, 1), _create_mock_block("corridor", Vector3i(0, 0, 1)))
+
+	# Add first cantilever block
+	grid.set_block(Vector3i(1, 0, 1), _create_mock_block("corridor", Vector3i(1, 0, 1)))
+
+	# Place at exactly max_cantilever (depth=2 on Earth)
+	var result = validator.validate_placement(Vector3i(2, 0, 1), "corridor")
+	_assert(result.valid, "Placement at cantilever limit should be valid")
+
+	var has_limit_warning := false
+	for warning in result.warnings:
+		if "cantilever limit" in warning.to_lower():
+			has_limit_warning = true
+			break
+	_assert(has_limit_warning, "Should warn about being at cantilever limit")
+
+
+func _test_warning_at_cantilever_limit_not_on_ground() -> void:
+	print("\nTest: Warning - No Cantilever Limit Warning on Ground")
+	var grid := _create_grid()
+	var validator := _create_validator(grid)
+
+	# Place block at ground level - should NOT warn about cantilever
+	var result = validator.validate_placement(Vector3i(0, 0, 0), "corridor")
+	var has_limit_warning := false
+	for warning in result.warnings:
+		if "cantilever" in warning.to_lower():
+			has_limit_warning = true
+			break
+	_assert(not has_limit_warning, "Ground-level block should not have cantilever warning")
+
+
+func _test_warning_far_from_utilities() -> void:
+	print("\nTest: Warning - Far From Utilities")
+	var grid := _create_grid()
+	var registry := _create_mock_registry()
+	var validator := _create_validator(grid, registry)
+
+	# Place entrance so we don't get far-from-entrance warning confusing things
+	grid.set_block(Vector3i(0, 0, 0), _create_mock_block("entrance", Vector3i(0, 0, 0)))
+
+	# Place a residential block with no infrastructure nearby
+	var result = validator.validate_placement(Vector3i(1, 0, 0), "residential_budget")
+	_assert(result.valid, "Should be valid")
+
+	var has_utility_warning := false
+	for warning in result.warnings:
+		if "utilities" in warning.to_lower():
+			has_utility_warning = true
+			break
+	_assert(has_utility_warning, "Should warn about being far from utilities")
+
+
+func _test_warning_far_from_utilities_not_for_infra() -> void:
+	print("\nTest: Warning - No Utility Warning for Infrastructure Blocks")
+	var grid := _create_grid()
+	var registry := _create_mock_registry()
+	var validator := _create_validator(grid, registry)
+
+	# Place an infrastructure block — should NOT get utility warning
+	var result = validator.validate_placement(Vector3i(0, 0, 0), "infra_power")
+	var has_utility_warning := false
+	for warning in result.warnings:
+		if "utilities" in warning.to_lower():
+			has_utility_warning = true
+			break
+	_assert(not has_utility_warning, "Infrastructure block should not warn about utilities")
+
+
+## Mock BlockRegistry that returns data from blocks.json
+class MockBlockRegistry:
+	extends RefCounted
+
+	var _blocks: Dictionary = {}
+
+	func _init() -> void:
+		# Load blocks.json directly
+		var file := FileAccess.open("res://data/blocks.json", FileAccess.READ)
+		if file:
+			var json := JSON.new()
+			var err := json.parse(file.get_as_text())
+			file.close()
+			if err == OK:
+				_blocks = json.get_data()
+
+	func get_block_data(block_type: String) -> Dictionary:
+		return _blocks.get(block_type, {})

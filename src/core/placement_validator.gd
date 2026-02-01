@@ -181,20 +181,23 @@ func _check_cantilever_limit(_pos: Vector3i, _block_type: String) -> ValidationR
 
 
 func _check_prerequisites(pos: Vector3i, block_type: String) -> ValidationResult:
-	## Check block-specific placement prerequisites
-	## e.g., residential blocks need adjacent corridor access
+	## Check block-specific placement prerequisites.
+	## Blocking checks: requires_roof, requires_deep.
+	## Non-blocking (warnings): private blocks without corridor access.
 
 	var block_data := _get_block_data(block_type)
 	if block_data.is_empty():
 		return ValidationResult.success()
 
-	# Private blocks (residential, commercial) need adjacent public access
-	var traversability: String = block_data.get("traversability", "public")
-	if traversability == "private":
-		if not _has_adjacent_public_block(pos):
-			# This is a warning, not a hard block - allow placement but warn
-			# Actually, per ticket spec, prerequisites can block - let's make this a warning
-			pass  # Will be caught by warnings
+	# requires_roof: block needs sky exposure (no block directly above)
+	if block_data.get("requires_roof", false):
+		if grid and grid.has_block(pos + Vector3i(0, 0, 1)):
+			return ValidationResult.invalid("Requires roof/sky exposure (block above)")
+
+	# requires_deep: block must be underground (Z < 0)
+	if block_data.get("requires_deep", false):
+		if pos.z >= 0:
+			return ValidationResult.invalid("Must be placed underground")
 
 	return ValidationResult.success()
 
@@ -278,6 +281,17 @@ func _collect_warnings(pos: Vector3i, block_type: String) -> Array[String]:
 	# Check if far from entrance
 	if _is_far_from_entrance(pos):
 		warnings.append("Far from entrance")
+
+	# Check if at cantilever limit (valid but structurally risky)
+	if _is_at_cantilever_limit(pos):
+		warnings.append("At cantilever limit — no further extension possible")
+
+	# Check if far from utilities (power, water, HVAC)
+	# Only for block categories that consume utilities
+	var category: String = block_data.get("category", "")
+	const NEEDS_UTILITIES: Array[String] = ["residential", "commercial", "civic", "entertainment"]
+	if category in NEEDS_UTILITIES and _is_far_from_utilities(pos):
+		warnings.append("Far from utilities")
 
 	return warnings
 
@@ -531,6 +545,72 @@ func _is_far_from_entrance(pos: Vector3i) -> bool:
 	# "Far" is more than 15 blocks away
 	const FAR_THRESHOLD: int = 15
 	return min_distance > FAR_THRESHOLD
+
+
+func _is_at_cantilever_limit(pos: Vector3i) -> bool:
+	## Check if placement is at the exact cantilever limit (valid but risky —
+	## no further horizontal extension will be possible from this position).
+	if grid == null:
+		return false
+
+	# Only relevant above ground
+	if pos.z <= 0:
+		return false
+
+	var max_cant: int = _get_max_cantilever()
+	if max_cant < 0:
+		return false  # Zero-g: no cantilever limit
+
+	var depth: int = _calculate_cantilever_depth(pos)
+	return depth == max_cant
+
+
+func _is_far_from_utilities(pos: Vector3i) -> bool:
+	## Check if position is far from infrastructure blocks (power, water, HVAC).
+	## Infrastructure blocks have category "infrastructure" in blocks.json.
+	if grid == null:
+		return false
+
+	# Only warn for blocks that actually need utilities (residential, commercial, civic)
+	# Transit and infrastructure blocks themselves don't need this check
+	const NEEDS_UTILITIES: Array[String] = ["residential", "commercial", "civic", "entertainment"]
+	# We'll check the block being placed later, for now scan the grid
+
+	# Search for nearby infrastructure blocks within a threshold
+	const UTILITY_THRESHOLD: int = 10
+	var all_positions: Array = grid.get_all_positions()
+
+	for i in range(all_positions.size()):
+		var check_pos: Vector3i = all_positions[i]
+		var dist: int = Grid.manhattan_distance(pos, check_pos)
+		if dist > UTILITY_THRESHOLD:
+			continue
+
+		var block = grid.get_block_at(check_pos)
+		if block == null:
+			continue
+
+		var category: String = ""
+		if block is Dictionary:
+			category = block.get("category", "")
+		elif block is Object and "category" in block:
+			category = block.category
+		else:
+			# Try to look up via block_type
+			var bt: String = ""
+			if block is Dictionary:
+				bt = block.get("block_type", "")
+			elif block is Object and "block_type" in block:
+				bt = block.block_type
+			if not bt.is_empty():
+				var bd := _get_block_data(bt)
+				category = bd.get("category", "")
+
+		if category == "infrastructure":
+			return false  # Found a nearby utility
+
+	# No infrastructure blocks found nearby
+	return true
 
 
 func _get_block_data(block_type: String) -> Dictionary:
