@@ -62,7 +62,7 @@ func _cleanup_test_file() -> void:
 
 func _create_persistence() -> Node:
 	# Load script and create instance (not from autoload in tests)
-	var script := load("res://src/core/settings_persistence.gd")
+	var script := load("res://src/game/settings_persistence.gd")
 	var instance := Node.new()
 	instance.set_script(script)
 	# Manually initialize since _ready() won't fire outside scene tree

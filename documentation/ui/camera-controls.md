@@ -170,7 +170,7 @@ Bookmarks store full camera state: position, rotation, projection mode, and zoom
 
 | File | Purpose |
 |------|---------|
-| `src/core/camera_3d_controller.gd` | Orbital camera logic (orbit, pan, zoom, tilt) |
+| `src/game/camera_3d_controller.gd` | Orbital camera logic (orbit, pan, zoom, tilt) |
 | `src/ui/camera_controls_pane.gd` | Collapsible controls UI |
 | `src/ui/view_cube.gd` | View Cube widget |
 

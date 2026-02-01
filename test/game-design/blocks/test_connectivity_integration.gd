@@ -10,7 +10,7 @@ func _init():
 	print("=== Connectivity Integration Tests ===")
 
 	# Load BlockRegistry to enable proper traversability checks
-	var block_registry_script = load("res://src/core/block_registry.gd")
+	var block_registry_script = load("res://src/game/block_registry.gd")
 	var block_registry = block_registry_script.new()
 	root.add_child(block_registry)
 	block_registry.name = "BlockRegistry"

@@ -2,7 +2,7 @@ extends SceneTree
 ## Tests for BlockRegistry block unlocking system
 ## Verifies: unlock/lock, sandbox unlock all, default blocks
 
-var _registry_script = preload("res://src/core/block_registry.gd")
+var _registry_script = preload("res://src/game/block_registry.gd")
 
 
 func _init():

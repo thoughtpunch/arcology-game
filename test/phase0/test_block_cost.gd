@@ -4,8 +4,8 @@
 class_name TestBlockCost
 extends GdUnitTestSuite
 
-const BlockDefScript = preload("res://src/phase0/block_definition.gd")
-const RegistryScript = preload("res://src/phase0/block_registry.gd")
+const BlockDefScript = preload("res://src/game/block_definition.gd")
+const RegistryScript = preload("res://src/game/block_registry.gd")
 
 
 # --- BlockDefinition cost field ---

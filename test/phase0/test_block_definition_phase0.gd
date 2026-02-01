@@ -3,7 +3,7 @@
 class_name TestBlockDefinitionPhase0
 extends GdUnitTestSuite
 
-const BlockDefScript = preload("res://src/phase0/block_definition.gd")
+const BlockDefScript = preload("res://src/game/block_definition.gd")
 
 
 func test_has_id_field() -> void:

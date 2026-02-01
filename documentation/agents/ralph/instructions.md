@@ -151,7 +151,7 @@ A task is DONE when:
 ```bash
 # If Godot project exists:
 # 1. Project opens without errors
-# 2. Phase 0 sandbox scene runs without crashes (scenes/phase0_sandbox.tscn)
+# 2. Phase 0 sandbox scene runs without crashes (scenes/main.tscn)
 # 3. No GDScript errors (check Output panel)
 # 4. 3D rendering works (blocks appear as procedural meshes, not sprites)
 

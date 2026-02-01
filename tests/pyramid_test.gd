@@ -21,7 +21,7 @@ extends SceneTree
 ## Run: godot --path . --script res://tests/pyramid_test.gd
 
 const SCREENSHOT_DIR := "res://test_output/pyramid/"
-const ScenarioConfigScript = preload("res://src/phase0/scenario_config.gd")
+const ScenarioConfigScript = preload("res://src/game/scenario_config.gd")
 
 var _sandbox: Node3D
 var _blocks_placed := 0

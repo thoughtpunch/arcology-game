@@ -360,7 +360,7 @@ func _test_time_signals() -> void:
 
 # Helper: Create a fresh GameState for testing
 func _create_game_state() -> Node:
-	var script := load("res://src/core/game_state.gd")
+	var script := load("res://src/game/game_state.gd")
 	var game_state: Node = script.new()
 	return game_state
 

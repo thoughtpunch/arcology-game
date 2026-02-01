@@ -10,7 +10,7 @@
 ##   # Returns Array[Vector3i] of cells from start to end, inclusive.
 ##   # Returns empty array if start.y != end.y (horizontal only).
 
-const GridUtilsScript = preload("res://src/phase0/grid_utils.gd")
+const GridUtilsScript = preload("res://src/game/grid_utils.gd")
 
 
 static func compute_path(start: Vector3i, end: Vector3i) -> Array[Vector3i]:

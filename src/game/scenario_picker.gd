@@ -7,7 +7,7 @@ extends Control
 
 signal scenario_selected(config: RefCounted)
 
-const ScenarioConfigScript = preload("res://src/phase0/scenario_config.gd")
+const ScenarioConfigScript = preload("res://src/game/visual_scenario_config.gd")
 
 # Reuse color scheme from sandbox_pause_menu.gd
 const COLOR_OVERLAY := Color(0.04, 0.06, 0.12, 0.95)

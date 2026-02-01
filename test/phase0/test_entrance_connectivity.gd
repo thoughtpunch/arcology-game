@@ -6,8 +6,8 @@
 class_name TestEntranceConnectivity
 extends GdUnitTestSuite
 
-const RegistryScript = preload("res://src/phase0/block_registry.gd")
-const GridUtilsScript = preload("res://src/phase0/grid_utils.gd")
+const RegistryScript = preload("res://src/game/block_registry.gd")
+const GridUtilsScript = preload("res://src/game/grid_utils.gd")
 
 var _registry: RefCounted
 var _cell_occupancy: Dictionary  # Vector3i -> int (block_id, -1=ground)

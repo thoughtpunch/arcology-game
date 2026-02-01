@@ -1,25 +1,28 @@
 extends Node3D
 
-## Phase 0 Sandbox — Block stacking playground.
+## Arcology — Block stacking city builder.
 ## Builds the entire scene tree in _ready(). The .tscn is just a root Node3D.
 
-const GridUtilsScript = preload("res://src/phase0/grid_utils.gd")
-const BlockDefScript = preload("res://src/phase0/block_definition.gd")
-const PlacedBlockScript = preload("res://src/phase0/placed_block.gd")
-const RegistryScript = preload("res://src/phase0/block_registry.gd")
-const CameraScript = preload("res://src/phase0/orbital_camera.gd")
-const PaletteScript = preload("res://src/phase0/shape_palette.gd")
-const PauseMenuScript = preload("res://src/phase0/sandbox_pause_menu.gd")
-const DebugPanelScript = preload("res://src/phase0/sandbox_debug_panel.gd")
-const HelpOverlayScript = preload("res://src/phase0/sandbox_help_overlay.gd")
-const FaceScript = preload("res://src/phase0/face.gd")
-const ScenarioConfigScript = preload("res://src/phase0/scenario_config.gd")
-const ScenarioPickerScript = preload("res://src/phase0/scenario_picker.gd")
-const SelectionManagerScript = preload("res://src/phase0/selection_manager.gd")
-const PanelSystemScript = preload("res://src/phase0/panel_system.gd")
-const PanelMatScript = preload("res://src/phase0/panel_material.gd")
-const InteriorMeshSystemScript = preload("res://src/phase0/interior_mesh_system.gd")
-const CorridorDragScript = preload("res://src/phase0/corridor_drag_builder.gd")
+const GridUtilsScript = preload("res://src/game/grid_utils.gd")
+const BlockDefScript = preload("res://src/game/block_definition.gd")
+const PlacedBlockScript = preload("res://src/game/placed_block.gd")
+const RegistryScript = preload("res://src/game/block_registry.gd")
+const CameraScript = preload("res://src/game/orbital_camera.gd")
+const PaletteScript = preload("res://src/game/shape_palette.gd")
+const PauseMenuScript = preload("res://src/game/sandbox_pause_menu.gd")
+const DebugPanelScript = preload("res://src/game/sandbox_debug_panel.gd")
+const HelpOverlayScript = preload("res://src/game/sandbox_help_overlay.gd")
+const FaceScript = preload("res://src/game/face.gd")
+const ScenarioConfigScript = preload("res://src/game/visual_scenario_config.gd")
+const ScenarioPickerScript = preload("res://src/game/scenario_picker.gd")
+const SelectionManagerScript = preload("res://src/game/selection_manager.gd")
+const PanelSystemScript = preload("res://src/game/panel_system.gd")
+const PanelMatScript = preload("res://src/game/panel_material.gd")
+const InteriorMeshSystemScript = preload("res://src/game/interior_mesh_system.gd")
+const CorridorDragScript = preload("res://src/game/corridor_drag_builder.gd")
+const PlacementValidatorScript = preload("res://src/game/placement_validator.gd")
+const CoreScenarioConfigScript = preload("res://src/game/structural_scenario_config.gd")
+const ViewCubeScript = preload("res://src/ui/view_cube.gd")
 const CELL_SIZE: float = 6.0
 const PLACE_INTERVAL: float = 0.1  # 100ms = 10 blocks/sec
 const BLOCK_INSET: float = 0.15  # Visual gap between adjacent blocks (per side)
@@ -46,6 +49,9 @@ var next_block_id: int = 1
 # --- Scenario Config ---
 var _config: RefCounted = null
 
+# --- Core Placement Validator ---
+var _placement_validator: RefCounted = null
+
 # Node references
 var _camera: Node3D
 var _block_container: Node3D
@@ -65,6 +71,7 @@ var _face_material: ShaderMaterial
 var _face_label: Label
 var _controls_label: Label
 var _help_overlay: Control
+var _view_cube: Control
 var _ghost_face_labels: Dictionary = {}  # FaceScript.Dir -> Label3D
 var _ui_hidden: bool = false
 var _stats_blocks_label: Label
@@ -136,7 +143,22 @@ func _on_scenario_selected(config: RefCounted, picker_canvas: CanvasLayer) -> vo
 	build_zone_origin = _config.build_zone_origin
 	build_zone_size = _config.build_zone_size
 	picker_canvas.queue_free()
+	_setup_placement_validator()
 	_build_world()
+
+
+func _setup_placement_validator() -> void:
+	var core_config: Resource = CoreScenarioConfigScript.new()
+	core_config.gravity = _config.gravity if "gravity" in _config else 1.0
+	core_config.max_cantilever = CoreScenarioConfigScript.calculate_cantilever(core_config.gravity)
+	core_config.structural_integrity = true
+	core_config.ground_depth = _config.ground_depth if "ground_depth" in _config else 3
+	core_config.build_zone_origin = build_zone_origin
+	core_config.build_zone_size = build_zone_size
+	_placement_validator = PlacementValidatorScript.new(self, registry, core_config)
+	_log("PlacementValidator initialized (gravity=%.2f, max_cantilever=%d)" % [
+		core_config.gravity, core_config.max_cantilever
+	])
 
 
 func _build_world() -> void:
@@ -780,6 +802,11 @@ func _setup_ui() -> void:
 	_pause_menu.name = "PauseMenu"
 	canvas.add_child(_pause_menu)
 
+	_view_cube = ViewCubeScript.new()
+	_view_cube.name = "ViewCube"
+	_view_cube.connect_to_camera(_camera)
+	canvas.add_child(_view_cube)
+
 	add_child(canvas)
 
 	# Stats section — must come after add_child(canvas) so _ready() has fired
@@ -1100,6 +1127,8 @@ func _toggle_ui() -> void:
 		_building_stats_hud.visible = not _ui_hidden and not placed_blocks.is_empty()
 	if _selection_label:
 		_selection_label.visible = not _ui_hidden and selection.get_selected_count() > 0
+	if _view_cube:
+		_view_cube.visible = not _ui_hidden
 	_log("UI hidden: %s" % _ui_hidden)
 
 
@@ -1130,6 +1159,50 @@ func is_cell_buildable(cell: Vector3i) -> bool:
 	if not is_in_build_zone(cell.x, cell.z):
 		return false
 	return cell.y >= -_config.ground_depth
+
+
+# --- Grid-compatible API (used by PlacementValidator) ---
+
+
+func has_block(pos: Vector3i) -> bool:
+	## Returns true if a placed block occupies pos (not ground, not empty).
+	return cell_occupancy.has(pos) and cell_occupancy[pos] > 0
+
+
+func get_block_at(pos: Vector3i) -> Variant:
+	## Returns block info dict if a placed block occupies pos, null otherwise.
+	if not cell_occupancy.has(pos):
+		return null
+	var bid: int = cell_occupancy[pos]
+	if bid <= 0:
+		return null
+	if not placed_blocks.has(bid):
+		return null
+	var block: RefCounted = placed_blocks[bid]
+	return {
+		"block_type": block.definition.id,
+		"grid_position": pos,
+		"traversability": block.definition.traversability,
+	}
+
+
+func get_all_positions() -> Array:
+	## Returns all positions occupied by placed blocks (not ground).
+	var positions: Array = []
+	for pos in cell_occupancy:
+		if cell_occupancy[pos] > 0:
+			positions.append(pos)
+	return positions
+
+
+func get_entrance_positions() -> Array[Vector3i]:
+	## Returns all cell positions occupied by entrance blocks.
+	var positions: Array[Vector3i] = []
+	for eid in _entrance_block_ids:
+		if placed_blocks.has(eid):
+			for cell in placed_blocks[eid].occupied_cells:
+				positions.append(cell)
+	return positions
 
 
 func _is_supported(cells: Array[Vector3i], definition: Resource) -> bool:
@@ -1187,6 +1260,32 @@ func can_place_block(definition: Resource, origin: Vector3i, rot: int) -> bool:
 		if cell.y < -_config.ground_depth:
 			_log("  can_place: cell %s below ground depth" % cell)
 			return false
+	# Entrance blocks need ground beneath (Phase 0 rule — ground = occupancy -1)
+	if definition.ground_only:
+		var has_ground_below := false
+		for cell in cells:
+			var below := Vector3i(cell.x, cell.y - 1, cell.z)
+			if cell_occupancy.has(below) and cell_occupancy[below] == -1:
+				has_ground_below = true
+				break
+		if not has_ground_below:
+			_log("  can_place: entrance needs ground beneath")
+			return false
+		return true
+	# Structural validation via core PlacementValidator (cantilever + support)
+	if _placement_validator:
+		# Non-entrance blocks at ground level still need adjacency to existing blocks
+		# (the validator treats y<=0 as always supported structurally, but we need
+		# connectivity to the entrance-connected structure)
+		if not _is_supported(cells, definition):
+			_log("  can_place: no adjacent support for cells %s" % [cells])
+			return false
+		var result = _placement_validator.validate_multi_cell_placement(cells, definition.id)
+		if not result.valid:
+			_log("  can_place: validator rejected — %s" % result.reason)
+			return false
+		return true
+	# Fallback: legacy adjacency check (no cantilever enforcement)
 	if not _is_supported(cells, definition):
 		_log("  can_place: no adjacent support for cells %s" % [cells])
 		return false
@@ -2034,6 +2133,14 @@ func _try_remove_block() -> void:
 				_log("Remove REJECTED: block #%d would disconnect blocks from entrance" % block_id)
 				_show_removal_warning("Cannot remove: would disconnect blocks from entrance")
 			return
+		# Cantilever orphan check via PlacementValidator
+		if _placement_validator and placed_blocks.has(block_id):
+			var block: RefCounted = placed_blocks[block_id]
+			for cell in block.occupied_cells:
+				if _placement_validator.would_orphan_blocks(cell):
+					_log("Remove REJECTED: block #%d would leave blocks without structural support" % block_id)
+					_show_removal_warning("Cannot remove: would leave blocks unsupported")
+					return
 		remove_block(block_id)
 	else:
 		_log("Remove: no block found at hit position")

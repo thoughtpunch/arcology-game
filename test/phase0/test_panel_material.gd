@@ -3,7 +3,7 @@
 class_name TestPanelMaterial
 extends GdUnitTestSuite
 
-const PanelMatScript = preload("res://src/phase0/panel_material.gd")
+const PanelMatScript = preload("res://src/game/panel_material.gd")
 
 
 # === Type Constants ===

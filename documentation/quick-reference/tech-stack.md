@@ -107,7 +107,7 @@ arcology/
 │
 ├── scenes/
 │   ├── main.tscn                # Entry scene
-│   └── phase0_sandbox.tscn      # Sandbox scene (current)
+│   └── main.tscn      # Sandbox scene (current)
 │
 ├── shaders/
 │   ├── block_material.gdshader  # Block PBR material

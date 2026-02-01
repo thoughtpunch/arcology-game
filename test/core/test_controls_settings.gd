@@ -35,7 +35,7 @@ func _init() -> void:
 
 
 func _create_controls_settings() -> Node:
-	var script := load("res://src/core/controls_settings.gd")
+	var script := load("res://src/game/controls_settings.gd")
 	var instance := Node.new()
 	instance.set_script(script)
 	return instance
@@ -198,7 +198,7 @@ func _test_settings_to_controls_integration() -> void:
 	_tests_run += 1
 
 	# Create settings persistence
-	var sp_script := load("res://src/core/settings_persistence.gd")
+	var sp_script := load("res://src/game/settings_persistence.gd")
 	var sp := Node.new()
 	sp.set_script(sp_script)
 	sp._settings = sp.DEFAULT_SETTINGS.duplicate(true)

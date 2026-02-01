@@ -1,8 +1,8 @@
 ## Holds all block definitions for Phase 0 sandbox.
 ## Loads from data/blocks.json and assigns greybox colors by category.
 
-const BlockDefScript = preload("res://src/phase0/block_definition.gd")
-const PanelMatScript = preload("res://src/phase0/panel_material.gd")
+const BlockDefScript = preload("res://src/game/block_definition.gd")
+const PanelMatScript = preload("res://src/game/panel_material.gd")
 
 # Explicit ordering for the palette UI, grouped by category.
 var palette_order: Array[String] = []

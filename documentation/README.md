@@ -138,7 +138,7 @@ Lower needs must be met before higher ones matter.
 |------|-----------|
 | Adding a block type | [blocks/README.md](./game-design/blocks/) |
 | Adding environment system | [environment/README.md](./game-design/environment/) |
-| Grid math (3D) | [3d-grid-math.md](./quick-reference/3d-grid-math.md), `src/phase0/grid_utils.gd` |
+| Grid math (3D) | [3d-grid-math.md](./quick-reference/3d-grid-math.md), `src/game/grid_utils.gd` |
 | Game formulas | [formulas.md](./quick-reference/formulas.md) |
 | Code style | [code-conventions.md](./quick-reference/code-conventions.md) |
 

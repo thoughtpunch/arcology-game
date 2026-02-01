@@ -80,7 +80,7 @@
 - **Glossary** - Term definitions, see [glossary.md](./quick-reference/glossary.md)
 - **Green Blocks** - Parks, gardens, see [blocks/green.md](./game-design/blocks/green.md)
 - **Grid** - 3D voxel structure, see [core-concepts.md](./game-design/core-concepts.md#grid-architecture)
-- **Grid Math** - 3D grid coordinate conversion, see [3d-grid-math.md](./quick-reference/3d-grid-math.md) and `src/phase0/grid_utils.gd`
+- **Grid Math** - 3D grid coordinate conversion, see [3d-grid-math.md](./quick-reference/3d-grid-math.md) and `src/game/grid_utils.gd`
 - **Grid Position** - Integer (x, y, z) coordinates in cell units, see [3d-refactor/specification.md](./architecture/3d-refactor/specification.md#22-grid-position)
 
 ### H

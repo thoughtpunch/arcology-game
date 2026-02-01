@@ -3,9 +3,9 @@
 class_name TestPanelSystem
 extends GdUnitTestSuite
 
-const PanelSystemScript = preload("res://src/phase0/panel_system.gd")
-const PanelMatScript = preload("res://src/phase0/panel_material.gd")
-const FaceScript = preload("res://src/phase0/face.gd")
+const PanelSystemScript = preload("res://src/game/panel_system.gd")
+const PanelMatScript = preload("res://src/game/panel_material.gd")
+const FaceScript = preload("res://src/game/face.gd")
 
 const CELL_SIZE: float = 6.0
 

@@ -170,7 +170,7 @@ func remove_block(pos: Vector3i) -> void:
 
 | Type | Location |
 |------|----------|
-| Core systems | `src/core/` |
+| Core systems | `src/game/` |
 | Block implementations | `src/blocks/` |
 | Environment systems | `src/environment/` |
 | Agent simulation | `src/agents/` |
@@ -193,7 +193,7 @@ Use GdUnit4 for new tests with fluent assertions:
 class_name TestGrid
 extends GdUnitTestSuite
 
-const __source = 'res://src/core/grid.gd'
+const __source = 'res://src/game/grid.gd'
 
 func test_neighbor_finding() -> void:
     var pos = Vector3i(5, 2, 3)

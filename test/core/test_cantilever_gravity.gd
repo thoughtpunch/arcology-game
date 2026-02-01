@@ -15,7 +15,6 @@ extends SceneTree
 ## - validate_removal() API
 ## - Broken columns (gap in vertical support)
 
-var _grid_script: GDScript
 var _validator_script: GDScript
 var _scenario_script: GDScript
 var _passed: int = 0
@@ -25,9 +24,8 @@ var _failed: int = 0
 func _init() -> void:
 	print("=== Gravity-Aware Cantilever Tests ===")
 
-	_grid_script = load("res://src/core/grid.gd")
-	_validator_script = load("res://src/core/placement_validator.gd")
-	_scenario_script = load("res://src/data/scenario_config.gd")
+	_validator_script = load("res://src/game/placement_validator.gd")
+	_scenario_script = load("res://src/game/structural_scenario_config.gd")
 
 	# --- Vertical Support Tests ---
 	_test_ground_level_always_supported()
@@ -94,8 +92,8 @@ func _assert(condition: bool, message: String) -> void:
 		print("  FAIL: %s" % message)
 
 
-func _create_grid() -> Node:
-	return _grid_script.new()
+func _create_grid() -> RefCounted:
+	return MockGrid.new()
 
 
 func _create_scenario(gravity: float, structural_integrity: bool = true) -> Resource:
@@ -110,7 +108,7 @@ func _create_scenario(gravity: float, structural_integrity: bool = true) -> Reso
 	return config
 
 
-func _create_validator(grid: Node, scenario: Resource = null) -> RefCounted:
+func _create_validator(grid, scenario: Resource = null) -> RefCounted:
 	return _validator_script.new(grid, null, scenario)
 
 
@@ -123,13 +121,13 @@ func _create_mock_block(block_type: String, pos: Vector3i) -> Dictionary:
 	}
 
 
-func _place_block(grid: Node, pos: Vector3i, block_type: String = "corridor") -> void:
+func _place_block(grid, pos: Vector3i, block_type: String = "corridor") -> void:
 	grid.set_block(pos, _create_mock_block(block_type, pos))
 
 
-func _place_column(grid: Node, x: int, y: int, z_from: int, z_to: int, block_type: String = "corridor") -> void:
-	## Place a column of blocks from z_from to z_to (inclusive)
-	for z in range(z_from, z_to + 1):
+func _place_column(grid, x: int, z: int, y_from: int, y_to: int, block_type: String = "corridor") -> void:
+	## Place a column of blocks from y_from to y_to (inclusive)
+	for y in range(y_from, y_to + 1):
 		_place_block(grid, Vector3i(x, y, z), block_type)
 
 
@@ -138,16 +136,16 @@ func _place_column(grid: Node, x: int, y: int, z_from: int, z_to: int, block_typ
 # ============================================================
 
 func _test_ground_level_always_supported() -> void:
-	print("\nTest: Ground level (Z=0) is always supported")
+	print("\nTest: Ground level (Y=0) is always supported")
 	var grid := _create_grid()
 	var scenario := _create_scenario(1.0)
 	var validator := _create_validator(grid, scenario)
 
-	var result = validator.validate_placement(Vector3i(5, 5, 0), "corridor")
-	_assert(result.valid, "Z=0 should always be valid")
+	var result = validator.validate_placement(Vector3i(5, 0, 5), "corridor")
+	_assert(result.valid, "Y=0 should always be valid")
 
-	var result_neg = validator.validate_placement(Vector3i(5, 5, -1), "corridor")
-	_assert(result_neg.valid, "Z<0 should also be supported")
+	var result_neg = validator.validate_placement(Vector3i(5, -1, 5), "corridor")
+	_assert(result_neg.valid, "Y<0 should also be supported")
 
 
 func _test_full_column_is_supported() -> void:
@@ -156,31 +154,31 @@ func _test_full_column_is_supported() -> void:
 	var scenario := _create_scenario(1.0)
 	var validator := _create_validator(grid, scenario)
 
-	# Build column Z=0 to Z=4
+	# Build column Y=0 to Y=4
 	_place_column(grid, 0, 0, 0, 4)
 
-	# Z=5 should be supported (continuous column below)
-	var result = validator.validate_placement(Vector3i(0, 0, 5), "corridor")
+	# Y=5 should be supported (continuous column below)
+	var result = validator.validate_placement(Vector3i(0, 5, 0), "corridor")
 	_assert(result.valid, "Block on top of full column should be valid")
 
 
 func _test_broken_column_not_supported() -> void:
-	print("\nTest: Broken column (gap at Z=2) breaks support")
+	print("\nTest: Broken column (gap at Y=2) breaks support")
 	var grid := _create_grid()
 	var scenario := _create_scenario(1.0)
 	var validator := _create_validator(grid, scenario)
 
-	# Place Z=0, Z=1, skip Z=2, place Z=3
+	# Place Y=0, Y=1, skip Y=2, place Y=3
 	_place_block(grid, Vector3i(0, 0, 0))
-	_place_block(grid, Vector3i(0, 0, 1))
-	# No block at Z=2
-	_place_block(grid, Vector3i(0, 0, 3))
+	_place_block(grid, Vector3i(0, 1, 0))
+	# No block at Y=2
+	_place_block(grid, Vector3i(0, 3, 0))
 
-	# Z=4 should NOT be supported because the column under Z=3 has a gap at Z=2
-	# The block at Z=3 is cantilevered (not column-supported) so it doesn't provide
-	# column support for Z=4. Z=4 needs adjacent cantilever path or its own column.
-	# Since there's no adjacent block, Z=4 is floating.
-	var result = validator.validate_placement(Vector3i(0, 0, 4), "corridor")
+	# Y=4 should NOT be supported because the column under Y=3 has a gap at Y=2
+	# The block at Y=3 is cantilevered (not column-supported) so it doesn't provide
+	# column support for Y=4. Y=4 needs adjacent cantilever path or its own column.
+	# Since there's no adjacent block, Y=4 is floating.
+	var result = validator.validate_placement(Vector3i(0, 4, 0), "corridor")
 	_assert(not result.valid, "Block above broken column should be invalid")
 
 
@@ -190,14 +188,14 @@ func _test_single_gap_breaks_column() -> void:
 	var scenario := _create_scenario(1.0)
 	var validator := _create_validator(grid, scenario)
 
-	# Column with gap at Z=1
+	# Column with gap at Y=1
 	_place_block(grid, Vector3i(0, 0, 0))
-	# Skip Z=1
-	_place_block(grid, Vector3i(0, 0, 2))
+	# Skip Y=1
+	_place_block(grid, Vector3i(0, 2, 0))
 
-	# Z=3 above the broken column: the block at Z=2 has no vertical support
-	# (gap at Z=1), so it can't provide column support. Z=3 is floating.
-	var result = validator.validate_placement(Vector3i(0, 0, 3), "corridor")
+	# Y=3 above the broken column: the block at Y=2 has no vertical support
+	# (gap at Y=1), so it can't provide column support. Y=3 is floating.
+	var result = validator.validate_placement(Vector3i(0, 3, 0), "corridor")
 	_assert(not result.valid, "Block above column with gap should be invalid")
 
 
@@ -215,10 +213,10 @@ func _test_earth_cantilever_within_limit() -> void:
 	_place_column(grid, 0, 0, 0, 1)
 
 	# 1 cell cantilever
-	_place_block(grid, Vector3i(1, 0, 1))
+	_place_block(grid, Vector3i(1, 1, 0))
 
-	# Place at (2,0,1) = 2nd cantilever cell
-	var result = validator.validate_placement(Vector3i(2, 0, 1), "corridor")
+	# Place at (2,1,0) = 2nd cantilever cell
+	var result = validator.validate_placement(Vector3i(2, 1, 0), "corridor")
 	_assert(result.valid, "2nd cantilever cell should be within Earth limit")
 
 
@@ -230,11 +228,11 @@ func _test_earth_cantilever_at_limit() -> void:
 
 	# Column at (0,0)
 	_place_column(grid, 0, 0, 0, 1)
-	_place_block(grid, Vector3i(1, 0, 1))
-	_place_block(grid, Vector3i(2, 0, 1))
+	_place_block(grid, Vector3i(1, 1, 0))
+	_place_block(grid, Vector3i(2, 1, 0))
 
-	# (3,0,1) would be 3 cells out — should fail
-	var result = validator.validate_placement(Vector3i(3, 0, 1), "corridor")
+	# (3,1,0) would be 3 cells out — should fail
+	var result = validator.validate_placement(Vector3i(3, 1, 0), "corridor")
 	_assert(not result.valid, "3rd cantilever cell should exceed Earth limit")
 	_assert("cantilever" in result.reason.to_lower() or "support" in result.reason.to_lower(),
 		"Should mention cantilever or support in reason: got '%s'" % result.reason)
@@ -249,12 +247,12 @@ func _test_earth_cantilever_exceeds_limit() -> void:
 	# Column at (0,0)
 	_place_column(grid, 0, 0, 0, 1)
 	# Chain of blocks on floor 1
-	_place_block(grid, Vector3i(1, 0, 1))
-	_place_block(grid, Vector3i(2, 0, 1))
-	_place_block(grid, Vector3i(3, 0, 1))
+	_place_block(grid, Vector3i(1, 1, 0))
+	_place_block(grid, Vector3i(2, 1, 0))
+	_place_block(grid, Vector3i(3, 1, 0))
 
-	# (4,0,1) = 4 cells from column
-	var result = validator.validate_placement(Vector3i(4, 0, 1), "corridor")
+	# (4,1,0) = 4 cells from column
+	var result = validator.validate_placement(Vector3i(4, 1, 0), "corridor")
 	_assert(not result.valid, "4 cells cantilever should be rejected at Earth gravity")
 
 
@@ -266,11 +264,11 @@ func _test_earth_cantilever_diagonal_path() -> void:
 
 	# Column at (0,0)
 	_place_column(grid, 0, 0, 0, 1)
-	# Place at (1,0,1) and (1,1,1)
-	_place_block(grid, Vector3i(1, 0, 1))
+	# Place at (1,1,0) and (1,1,1)
+	_place_block(grid, Vector3i(1, 1, 0))
 	_place_block(grid, Vector3i(1, 1, 1))
 
-	# (1,1,1) is 2 Manhattan distance from column (0,0,1)
+	# (1,1,1) is 2 Manhattan distance from column (0,1,0)
 	# So (2,1,1) would be 3 from column = rejected at Earth gravity
 	var result = validator.validate_placement(Vector3i(2, 1, 1), "corridor")
 	_assert(not result.valid, "Diagonal path exceeding limit should be rejected")
@@ -293,10 +291,10 @@ func _test_lunar_generous_cantilever() -> void:
 
 	# Build a 10-cell horizontal chain
 	for x in range(1, 11):
-		_place_block(grid, Vector3i(x, 0, 1))
+		_place_block(grid, Vector3i(x, 1, 0))
 
 	# 11th cell should be within limit (11 <= 12)
-	var result = validator.validate_placement(Vector3i(11, 0, 1), "corridor")
+	var result = validator.validate_placement(Vector3i(11, 1, 0), "corridor")
 	_assert(result.valid, "11 cell cantilever should be within lunar limit (12)")
 
 
@@ -308,10 +306,10 @@ func _test_lunar_exceeds_limit() -> void:
 
 	_place_column(grid, 0, 0, 0, 1)
 	for x in range(1, 13):
-		_place_block(grid, Vector3i(x, 0, 1))
+		_place_block(grid, Vector3i(x, 1, 0))
 
 	# 13th cell = distance 13 > 12
-	var result = validator.validate_placement(Vector3i(13, 0, 1), "corridor")
+	var result = validator.validate_placement(Vector3i(13, 1, 0), "corridor")
 	_assert(not result.valid, "13 cell cantilever should exceed lunar limit (12)")
 
 
@@ -329,22 +327,22 @@ func _test_mars_moderate_cantilever() -> void:
 
 	_place_column(grid, 0, 0, 0, 1)
 	for x in range(1, 6):
-		_place_block(grid, Vector3i(x, 0, 1))
+		_place_block(grid, Vector3i(x, 1, 0))
 
 	# 5 cells out is at limit
-	var result_ok = validator.validate_placement(Vector3i(5, 0, 1), "corridor")
+	var result_ok = validator.validate_placement(Vector3i(5, 1, 0), "corridor")
 	# Wait — 5 cells from column means distance 5. max_cant is 5. BFS finds depth 5.
 	# Actually blocks at x=1..5 means x=5 is 5 cells from column at x=0.
 	# The depth of the NEW block at x=6 would be 6. Let me verify.
-	# We already have blocks at x=1..5, placing at x=6 means BFS from (6,0,1) finds
-	# (5,0,1) at depth 1, then traces back to column: (5) depth 5, so total = 6.
-	# Wait no. BFS from (6,0,1): neighbor (5,0,1) exists at depth 1.
-	# Is (5,0,1) vertically supported? No, only (0,0,0) and (0,0,1) are columns.
-	# BFS continues: (4,0,1) depth 2, (3,0,1) depth 3, (2,0,1) depth 4, (1,0,1) depth 5, (0,0,1) depth 6.
-	# (0,0,1) IS vertically supported. So depth = 6 > 5 = rejected.
+	# We already have blocks at x=1..5, placing at x=6 means BFS from (6,1,0) finds
+	# (5,1,0) at depth 1, then traces back to column: (5) depth 5, so total = 6.
+	# Wait no. BFS from (6,1,0): neighbor (5,1,0) exists at depth 1.
+	# Is (5,1,0) vertically supported? No, only (0,0,0) and (0,1,0) are columns.
+	# BFS continues: (4,1,0) depth 2, (3,1,0) depth 3, (2,1,0) depth 4, (1,1,0) depth 5, (0,1,0) depth 6.
+	# (0,1,0) IS vertically supported. So depth = 6 > 5 = rejected.
 
-	# Let me test placing at (5,0,1) — that's already placed. Test (6,0,1) = 6 cells from column
-	var result_fail = validator.validate_placement(Vector3i(6, 0, 1), "corridor")
+	# Let me test placing at (5,1,0) — that's already placed. Test (6,1,0) = 6 cells from column
+	var result_fail = validator.validate_placement(Vector3i(6, 1, 0), "corridor")
 	_assert(not result_fail.valid, "6 cells from column should exceed Mars limit (5)")
 
 
@@ -363,12 +361,12 @@ func _test_high_g_strict_limits() -> void:
 	_place_column(grid, 0, 0, 0, 1)
 
 	# 1 cell out OK
-	var result_ok = validator.validate_placement(Vector3i(1, 0, 1), "corridor")
+	var result_ok = validator.validate_placement(Vector3i(1, 1, 0), "corridor")
 	_assert(result_ok.valid, "1 cell cantilever should be OK at High-G")
 
 	# Place it, then 2 cells out should fail
-	_place_block(grid, Vector3i(1, 0, 1))
-	var result_fail = validator.validate_placement(Vector3i(2, 0, 1), "corridor")
+	_place_block(grid, Vector3i(1, 1, 0))
+	var result_fail = validator.validate_placement(Vector3i(2, 1, 0), "corridor")
 	_assert(not result_fail.valid, "2 cells cantilever should be rejected at High-G")
 
 
@@ -384,13 +382,13 @@ func _test_zero_g_adjacent_block_ok() -> void:
 
 	_assert(scenario.max_cantilever == -1, "Zero-G max_cantilever should be -1")
 
-	# Place a block at Z=5 (no ground needed in zero-g, but placement check
-	# sees Z<=0 as always valid, so place at Z=1 with Z=0 as anchor)
+	# Place a block at Y=5 (no ground needed in zero-g, but placement check
+	# sees Y<=0 as always valid, so place at Y=1 with Y=0 as anchor)
 	_place_block(grid, Vector3i(0, 0, 0))
-	_place_block(grid, Vector3i(0, 0, 1))
+	_place_block(grid, Vector3i(0, 1, 0))
 
-	# Adjacent block at (1,0,1) should be OK
-	var result = validator.validate_placement(Vector3i(1, 0, 1), "corridor")
+	# Adjacent block at (1,1,0) should be OK
+	var result = validator.validate_placement(Vector3i(1, 1, 0), "corridor")
 	_assert(result.valid, "Zero-G: adjacent block should be valid")
 
 
@@ -400,10 +398,10 @@ func _test_zero_g_vertical_neighbor_ok() -> void:
 	var scenario := _create_scenario(0.0)
 	var validator := _create_validator(grid, scenario)
 
-	_place_block(grid, Vector3i(0, 0, 1))
+	_place_block(grid, Vector3i(0, 1, 0))
 
-	# Block above at Z=2 should be OK (vertical neighbor exists)
-	var result = validator.validate_placement(Vector3i(0, 0, 2), "corridor")
+	# Block above at Y=2 should be OK (vertical neighbor exists)
+	var result = validator.validate_placement(Vector3i(0, 2, 0), "corridor")
 	_assert(result.valid, "Zero-G: vertical neighbor should count for connectivity")
 
 
@@ -432,8 +430,8 @@ func _test_integrity_disabled_always_passes() -> void:
 	var scenario := _create_scenario(1.0, false)  # structural_integrity = false
 	var validator := _create_validator(grid, scenario)
 
-	# Floating block at Z=10 with nothing below
-	var result = validator.validate_placement(Vector3i(0, 0, 10), "corridor")
+	# Floating block at Y=10 with nothing below
+	var result = validator.validate_placement(Vector3i(0, 10, 0), "corridor")
 	_assert(result.valid, "With integrity disabled, floating blocks should be valid")
 
 
@@ -451,12 +449,12 @@ func _test_removal_safe_with_alternate_support() -> void:
 	# Column A at (0,0) and Column B at (3,0)
 	_place_column(grid, 0, 0, 0, 1)
 	_place_column(grid, 3, 0, 0, 1)
-	# Bridge: (1,0,1) and (2,0,1)
-	_place_block(grid, Vector3i(1, 0, 1))
-	_place_block(grid, Vector3i(2, 0, 1))
+	# Bridge: (1,1,0) and (2,1,0)
+	_place_block(grid, Vector3i(1, 1, 0))
+	_place_block(grid, Vector3i(2, 1, 0))
 
-	# Removing (1,0,1) should be OK: (2,0,1) is 1 cell from column B
-	var result: bool = validator.would_orphan_blocks(Vector3i(1, 0, 1))
+	# Removing (1,1,0) should be OK: (2,1,0) is 1 cell from column B
+	var result: bool = validator.would_orphan_blocks(Vector3i(1, 1, 0))
 	_assert(not result, "Removing bridge block with alternate column should be safe")
 
 
@@ -468,15 +466,15 @@ func _test_removal_orphans_cantilever_chain() -> void:
 
 	# Column at (0,0)
 	_place_column(grid, 0, 0, 0, 1)
-	# Cantilever chain: (1,0,1) -> (2,0,1)
-	_place_block(grid, Vector3i(1, 0, 1))
-	_place_block(grid, Vector3i(2, 0, 1))
+	# Cantilever chain: (1,1,0) -> (2,1,0)
+	_place_block(grid, Vector3i(1, 1, 0))
+	_place_block(grid, Vector3i(2, 1, 0))
 
-	# Removing (1,0,1) makes (2,0,1) be 2 cells from column, which is at limit
-	# Actually depth of (2,0,1) without (1,0,1): BFS from (2,0,1), no horizontal neighbor
-	# with block exists (only (1,0,1) which is excluded). So depth = 999.
+	# Removing (1,1,0) makes (2,1,0) be 2 cells from column, which is at limit
+	# Actually depth of (2,1,0) without (1,1,0): BFS from (2,1,0), no horizontal neighbor
+	# with block exists (only (1,1,0) which is excluded). So depth = 999.
 	# That exceeds max_cant = 2. So it SHOULD orphan.
-	var result: bool = validator.would_orphan_blocks(Vector3i(1, 0, 1))
+	var result: bool = validator.would_orphan_blocks(Vector3i(1, 1, 0))
 	_assert(result, "Removing middle of cantilever chain should orphan end block")
 
 
@@ -486,13 +484,13 @@ func _test_removal_breaks_vertical_column() -> void:
 	var scenario := _create_scenario(1.0)  # max_cant = 2
 	var validator := _create_validator(grid, scenario)
 
-	# Tall column: Z=0 through Z=3
+	# Tall column: Y=0 through Y=3
 	_place_column(grid, 0, 0, 0, 3)
-	# Cantilever off Z=3: (1,0,3)
-	_place_block(grid, Vector3i(1, 0, 3))
+	# Cantilever off Y=3: (1,3,0)
+	_place_block(grid, Vector3i(1, 3, 0))
 
-	# Removing Z=1 breaks the column — Z=2, Z=3, and (1,0,3) lose support
-	var result: bool = validator.would_orphan_blocks(Vector3i(0, 0, 1))
+	# Removing Y=1 breaks the column — Y=2, Y=3, and (1,3,0) lose support
+	var result: bool = validator.would_orphan_blocks(Vector3i(0, 1, 0))
 	_assert(result, "Removing block in column should orphan blocks above")
 
 
@@ -515,7 +513,7 @@ func _test_validate_removal_api() -> void:
 	var validator := _create_validator(grid, scenario)
 
 	_place_column(grid, 0, 0, 0, 2)
-	_place_block(grid, Vector3i(1, 0, 2))
+	_place_block(grid, Vector3i(1, 2, 0))
 
 	# Removing base should orphan
 	var result = validator.validate_removal(Vector3i(0, 0, 0))
@@ -523,7 +521,7 @@ func _test_validate_removal_api() -> void:
 	_assert("support" in result.reason.to_lower(), "Should mention support: got '%s'" % result.reason)
 
 	# Removing tip should be fine
-	var result2 = validator.validate_removal(Vector3i(1, 0, 2))
+	var result2 = validator.validate_removal(Vector3i(1, 2, 0))
 	_assert(result2.valid, "validate_removal of tip should be valid")
 
 
@@ -568,11 +566,11 @@ func _test_zero_g_removal_still_connected() -> void:
 	_place_block(grid, Vector3i(0, 0, 0), "entrance")
 	_place_block(grid, Vector3i(1, 0, 0))
 	_place_block(grid, Vector3i(2, 0, 0))
-	_place_block(grid, Vector3i(0, 1, 0))
-	_place_block(grid, Vector3i(1, 1, 0))
-	_place_block(grid, Vector3i(2, 1, 0))
+	_place_block(grid, Vector3i(0, 0, 1))
+	_place_block(grid, Vector3i(1, 0, 1))
+	_place_block(grid, Vector3i(2, 0, 1))
 
-	# Removing (1,0,0) should be OK: path via y=1 row still exists
+	# Removing (1,0,0) should be OK: path via z=1 row still exists
 	var result: bool = validator.would_orphan_blocks(Vector3i(1, 0, 0))
 	_assert(not result, "Zero-G: removal with alternate path should stay connected")
 
@@ -600,7 +598,7 @@ func _test_depth_with_column() -> void:
 
 	_place_column(grid, 0, 0, 0, 2)
 
-	var result = validator.validate_placement(Vector3i(0, 0, 3), "corridor")
+	var result = validator.validate_placement(Vector3i(0, 3, 0), "corridor")
 	_assert(result.valid, "Block directly above column should be valid (depth 0)")
 
 
@@ -611,7 +609,7 @@ func _test_depth_floating() -> void:
 	var validator := _create_validator(grid, scenario)
 
 	# No blocks anywhere nearby
-	var result = validator.validate_placement(Vector3i(0, 0, 5), "corridor")
+	var result = validator.validate_placement(Vector3i(0, 5, 0), "corridor")
 	_assert(not result.valid, "Floating block should be rejected")
 
 
@@ -637,3 +635,30 @@ func _test_scenario_config_zero_g() -> void:
 	print("\nTest: ScenarioConfig — Zero-G station")
 	var config := _create_scenario(0.0)
 	_assert(config.max_cantilever == -1, "Zero-G max_cantilever should be -1: got %d" % config.max_cantilever)
+
+
+## Mock Grid that implements the Grid-compatible API
+class MockGrid:
+	extends RefCounted
+
+	var _blocks: Dictionary = {}  # Vector3i -> Dictionary (block data)
+
+	func set_block(pos: Vector3i, block: Dictionary) -> void:
+		_blocks[pos] = block
+
+	func has_block(pos: Vector3i) -> bool:
+		return _blocks.has(pos)
+
+	func get_block_at(pos: Vector3i) -> Variant:
+		return _blocks.get(pos, null)
+
+	func get_all_positions() -> Array:
+		return _blocks.keys()
+
+	func get_entrance_positions() -> Array[Vector3i]:
+		var positions: Array[Vector3i] = []
+		for pos in _blocks:
+			var block: Dictionary = _blocks[pos]
+			if block.get("block_type", "") == "entrance":
+				positions.append(pos)
+		return positions

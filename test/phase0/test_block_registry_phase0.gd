@@ -3,7 +3,7 @@
 class_name TestBlockRegistryPhase0
 extends GdUnitTestSuite
 
-const RegistryScript = preload("res://src/phase0/block_registry.gd")
+const RegistryScript = preload("res://src/game/block_registry.gd")
 
 var _registry: RefCounted
 

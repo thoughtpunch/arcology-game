@@ -1,7 +1,7 @@
 # Phase 0: Block Stacking Sandbox
 
 > **Status:** In Progress
-> **Location:** `src/phase0/`, `scenes/phase0_sandbox.tscn`
+> **Location:** `src/game/`, `scenes/main.tscn`
 
 ## Overview
 
@@ -124,24 +124,24 @@ A fully functional 3D block-placing sandbox. The foundation for all future gamep
 
 | File | Purpose |
 |------|---------|
-| `src/phase0/sandbox_main.gd` | Main scene script (builds entire scene tree) |
-| `src/phase0/scenario_config.gd` | Scenario parameters (RefCounted data class) |
-| `src/phase0/scenario_picker.gd` | Scenario selection UI (3 presets + custom editor) |
-| `src/phase0/orbital_camera.gd` | Camera with orbit/pan/zoom/history |
-| `src/phase0/block_registry.gd` | Loads block definitions from JSON, category colors and ordering |
-| `src/phase0/block_definition.gd` | Block type data (size, color, category, traversability, etc.) |
-| `src/phase0/placed_block.gd` | Instance of a placed block |
-| `src/phase0/grid_utils.gd` | Grid <-> world coordinate conversion |
-| `src/phase0/face.gd` | Face direction enum + utilities |
-| `src/phase0/shape_palette.gd` | Category-tabbed block selection UI |
-| `src/phase0/sandbox_pause_menu.gd` | Pause menu with reset/exit |
-| `src/phase0/sandbox_debug_panel.gd` | Extensible F3 debug panel |
-| `src/phase0/sandbox_help_overlay.gd` | F1 controls reference |
+| `src/game/sandbox_main.gd` | Main scene script (builds entire scene tree) |
+| `src/game/scenario_config.gd` | Scenario parameters (RefCounted data class) |
+| `src/game/scenario_picker.gd` | Scenario selection UI (3 presets + custom editor) |
+| `src/game/orbital_camera.gd` | Camera with orbit/pan/zoom/history |
+| `src/game/block_registry.gd` | Loads block definitions from JSON, category colors and ordering |
+| `src/game/block_definition.gd` | Block type data (size, color, category, traversability, etc.) |
+| `src/game/placed_block.gd` | Instance of a placed block |
+| `src/game/grid_utils.gd` | Grid <-> world coordinate conversion |
+| `src/game/face.gd` | Face direction enum + utilities |
+| `src/game/shape_palette.gd` | Category-tabbed block selection UI |
+| `src/game/sandbox_pause_menu.gd` | Pause menu with reset/exit |
+| `src/game/sandbox_debug_panel.gd` | Extensible F3 debug panel |
+| `src/game/sandbox_help_overlay.gd` | F1 controls reference |
 | `shaders/ghost_preview.gdshader` | Ghost block transparency shader |
 | `shaders/face_highlight.gdshader` | Face highlight with pulse |
 | `shaders/grid_overlay.gdshader` | Ground grid lines |
 | `data/blocks.json` | Block type definitions (21 blocks, 8 categories) |
-| `scenes/phase0_sandbox.tscn` | Scene file (just root Node3D) |
+| `scenes/main.tscn` | Scene file (just root Node3D) |
 
 ## Grid System
 

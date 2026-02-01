@@ -3,8 +3,8 @@
 class_name TestInteriorMeshSystem
 extends GdUnitTestSuite
 
-const InteriorMeshSystemScript = preload("res://src/phase0/interior_mesh_system.gd")
-const FaceScript = preload("res://src/phase0/face.gd")
+const InteriorMeshSystemScript = preload("res://src/game/interior_mesh_system.gd")
+const FaceScript = preload("res://src/game/face.gd")
 
 const CELL_SIZE: float = 6.0
 

@@ -10,7 +10,6 @@ extends SceneTree
 ## - Prerequisite checks
 ## - Warning generation
 
-var _grid_script: GDScript
 var _validator_script: GDScript
 var _scenario_config_script: GDScript
 var _passed: int = 0
@@ -21,9 +20,8 @@ func _init() -> void:
 	print("=== PlacementValidator Tests ===")
 
 	# Load scripts
-	_grid_script = load("res://src/core/grid.gd")
-	_validator_script = load("res://src/core/placement_validator.gd")
-	_scenario_config_script = load("res://src/data/scenario_config.gd")
+	_validator_script = load("res://src/game/placement_validator.gd")
+	_scenario_config_script = load("res://src/game/structural_scenario_config.gd")
 
 	# Run tests
 	_test_space_empty()
@@ -73,12 +71,11 @@ func _assert(condition: bool, message: String) -> void:
 		print("  FAIL: %s" % message)
 
 
-func _create_grid() -> Node:
-	var grid: Node = _grid_script.new()
-	return grid
+func _create_grid() -> RefCounted:
+	return MockGrid.new()
 
 
-func _create_validator(grid: Node = null, registry = null, scenario_config: Resource = null) -> RefCounted:
+func _create_validator(grid = null, registry = null, scenario_config: Resource = null) -> RefCounted:
 	var validator: RefCounted = _validator_script.new(grid, registry, scenario_config)
 	return validator
 
@@ -126,10 +123,10 @@ func _test_structural_support_ground_level() -> void:
 	var validator := _create_validator(grid)
 
 	var result = validator.validate_placement(Vector3i(0, 0, 0), "corridor")
-	_assert(result.valid, "Ground level (Z=0) should always be supported")
+	_assert(result.valid, "Ground level (Y=0) should always be supported")
 
-	var result_below = validator.validate_placement(Vector3i(0, 0, -1), "corridor")
-	_assert(result_below.valid, "Below ground (Z<0) should be supported")
+	var result_below = validator.validate_placement(Vector3i(0, -1, 0), "corridor")
+	_assert(result_below.valid, "Below ground (Y<0) should be supported")
 
 
 func _test_structural_support_block_below() -> void:
@@ -137,12 +134,12 @@ func _test_structural_support_block_below() -> void:
 	var grid := _create_grid()
 	var validator := _create_validator(grid)
 
-	# Place a block at Z=0
+	# Place a block at Y=0
 	var block := _create_mock_block("corridor", Vector3i(0, 0, 0))
 	grid.set_block(Vector3i(0, 0, 0), block)
 
-	# Check Z=1 (should be supported by block below)
-	var result = validator.validate_placement(Vector3i(0, 0, 1), "corridor")
+	# Check Y=1 (should be supported by block below)
+	var result = validator.validate_placement(Vector3i(0, 1, 0), "corridor")
 	_assert(result.valid, "Block above existing block should be supported")
 
 
@@ -151,8 +148,8 @@ func _test_structural_support_no_support() -> void:
 	var grid := _create_grid()
 	var validator := _create_validator(grid)
 
-	# Try to place at Z=1 with nothing below
-	var result = validator.validate_placement(Vector3i(0, 0, 1), "corridor")
+	# Try to place at Y=1 with nothing below
+	var result = validator.validate_placement(Vector3i(0, 1, 0), "corridor")
 	_assert(not result.valid, "Floating block should be invalid")
 	_assert("cantilever" in result.reason.to_lower() or "support" in result.reason.to_lower(), "Should report cantilever/support issue: got '%s'" % result.reason)
 
@@ -162,15 +159,15 @@ func _test_structural_support_cantilever() -> void:
 	var grid := _create_grid()
 	var validator := _create_validator(grid)
 
-	# Create a supported block at (0,0,1) by first placing (0,0,0) below it
+	# Create a supported block at (0,1,0) by first placing (0,0,0) below it
 	var block_base := _create_mock_block("corridor", Vector3i(0, 0, 0))
 	grid.set_block(Vector3i(0, 0, 0), block_base)
 
-	var block_above := _create_mock_block("corridor", Vector3i(0, 0, 1))
-	grid.set_block(Vector3i(0, 0, 1), block_above)
+	var block_above := _create_mock_block("corridor", Vector3i(0, 1, 0))
+	grid.set_block(Vector3i(0, 1, 0), block_above)
 
-	# Now try to place at (1,0,1) - cantilever from (0,0,1)
-	var result = validator.validate_placement(Vector3i(1, 0, 1), "corridor")
+	# Now try to place at (1,1,0) - cantilever from (0,1,0)
+	var result = validator.validate_placement(Vector3i(1, 1, 0), "corridor")
 	_assert(result.valid, "Cantilever from supported adjacent block should be valid")
 
 
@@ -183,13 +180,13 @@ func _test_cantilever_limit_within() -> void:
 
 	# Build a column at (0,0)
 	grid.set_block(Vector3i(0, 0, 0), _create_mock_block("corridor", Vector3i(0, 0, 0)))
-	grid.set_block(Vector3i(0, 0, 1), _create_mock_block("corridor", Vector3i(0, 0, 1)))
+	grid.set_block(Vector3i(0, 1, 0), _create_mock_block("corridor", Vector3i(0, 1, 0)))
 
-	# Add first cantilever at (1,0,1)
-	grid.set_block(Vector3i(1, 0, 1), _create_mock_block("corridor", Vector3i(1, 0, 1)))
+	# Add first cantilever at (1,1,0)
+	grid.set_block(Vector3i(1, 1, 0), _create_mock_block("corridor", Vector3i(1, 1, 0)))
 
-	# Second cantilever at (2,0,1) should be within limit (2 blocks max)
-	var result = validator.validate_placement(Vector3i(2, 0, 1), "corridor")
+	# Second cantilever at (2,1,0) should be within limit (2 blocks max)
+	var result = validator.validate_placement(Vector3i(2, 1, 0), "corridor")
 	_assert(result.valid, "Second cantilever block should be within limit")
 
 
@@ -200,14 +197,14 @@ func _test_cantilever_limit_exceeded() -> void:
 
 	# Build a column at (0,0)
 	grid.set_block(Vector3i(0, 0, 0), _create_mock_block("corridor", Vector3i(0, 0, 0)))
-	grid.set_block(Vector3i(0, 0, 1), _create_mock_block("corridor", Vector3i(0, 0, 1)))
+	grid.set_block(Vector3i(0, 1, 0), _create_mock_block("corridor", Vector3i(0, 1, 0)))
 
 	# Add two cantilever blocks
-	grid.set_block(Vector3i(1, 0, 1), _create_mock_block("corridor", Vector3i(1, 0, 1)))
-	grid.set_block(Vector3i(2, 0, 1), _create_mock_block("corridor", Vector3i(2, 0, 1)))
+	grid.set_block(Vector3i(1, 1, 0), _create_mock_block("corridor", Vector3i(1, 1, 0)))
+	grid.set_block(Vector3i(2, 1, 0), _create_mock_block("corridor", Vector3i(2, 1, 0)))
 
-	# Third cantilever at (3,0,1) should exceed limit
-	var result = validator.validate_placement(Vector3i(3, 0, 1), "corridor")
+	# Third cantilever at (3,1,0) should exceed limit
+	var result = validator.validate_placement(Vector3i(3, 1, 0), "corridor")
 	_assert(not result.valid, "Third cantilever block should exceed limit")
 	# Cantilever limit produces a descriptive error message
 	_assert("cantilever" in result.reason.to_lower() or "support" in result.reason.to_lower(), "Should report cantilever/support issue: got '%s'" % result.reason)
@@ -220,9 +217,9 @@ func _test_ground_only_constraint_valid() -> void:
 	var grid := _create_grid()
 	var validator := _create_validator(grid)
 
-	# Entrance is ground_only, Z=0 should be valid
+	# Entrance is ground_only, Y=0 should be valid
 	var result = validator.validate_placement(Vector3i(0, 0, 0), "entrance")
-	_assert(result.valid, "Ground-only block at Z=0 should be valid")
+	_assert(result.valid, "Ground-only block at Y=0 should be valid")
 
 
 func _test_ground_only_constraint_invalid() -> void:
@@ -233,8 +230,8 @@ func _test_ground_only_constraint_invalid() -> void:
 	# Place a supporting block first
 	grid.set_block(Vector3i(0, 0, 0), _create_mock_block("corridor", Vector3i(0, 0, 0)))
 
-	# Entrance is ground_only, Z=1 should be invalid
-	var result = validator.validate_placement(Vector3i(0, 0, 1), "entrance")
+	# Entrance is ground_only, Y=1 should be invalid
+	var result = validator.validate_placement(Vector3i(0, 1, 0), "entrance")
 	_assert(not result.valid, "Ground-only block above ground should be invalid")
 	_assert("ground level" in result.reason.to_lower(), "Should report ground level constraint: got '%s'" % result.reason)
 
@@ -244,8 +241,8 @@ func _test_minimum_floor_constraint() -> void:
 	var grid := _create_grid()
 	var validator := _create_validator(grid)
 
-	# Z=-4 is below minimum (-3)
-	var result = validator.validate_placement(Vector3i(0, 0, -4), "corridor")
+	# Y=-4 is below minimum (-3)
+	var result = validator.validate_placement(Vector3i(0, -4, 0), "corridor")
 	_assert(not result.valid, "Below minimum floor should be invalid")
 	_assert("minimum floor" in result.reason.to_lower(), "Should report minimum floor: got '%s'" % result.reason)
 
@@ -319,10 +316,10 @@ func _test_warning_blocks_light() -> void:
 	grid.set_block(Vector3i(0, 0, 0), _create_mock_block("corridor", Vector3i(0, 0, 0)))
 
 	# Place a block above it
-	grid.set_block(Vector3i(0, 0, 1), _create_mock_block("corridor", Vector3i(0, 0, 1)))
+	grid.set_block(Vector3i(0, 1, 0), _create_mock_block("corridor", Vector3i(0, 1, 0)))
 
 	# Try to place another block on top - should warn about blocking light
-	var result = validator.validate_placement(Vector3i(0, 0, 2), "corridor")
+	var result = validator.validate_placement(Vector3i(0, 2, 0), "corridor")
 
 	_assert(result.valid, "Block that shadows others should still be valid")
 	# Light warning may or may not trigger depending on implementation
@@ -390,7 +387,7 @@ func _test_get_placement_state() -> void:
 	_assert(state_invalid == 3, "Invalid placement should return 3 (INVALID): got %d" % state_invalid)
 
 	# Placement with warnings = 2 (WARNING)
-	var state_warning: int = validator.get_placement_state(Vector3i(5, 5, 0), "residential_basic")
+	var state_warning: int = validator.get_placement_state(Vector3i(5, 0, 5), "residential_basic")
 	_assert(state_warning == 2, "Placement with warnings should return 2 (WARNING): got %d" % state_warning)
 
 
@@ -423,7 +420,7 @@ func _test_multiple_warnings() -> void:
 	var validator := _create_validator(grid)
 
 	# Add entrance far away
-	grid.set_block(Vector3i(20, 20, 0), _create_mock_block("entrance", Vector3i(20, 20, 0)))
+	grid.set_block(Vector3i(20, 0, 20), _create_mock_block("entrance", Vector3i(20, 0, 20)))
 
 	# Place a private block at origin - should have warnings about:
 	# - No corridor access
@@ -461,7 +458,7 @@ func _test_prerequisite_requires_roof_blocked() -> void:
 	var validator := _create_validator(grid, registry)
 
 	# Place a block above the target position
-	grid.set_block(Vector3i(0, 0, 1), _create_mock_block("corridor", Vector3i(0, 0, 1)))
+	grid.set_block(Vector3i(0, 1, 0), _create_mock_block("corridor", Vector3i(0, 1, 0)))
 
 	# solar_collector has requires_roof: true
 	var result = validator.validate_placement(Vector3i(0, 0, 0), "solar_collector")
@@ -489,7 +486,7 @@ func _test_prerequisite_requires_deep_blocked() -> void:
 
 	# geothermal_plant has requires_deep: true
 	var result = validator.validate_placement(Vector3i(0, 0, 0), "geothermal_plant")
-	_assert(not result.valid, "requires_deep block at Z=0 should be invalid")
+	_assert(not result.valid, "requires_deep block at Y=0 should be invalid")
 	_assert("underground" in result.reason.to_lower(),
 		"Should report underground requirement: got '%s'" % result.reason)
 
@@ -501,8 +498,8 @@ func _test_prerequisite_requires_deep_valid() -> void:
 	var validator := _create_validator(grid, registry)
 
 	# geothermal_plant underground should be valid
-	var result = validator.validate_placement(Vector3i(0, 0, -1), "geothermal_plant")
-	_assert(result.valid, "requires_deep block at Z=-1 should be valid")
+	var result = validator.validate_placement(Vector3i(0, -1, 0), "geothermal_plant")
+	_assert(result.valid, "requires_deep block at Y=-1 should be valid")
 
 
 func _test_cantilever_limit_with_scenario_config() -> void:
@@ -513,14 +510,14 @@ func _test_cantilever_limit_with_scenario_config() -> void:
 
 	# Build a column at (0,0)
 	grid.set_block(Vector3i(0, 0, 0), _create_mock_block("corridor", Vector3i(0, 0, 0)))
-	grid.set_block(Vector3i(0, 0, 1), _create_mock_block("corridor", Vector3i(0, 0, 1)))
+	grid.set_block(Vector3i(0, 1, 0), _create_mock_block("corridor", Vector3i(0, 1, 0)))
 
 	# Add two cantilever blocks (max_cantilever=2 for Earth)
-	grid.set_block(Vector3i(1, 0, 1), _create_mock_block("corridor", Vector3i(1, 0, 1)))
-	grid.set_block(Vector3i(2, 0, 1), _create_mock_block("corridor", Vector3i(2, 0, 1)))
+	grid.set_block(Vector3i(1, 1, 0), _create_mock_block("corridor", Vector3i(1, 1, 0)))
+	grid.set_block(Vector3i(2, 1, 0), _create_mock_block("corridor", Vector3i(2, 1, 0)))
 
-	# Third cantilever at (3,0,1) should exceed limit
-	var result = validator.validate_placement(Vector3i(3, 0, 1), "corridor")
+	# Third cantilever at (3,1,0) should exceed limit
+	var result = validator.validate_placement(Vector3i(3, 1, 0), "corridor")
 	_assert(not result.valid, "Third cantilever should exceed Earth cantilever limit")
 
 
@@ -532,16 +529,16 @@ func _test_cantilever_limit_lunar_gravity() -> void:
 
 	# Build a column at (0,0)
 	grid.set_block(Vector3i(0, 0, 0), _create_mock_block("corridor", Vector3i(0, 0, 0)))
-	grid.set_block(Vector3i(0, 0, 1), _create_mock_block("corridor", Vector3i(0, 0, 1)))
+	grid.set_block(Vector3i(0, 1, 0), _create_mock_block("corridor", Vector3i(0, 1, 0)))
 
 	# Build a long cantilever chain — lunar max_cantilever = floor(2/0.16) = 12
 	for x in range(1, 13):
-		grid.set_block(Vector3i(x, 0, 1), _create_mock_block("corridor", Vector3i(x, 0, 1)))
+		grid.set_block(Vector3i(x, 1, 0), _create_mock_block("corridor", Vector3i(x, 1, 0)))
 
 	# Cantilever at 12 should still be valid (within limit)
-	var result_12 = validator.validate_placement(Vector3i(12, 0, 1), "corridor")
+	var result_12 = validator.validate_placement(Vector3i(12, 1, 0), "corridor")
 	# Block at x=12 already placed, check x=13 instead (13th extension)
-	var result_13 = validator.validate_placement(Vector3i(13, 0, 1), "corridor")
+	var result_13 = validator.validate_placement(Vector3i(13, 1, 0), "corridor")
 	_assert(not result_13.valid, "13th cantilever extension should exceed lunar limit (12)")
 
 
@@ -552,13 +549,13 @@ func _test_warning_at_cantilever_limit() -> void:
 
 	# Build a column at (0,0)
 	grid.set_block(Vector3i(0, 0, 0), _create_mock_block("corridor", Vector3i(0, 0, 0)))
-	grid.set_block(Vector3i(0, 0, 1), _create_mock_block("corridor", Vector3i(0, 0, 1)))
+	grid.set_block(Vector3i(0, 1, 0), _create_mock_block("corridor", Vector3i(0, 1, 0)))
 
 	# Add first cantilever block
-	grid.set_block(Vector3i(1, 0, 1), _create_mock_block("corridor", Vector3i(1, 0, 1)))
+	grid.set_block(Vector3i(1, 1, 0), _create_mock_block("corridor", Vector3i(1, 1, 0)))
 
 	# Place at exactly max_cantilever (depth=2 on Earth)
-	var result = validator.validate_placement(Vector3i(2, 0, 1), "corridor")
+	var result = validator.validate_placement(Vector3i(2, 1, 0), "corridor")
 	_assert(result.valid, "Placement at cantilever limit should be valid")
 
 	var has_limit_warning := false
@@ -619,6 +616,33 @@ func _test_warning_far_from_utilities_not_for_infra() -> void:
 			has_utility_warning = true
 			break
 	_assert(not has_utility_warning, "Infrastructure block should not warn about utilities")
+
+
+## Mock Grid that implements the Grid-compatible API
+class MockGrid:
+	extends RefCounted
+
+	var _blocks: Dictionary = {}  # Vector3i -> Dictionary (block data)
+
+	func set_block(pos: Vector3i, block: Dictionary) -> void:
+		_blocks[pos] = block
+
+	func has_block(pos: Vector3i) -> bool:
+		return _blocks.has(pos)
+
+	func get_block_at(pos: Vector3i) -> Variant:
+		return _blocks.get(pos, null)
+
+	func get_all_positions() -> Array:
+		return _blocks.keys()
+
+	func get_entrance_positions() -> Array[Vector3i]:
+		var positions: Array[Vector3i] = []
+		for pos in _blocks:
+			var block: Dictionary = _blocks[pos]
+			if block.get("block_type", "") == "entrance":
+				positions.append(pos)
+		return positions
 
 
 ## Mock BlockRegistry that returns data from blocks.json

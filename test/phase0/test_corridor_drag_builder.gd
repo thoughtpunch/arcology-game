@@ -3,9 +3,9 @@
 class_name TestCorridorDragBuilder
 extends GdUnitTestSuite
 
-const CorridorDragScript = preload("res://src/phase0/corridor_drag_builder.gd")
-const RegistryScript = preload("res://src/phase0/block_registry.gd")
-const GridUtilsScript = preload("res://src/phase0/grid_utils.gd")
+const CorridorDragScript = preload("res://src/game/corridor_drag_builder.gd")
+const RegistryScript = preload("res://src/game/block_registry.gd")
+const GridUtilsScript = preload("res://src/game/grid_utils.gd")
 
 var _registry: RefCounted
 

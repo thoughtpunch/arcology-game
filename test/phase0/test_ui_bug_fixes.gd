@@ -3,7 +3,7 @@
 class_name TestUIBugFixes
 extends GdUnitTestSuite
 
-const DebugPanelScript = preload("res://src/phase0/sandbox_debug_panel.gd")
+const DebugPanelScript = preload("res://src/game/sandbox_debug_panel.gd")
 
 
 # --- arcology-6k3: Building stats HUD uses PRESET_TOP_WIDE for proper width ---

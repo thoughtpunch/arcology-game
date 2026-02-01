@@ -13,7 +13,7 @@ var _script: GDScript
 
 
 func _init() -> void:
-	_script = load("res://src/data/scenario_config.gd") as GDScript
+	_script = load("res://src/game/structural_scenario_config.gd") as GDScript
 
 	print("=== ScenarioConfig Tests ===")
 

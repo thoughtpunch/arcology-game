@@ -1,6 +1,6 @@
 # 3D Grid Math Reference
 
-> Canonical implementations: `src/phase0/grid_utils.gd` and `src/phase0/face.gd`
+> Canonical implementations: `src/game/grid_utils.gd` and `src/game/face.gd`
 
 ## Constants
 
@@ -51,7 +51,7 @@ static func world_to_grid(world_pos: Vector3) -> Vector3i:
 
 ## Face Directions
 
-Each cell has 6 faces. See `src/phase0/face.gd`:
+Each cell has 6 faces. See `src/game/face.gd`:
 
 ```gdscript
 enum Dir { TOP, BOTTOM, NORTH, SOUTH, EAST, WEST }

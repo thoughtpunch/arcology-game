@@ -7,7 +7,7 @@
 class_name TestOrbitalCameraAltOrbit
 extends GdUnitTestSuite
 
-const CameraScript = preload("res://src/phase0/orbital_camera.gd")
+const CameraScript = preload("res://src/game/orbital_camera.gd")
 
 
 # --- Helpers ---

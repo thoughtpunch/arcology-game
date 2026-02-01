@@ -38,7 +38,7 @@ arcology/
    ui/
  scenes/
    main.tscn
-   phase0_sandbox.tscn
+   main.tscn
  shaders/
  assets/
  data/
@@ -47,7 +47,7 @@ arcology/
 
 ### 2. Main Scene
 
-Create `scenes/phase0_sandbox.tscn`:
+Create `scenes/main.tscn`:
 - Node3D root
 - Orbital camera (spherical coordinates: azimuth, elevation, distance)
 - DirectionalLight3D for sun
@@ -56,7 +56,7 @@ Create `scenes/phase0_sandbox.tscn`:
 
 ### 3. Camera Controls
 
-3D orbital camera (`src/phase0/orbital_camera.gd`):
+3D orbital camera (`src/game/orbital_camera.gd`):
 - Right-click drag to orbit (azimuth/elevation)
 - WASD to pan relative to camera orientation
 - Q/E for vertical movement
@@ -67,7 +67,7 @@ Create `scenes/phase0_sandbox.tscn`:
 - Smooth interpolation via exponential lerp
 
 ```gdscript
-# src/phase0/orbital_camera.gd
+# src/game/orbital_camera.gd
 extends Node3D
 
 var target: Vector3 = Vector3.ZERO

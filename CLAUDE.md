@@ -189,16 +189,13 @@ arcology/
 │   ├── ui/                ← Views, overlays, narrative
 │   └── agents/            ← AI agent instructions (Ralph)
 ├── src/
-│   ├── phase0/            ← Block stacking sandbox (current active code)
-│   ├── core/              ← Grid, blocks, placement, game state
-│   ├── rendering/         ← 3D block rendering, chunk manager
-│   ├── blocks/            ← Block type implementations
-│   ├── environment/       ← Light, air, noise, safety systems
-│   ├── agents/            ← Residents, needs, behavior trees
-│   ├── transit/           ← Pathfinding, elevators
-│   ├── economy/           ← Budget, rent
+│   ├── game/              ← THE game code (sandbox, blocks, placement, state)
+│   ├── environment/       ← Light, air, noise, safety systems (future)
+│   ├── agents/            ← Residents, needs, behavior trees (future)
+│   ├── transit/           ← Pathfinding, elevators (future)
+│   ├── economy/           ← Budget, rent (future)
 │   └── ui/                ← HUD, overlays, menus, panels
-├── scenes/                ← Godot scenes (phase0_sandbox.tscn, main.tscn)
+├── scenes/                ← Godot scenes (main.tscn)
 ├── shaders/               ← Ghost preview, face highlight, grid overlay
 ├── test/                  ← Unit and integration tests (mirrors src/ structure)
 ├── assets/                ← Audio, fonts, sprites
@@ -209,7 +206,7 @@ arcology/
 
 **3D Architecture Reference:** [documentation/architecture/3d-refactor/specification.md](./documentation/architecture/3d-refactor/specification.md)
 
-**Current Phase:** Phase 0 (Block Stacking Sandbox) — Code in `src/phase0/`, scene: `scenes/phase0_sandbox.tscn`
+**Current State:** Block stacking sandbox — Code in `src/game/`, scene: `scenes/main.tscn`
 
 **Check [documentation/architecture/](./documentation/architecture/) for all milestones.**
 
@@ -251,8 +248,8 @@ enum CubeFace { TOP, BOTTOM, NORTH, SOUTH, EAST, WEST }
 
 ### Adding a Block Type
 1. Add to `data/blocks.json`
-2. Create mesh or use procedural geometry in `src/phase0/`
-3. If special behavior needed, create script in `src/blocks/`
+2. Create mesh or use procedural geometry in `src/game/`
+3. If special behavior needed, add to block definition in blocks.json
 
 ### Adding an Environment System
 1. Create `src/environment/{system}_system.gd`

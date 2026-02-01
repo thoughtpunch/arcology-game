@@ -685,7 +685,7 @@ Phase0Sandbox (Node3D)
 ```
 res://
 ├── scenes/
-│   └── phase0_sandbox.tscn
+│   └── main.tscn
 ├── src/
 │   └── phase0/
 │       ├── sandbox_main.gd         # Main controller
@@ -761,7 +761,7 @@ Phase 0 is complete when:
 ## Notes
 
 **On preserving existing work:**
-- This is a **new scene**: `phase0_sandbox.tscn`
+- This is a **new scene**: `main.tscn`
 - Don't modify existing game scenes or scripts
 - Can share utility code if it exists
 - Once Phase 0 is solid, integrate learnings into main game

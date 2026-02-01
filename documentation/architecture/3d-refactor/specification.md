@@ -723,10 +723,10 @@ Players can dig underground by excavating terrain cubes.
 
 | Current File | Action | Replacement |
 |--------------|--------|-------------|
-| src/core/block_renderer.gd | DELETE | src/rendering/block_renderer_3d.gd |
-| src/core/camera_controller.gd | DELETE | src/core/camera_3d_controller.gd |
-| src/core/input_handler.gd | MODIFY | Update for 3D raycasting |
-| src/core/terrain.gd | DELETE | src/rendering/terrain_3d.gd |
+| src/game/block_renderer.gd | DELETE | src/rendering/block_renderer_3d.gd |
+| src/game/camera_controller.gd | DELETE | src/game/camera_3d_controller.gd |
+| src/game/input_handler.gd | MODIFY | Update for 3D raycasting |
+| src/game/terrain.gd | DELETE | src/rendering/terrain_3d.gd |
 | assets/sprites/blocks/* | ARCHIVE | assets/models/blocks/* |
 | scenes/main.tscn | REPLACE | Node3D-based scene |
 
@@ -734,9 +734,9 @@ Players can dig underground by excavating terrain cubes.
 
 | File | Reason |
 |------|--------|
-| src/core/grid.gd | Pure data, no rendering |
-| src/core/game_state.gd | Pure logic |
-| src/core/block_registry.gd | Block definitions (add mesh refs) |
+| src/game/grid.gd | Pure data, no rendering |
+| src/game/game_state.gd | Pure logic |
+| src/game/block_registry.gd | Block definitions (add mesh refs) |
 | src/ui/* | CanvasLayer stays 2D |
 | src/economy/* | Pure logic |
 | src/agents/* | Pure logic |

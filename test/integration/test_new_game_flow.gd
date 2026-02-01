@@ -5,8 +5,8 @@ extends SceneTree
 var _main_menu_script = preload("res://src/ui/main_menu.gd")
 var _menu_manager_script = preload("res://src/ui/menu_manager.gd")
 var _new_game_menu_script = preload("res://src/ui/new_game_menu.gd")
-var _game_state_script = preload("res://src/core/game_state.gd")
-var _block_registry_script = preload("res://src/core/block_registry.gd")
+var _game_state_script = preload("res://src/game/game_state.gd")
+var _block_registry_script = preload("res://src/game/block_registry.gd")
 
 
 func _init():

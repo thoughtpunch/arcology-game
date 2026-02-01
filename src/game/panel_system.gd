@@ -7,9 +7,9 @@
 ## Interior faces (shared between two blocks) are hidden to avoid overdraw and
 ## to visually communicate the structure's connectivity.
 
-const FaceScript = preload("res://src/phase0/face.gd")
-const PanelMatScript = preload("res://src/phase0/panel_material.gd")
-const GridUtilsScript = preload("res://src/phase0/grid_utils.gd")
+const FaceScript = preload("res://src/game/face.gd")
+const PanelMatScript = preload("res://src/game/panel_material.gd")
+const GridUtilsScript = preload("res://src/game/grid_utils.gd")
 
 const CELL_SIZE: float = 6.0
 const PANEL_INSET: float = 0.15  # Match BLOCK_INSET from sandbox_main

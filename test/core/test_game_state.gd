@@ -20,7 +20,7 @@ func _init() -> void:
 
 func _setup() -> void:
 	# Load the GameState script
-	var GameStateScript = load("res://src/core/game_state.gd")
+	var GameStateScript = load("res://src/game/game_state.gd")
 	game_state = GameStateScript.new()
 
 

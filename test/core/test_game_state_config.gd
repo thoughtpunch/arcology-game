@@ -2,7 +2,7 @@ extends SceneTree
 ## Tests for GameState new game configuration
 ## Verifies: apply_new_game_config, money management, sandbox flags
 
-var _game_state_script = preload("res://src/core/game_state.gd")
+var _game_state_script = preload("res://src/game/game_state.gd")
 
 
 func _init():

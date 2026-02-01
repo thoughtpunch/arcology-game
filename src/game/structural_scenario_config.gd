@@ -79,24 +79,24 @@ func is_within_cantilever_limit(distance: int) -> bool:
 
 ## Check if a build height is within limits.
 ## Always returns true if max_build_height is -1 (unlimited).
-func is_within_build_height(z_level: int) -> bool:
+func is_within_build_height(y_level: int) -> bool:
 	if max_build_height < 0:
 		return true  # Unlimited
-	return z_level <= max_build_height
+	return y_level <= max_build_height
 
 
-## Check if a position is within the build zone (horizontal only).
+## Check if a position is within the build zone (horizontal only: X and Z).
 func is_in_build_zone(pos: Vector3i) -> bool:
 	var min_x: int = build_zone_origin.x
-	var min_y: int = build_zone_origin.y
+	var min_z: int = build_zone_origin.y  # build_zone_origin.y maps to Z axis
 	var max_x: int = build_zone_origin.x + build_zone_size.x
-	var max_y: int = build_zone_origin.y + build_zone_size.y
-	return pos.x >= min_x and pos.x < max_x and pos.y >= min_y and pos.y < max_y
+	var max_z: int = build_zone_origin.y + build_zone_size.y
+	return pos.x >= min_x and pos.x < max_x and pos.z >= min_z and pos.z < max_z
 
 
-## Check if a Z level is within underground limits.
-func is_within_ground_depth(z_level: int) -> bool:
-	return z_level >= -ground_depth
+## Check if a Y level is within underground limits.
+func is_within_ground_depth(y_level: int) -> bool:
+	return y_level >= -ground_depth
 
 
 ## Get the real-time seconds per game hour from day_length_minutes.

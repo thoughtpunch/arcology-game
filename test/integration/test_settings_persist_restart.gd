@@ -3,7 +3,7 @@ extends SceneTree
 ## Tests that settings survive a simulated application restart
 
 const SETTINGS_PATH := "user://settings.json"
-var _persistence_script = preload("res://src/core/settings_persistence.gd")
+var _persistence_script = preload("res://src/game/settings_persistence.gd")
 
 
 func _init():

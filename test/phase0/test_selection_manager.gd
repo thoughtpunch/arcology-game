@@ -3,7 +3,7 @@
 class_name TestSelectionManager
 extends GdUnitTestSuite
 
-const SelectionManagerScript = preload("res://src/phase0/selection_manager.gd")
+const SelectionManagerScript = preload("res://src/game/selection_manager.gd")
 
 var _mgr: RefCounted
 var _selected_signals: Array[int]

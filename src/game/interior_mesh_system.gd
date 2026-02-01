@@ -10,8 +10,8 @@
 ## Spec reference: 3D refactor Section 3.3 — dual mesh per block:
 ##   exterior_mesh (outer shell) + interior_mesh (furniture/fixtures for cutaway)
 
-const FaceScript = preload("res://src/phase0/face.gd")
-const GridUtilsScript = preload("res://src/phase0/grid_utils.gd")
+const FaceScript = preload("res://src/game/face.gd")
+const GridUtilsScript = preload("res://src/game/grid_utils.gd")
 
 const CELL_SIZE: float = 6.0
 const WALL_THICKNESS: float = 0.15  # Match BLOCK_INSET from sandbox_main

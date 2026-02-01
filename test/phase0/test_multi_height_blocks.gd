@@ -4,11 +4,11 @@
 class_name TestMultiHeightBlocks
 extends GdUnitTestSuite
 
-const GridUtilsScript = preload("res://src/phase0/grid_utils.gd")
-const InteriorMeshSystemScript = preload("res://src/phase0/interior_mesh_system.gd")
-const PanelSystemScript = preload("res://src/phase0/panel_system.gd")
-const FaceScript = preload("res://src/phase0/face.gd")
-const BlockDefScript = preload("res://src/phase0/block_definition.gd")
+const GridUtilsScript = preload("res://src/game/grid_utils.gd")
+const InteriorMeshSystemScript = preload("res://src/game/interior_mesh_system.gd")
+const PanelSystemScript = preload("res://src/game/panel_system.gd")
+const FaceScript = preload("res://src/game/face.gd")
+const BlockDefScript = preload("res://src/game/block_definition.gd")
 
 const CELL_SIZE: float = 6.0
 
