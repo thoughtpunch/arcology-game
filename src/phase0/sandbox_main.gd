@@ -1947,13 +1947,13 @@ func _update_selection_label() -> void:
 	## Update the selection count HUD label.
 	if not _selection_label:
 		return
-	var count := selection.get_selected_count()
+	var count: int = selection.get_selected_count()
 	if count == 0:
 		_selection_label.visible = false
 	else:
 		_selection_label.visible = not _ui_hidden
 		if count == 1:
-			var ids := selection.get_selected_ids()
+			var ids: Array[int] = selection.get_selected_ids()
 			var block: RefCounted = placed_blocks.get(ids[0])
 			if block:
 				_selection_label.text = "Selected: %s (#%d)" % [block.definition.display_name, block.id]
