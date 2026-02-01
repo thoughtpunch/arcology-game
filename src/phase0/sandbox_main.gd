@@ -15,10 +15,13 @@ const HelpOverlayScript = preload("res://src/phase0/sandbox_help_overlay.gd")
 const FaceScript = preload("res://src/phase0/face.gd")
 const ScenarioConfigScript = preload("res://src/phase0/scenario_config.gd")
 const ScenarioPickerScript = preload("res://src/phase0/scenario_picker.gd")
+const SelectionManagerScript = preload("res://src/phase0/selection_manager.gd")
 const CELL_SIZE: float = 6.0
 const PLACE_INTERVAL: float = 0.1  # 100ms = 10 blocks/sec
 const BLOCK_INSET: float = 0.15  # Visual gap between adjacent blocks (per side)
 const LOG_PREFIX := "[Sandbox] "
+const SELECTION_EMISSION_ENERGY: float = 0.35
+const SELECTION_OUTLINE_COLOR := Color(0.2, 0.7, 1.0)  # Cyan highlight for selected blocks
 
 # --- Build Zone ---
 # Initialized from _config when scenario is selected.
@@ -29,6 +32,7 @@ var build_zone_size: Vector2i = Vector2i(20, 20)
 var registry: RefCounted
 var current_definition: Resource
 var current_rotation: int = 0
+var selection: RefCounted  # SelectionManager instance
 
 # Occupancy
 var cell_occupancy: Dictionary = {}  # Vector3i -> int (block_id)
@@ -72,6 +76,7 @@ var _building_footprint: int = 0
 var _building_stats_hud: Label
 var _entrance_block_ids: Dictionary = {}  # block_id -> true
 var _has_entrance: bool = false
+var _selection_label: Label
 var _prompt_label: Label
 var _sun: DirectionalLight3D
 var _sky_material: ProceduralSkyMaterial
@@ -96,6 +101,9 @@ func _ready() -> void:
 	_log("Initializing Phase 0 sandbox")
 	registry = RegistryScript.new()
 	current_definition = registry.get_definition("entrance")
+	selection = SelectionManagerScript.new()
+	selection.block_selected.connect(_on_block_selected)
+	selection.block_deselected.connect(_on_block_deselected)
 	_show_scenario_picker()
 
 
@@ -679,7 +687,8 @@ func _setup_ui() -> void:
 	_controls_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
 	_controls_label.text = (
 		"LMB: Place  |  RMB: Remove  |  Double-click: Focus  |  ,/.: Rotate\n"
-		+ "WASD: Pan  |  Q/E: Up/Down  |  Scroll: Zoom  |  Shift+LMB: Zoom  |  RMB: Orbit\n"
+		+ "Ctrl+LMB: Select  |  Shift+LMB: Add to selection  |  Ctrl+Shift+LMB: Deselect\n"
+		+ "WASD: Pan  |  Q/E: Up/Down  |  Scroll: Zoom  |  Shift+RMB: Zoom  |  RMB: Orbit\n"
 		+ "Alt+LMB: Orbit around cursor  |  Shift: Precision  |  Ctrl: Boost\n"
 		+ "F: Frame  |  H: Home  |  `: Hide UI  |  Tab: Cycle Category  |  1-9: Select Block\n"
 		+ "Ctrl+1-9: Save bookmark  |  Alt+1-9: Recall bookmark\n"
@@ -698,6 +707,18 @@ func _setup_ui() -> void:
 	_building_stats_hud.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9, 0.85))
 	_building_stats_hud.visible = false
 	canvas.add_child(_building_stats_hud)
+
+	# Selection label (top-right, below building stats)
+	_selection_label = Label.new()
+	_selection_label.name = "SelectionLabel"
+	_selection_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_selection_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_selection_label.offset_right = -20
+	_selection_label.offset_top = 42
+	_selection_label.add_theme_font_size_override("font_size", 14)
+	_selection_label.add_theme_color_override("font_color", SELECTION_OUTLINE_COLOR)
+	_selection_label.visible = false
+	canvas.add_child(_selection_label)
 
 	# Entrance prompt label
 	_prompt_label = Label.new()
@@ -910,19 +931,27 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			# Alt+LMB is handled by the camera for orbit-around-cursor
-			if event.alt_pressed:
+			# Alt+LMB without Ctrl is handled by the camera for orbit-around-cursor
+			if event.alt_pressed and not event.ctrl_pressed:
 				return
 			if event.pressed:
-				_log("LMB press at screen %s (double=%s)" % [event.position, event.double_click])
+				_log("LMB press at screen %s (double=%s, ctrl=%s, shift=%s, alt=%s)" % [
+					event.position, event.double_click, event.ctrl_pressed,
+					event.shift_pressed, event.alt_pressed])
 				if event.double_click:
 					_focus_camera_on_cursor()
+				elif event.ctrl_pressed or event.shift_pressed:
+					# Selection mode: Ctrl/Shift + click
+					_try_select_block(event.ctrl_pressed, event.shift_pressed, event.alt_pressed)
+					get_viewport().set_input_as_handled()
 				else:
 					_try_place_block()
 					_placing = true
 					_place_cooldown = PLACE_INTERVAL
 			else:
 				_placing = false
+		elif event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+			_placing = false
 		elif event.button_index == MOUSE_BUTTON_RIGHT and not event.pressed:
 			# Right-click release — only arrives here if the camera didn't
 			# consume it (meaning it was a tap, not an orbit drag).
@@ -1016,6 +1045,8 @@ func _toggle_ui() -> void:
 		_prompt_label.visible = not _ui_hidden and not _has_entrance
 	if _building_stats_hud:
 		_building_stats_hud.visible = not _ui_hidden and not placed_blocks.is_empty()
+	if _selection_label:
+		_selection_label.visible = not _ui_hidden and selection.get_selected_count() > 0
 	_log("UI hidden: %s" % _ui_hidden)
 
 
@@ -1187,6 +1218,7 @@ func remove_block(block_id: int) -> void:
 		_has_entrance = _entrance_block_ids.size() > 0
 		_update_entrance_prompt()
 
+	selection.on_block_removed(block_id)
 	_animate_removal(block.node)
 	placed_blocks.erase(block_id)
 	_recompute_building_stats()
@@ -1659,6 +1691,49 @@ func _raycast_from_mouse() -> Dictionary:
 	return {"hit": false}
 
 
+func _raycast_from_mouse_excluding(exclude_rids: Array[RID]) -> Dictionary:
+	## Raycast from mouse position, excluding specific physics bodies.
+	## Used for select-through (Alt+click) to ignore the topmost hit.
+	var viewport := get_viewport()
+	if not viewport:
+		return {}
+	var camera := viewport.get_camera_3d()
+	if not camera:
+		return {}
+
+	var mouse_pos := viewport.get_mouse_position()
+	var from := camera.project_ray_origin(mouse_pos)
+	var dir := camera.project_ray_normal(mouse_pos)
+	var to := from + dir * 2000.0
+
+	var space := get_world_3d().direct_space_state
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = 1
+	query.exclude = exclude_rids
+
+	var result := space.intersect_ray(query)
+
+	if result:
+		var hit_pos: Vector3 = result.position
+		var hit_normal: Vector3 = result.normal
+		return {
+			"hit": true,
+			"position": hit_pos,
+			"normal": hit_normal,
+			"collider": result.collider,
+			"grid_pos":
+			(
+				GridUtilsScript
+				. world_to_grid(
+					hit_pos - hit_normal * 0.01,
+				)
+			),
+			"face": FaceScript.from_normal(hit_normal),
+		}
+
+	return {"hit": false}
+
+
 # --- Placement / Removal ---
 
 
@@ -1768,6 +1843,124 @@ func _try_remove_block() -> void:
 		remove_block(block_id)
 	else:
 		_log("Remove: no block found at hit position")
+
+
+# --- Selection ---
+
+
+func _try_select_block(ctrl: bool, shift: bool, alt: bool) -> void:
+	## Handle selection click with modifier keys.
+	## Ctrl+click = select/toggle single block
+	## Shift+click = add to selection
+	## Ctrl+Shift+click = explicitly remove from selection
+	## Ctrl+Alt+click = select-through (ignore topmost, pick block behind)
+	var hit: Dictionary
+	if alt:
+		# Select-through: first raycast to find topmost, then exclude it
+		var first_hit := _raycast_from_mouse()
+		if first_hit.is_empty() or not first_hit.get("hit", false):
+			_log("Select-through: no first hit")
+			selection.clear()
+			return
+		var exclude_collider = first_hit.get("collider")
+		if exclude_collider and exclude_collider is CollisionObject3D:
+			hit = _raycast_from_mouse_excluding([exclude_collider.get_rid()])
+		else:
+			hit = first_hit
+	else:
+		hit = _raycast_from_mouse()
+
+	if hit.is_empty() or not hit.get("hit", false):
+		_log("Select: no hit — clearing selection")
+		selection.clear()
+		return
+
+	var collider = hit.get("collider")
+
+	# Clicking on ground or empty space = clear selection
+	if not collider or (collider and collider.has_meta("is_ground")):
+		_log("Select: hit ground — clearing selection")
+		selection.clear()
+		return
+
+	# Find the block_id from the collider
+	var block_id: int = -1
+	if collider.has_meta("block_id"):
+		block_id = collider.get_meta("block_id")
+	elif hit.has("grid_pos") and cell_occupancy.has(hit.grid_pos):
+		block_id = cell_occupancy[hit.grid_pos]
+
+	if block_id <= 0:
+		_log("Select: no valid block at hit — clearing selection")
+		selection.clear()
+		return
+
+	if ctrl and shift:
+		# Ctrl+Shift+click = explicitly remove from selection
+		_log("Select: Ctrl+Shift+click — removing block #%d from selection" % block_id)
+		selection.remove_from_selection(block_id)
+	elif shift:
+		# Shift+click = add to selection
+		_log("Select: Shift+click — adding block #%d to selection" % block_id)
+		selection.add_to_selection(block_id)
+	elif ctrl:
+		# Ctrl+click = toggle (select if not selected, deselect if selected)
+		if selection.is_selected(block_id):
+			_log("Select: Ctrl+click — toggling OFF block #%d" % block_id)
+			selection.remove_from_selection(block_id)
+		else:
+			_log("Select: Ctrl+click — selecting block #%d" % block_id)
+			selection.select(block_id)
+
+
+func _on_block_selected(block_id: int) -> void:
+	## Apply selection highlight to a block.
+	if not placed_blocks.has(block_id):
+		return
+	var block: RefCounted = placed_blocks[block_id]
+	if not is_instance_valid(block.node):
+		return
+	var mesh_inst: MeshInstance3D = block.node.get_child(0)
+	if mesh_inst and mesh_inst.material_override is StandardMaterial3D:
+		var mat: StandardMaterial3D = mesh_inst.material_override
+		mat.emission = SELECTION_OUTLINE_COLOR
+		mat.emission_energy_multiplier = SELECTION_EMISSION_ENERGY
+	_update_selection_label()
+
+
+func _on_block_deselected(block_id: int) -> void:
+	## Remove selection highlight from a block.
+	if not placed_blocks.has(block_id):
+		return
+	var block: RefCounted = placed_blocks[block_id]
+	if not is_instance_valid(block.node):
+		return
+	var mesh_inst: MeshInstance3D = block.node.get_child(0)
+	if mesh_inst and mesh_inst.material_override is StandardMaterial3D:
+		var mat: StandardMaterial3D = mesh_inst.material_override
+		mat.emission = Color.WHITE
+		mat.emission_energy_multiplier = 0.0
+	_update_selection_label()
+
+
+func _update_selection_label() -> void:
+	## Update the selection count HUD label.
+	if not _selection_label:
+		return
+	var count := selection.get_selected_count()
+	if count == 0:
+		_selection_label.visible = false
+	else:
+		_selection_label.visible = not _ui_hidden
+		if count == 1:
+			var ids := selection.get_selected_ids()
+			var block: RefCounted = placed_blocks.get(ids[0])
+			if block:
+				_selection_label.text = "Selected: %s (#%d)" % [block.definition.display_name, block.id]
+			else:
+				_selection_label.text = "Selected: 1 block"
+		else:
+			_selection_label.text = "Selected: %d blocks" % count
 
 
 # --- Debug Panel / Time of Day ---
