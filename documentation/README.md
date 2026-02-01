@@ -76,8 +76,8 @@ documentation/
 
 ## Key Concepts (Memorize These)
 
-### 1. Everything Is Blocks
-The world is a 3D voxel grid. Every structure = blocks snapped to grid.
+### 1. Everything Is Cells
+The world is a 3D orthogonal grid of **cells** (6m×6m×6m cubes). Every structure = blocks snapped to cell grid. Cells have 6 faces (TOP, BOTTOM, NORTH, SOUTH, EAST, WEST). Coordinate system is Y-up (X = east, Y = up, Z = north).
 
 ### 2. Public vs Private Blocks
 - **Private** (apartment, restaurant): Pathfinding goes TO it
@@ -106,8 +106,10 @@ Lower needs must be met before higher ones matter.
 | What | Choice |
 |------|--------|
 | Engine | Godot 4.x |
+| Renderer | Vulkan / Forward+ |
 | Language | GDScript (C# for performance-critical) |
-| Art | 3D blocks (procedural geometry, placeholder) |
+| Art | 3D blocks (procedural geometry, stylized realism) |
+| Camera | Free orbital + orthographic snap modes |
 | Data | JSON configs, Godot Resources |
 
 ---
@@ -115,6 +117,8 @@ Lower needs must be met before higher ones matter.
 ## Current Development Phase
 
 **Check [Architecture](./architecture/) for current milestone.**
+
+**3D Architecture Reference:** [architecture/3d-refactor/specification.md](./architecture/3d-refactor/specification.md)
 
 - Milestones 0-10 = Core game loop
 - Milestones 11-22 = Depth features
@@ -134,7 +138,7 @@ Lower needs must be met before higher ones matter.
 |------|-----------|
 | Adding a block type | [blocks/README.md](./game-design/blocks/) |
 | Adding environment system | [environment/README.md](./game-design/environment/) |
-| Grid math (3D) | `src/phase0/grid_utils.gd` |
+| Grid math (3D) | [3d-grid-math.md](./quick-reference/3d-grid-math.md), `src/phase0/grid_utils.gd` |
 | Game formulas | [formulas.md](./quick-reference/formulas.md) |
 | Code style | [code-conventions.md](./quick-reference/code-conventions.md) |
 
@@ -144,5 +148,7 @@ Lower needs must be met before higher ones matter.
 
 - [Glossary](./quick-reference/glossary.md) - All game terms defined
 - [Formulas](./quick-reference/formulas.md) - All calculations
+- [3D Grid Math](./quick-reference/3d-grid-math.md) - Coordinate system, conversions
+- [3D Refactor Spec](./architecture/3d-refactor/specification.md) - Full 3D architecture
 - [Block Catalog](./game-design/blocks/) - All block types
 - [Milestones](./architecture/milestones/) - Build order
