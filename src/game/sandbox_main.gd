@@ -25,6 +25,8 @@ const CoreScenarioConfigScript = preload("res://src/game/structural_scenario_con
 const ViewCubeScript = preload("res://src/ui/view_cube.gd")
 const LODManagerScript = preload("res://src/game/lod_manager.gd")
 const VisibilityControllerScript = preload("res://src/game/visibility_controller.gd")
+const UndergroundWallScript = preload("res://src/game/underground_wall_system.gd")
+const ExcavationSystemScript = preload("res://src/game/excavation_system.gd")
 const CELL_SIZE: float = 6.0
 const PLACE_INTERVAL: float = 0.1  # 100ms = 10 blocks/sec
 const BLOCK_INSET: float = 0.15  # Visual gap between adjacent blocks (per side)
@@ -51,6 +53,9 @@ var next_block_id: int = 1
 # --- Scenario Config ---
 var _config: RefCounted = null
 
+# --- GameState reference (autoload) ---
+var _game_state: Node = null
+
 # --- Core Placement Validator ---
 var _placement_validator: RefCounted = null
 
@@ -60,6 +65,10 @@ var _lod_manager: RefCounted = null
 # --- Visibility Controller ---
 var _visibility_controller: RefCounted = null
 var _visibility_label: Label
+
+# --- Underground Wall System ---
+var _underground_wall_system: RefCounted = null
+var _underground_wall_container: Node3D
 
 # Node references
 var _camera: Node3D
@@ -128,6 +137,8 @@ static func _log(msg: String) -> void:
 
 func _ready() -> void:
 	_log("Initializing Phase 0 sandbox")
+	# Get GameState autoload reference
+	_game_state = get_node_or_null("/root/GameState")
 	registry = RegistryScript.new()
 	current_definition = registry.get_definition("entrance")
 	selection = SelectionManagerScript.new()
@@ -308,6 +319,14 @@ func _setup_ground() -> void:
 	col_shape.position = Vector3(half, -total_depth / 2.0, half)
 	static_body.add_child(col_shape)
 	ground_container.add_child(static_body)
+
+	# Setup underground wall system
+	_underground_wall_container = Node3D.new()
+	_underground_wall_container.name = "UndergroundWalls"
+	ground_container.add_child(_underground_wall_container)
+	_underground_wall_system = UndergroundWallScript.new()
+	_underground_wall_system.setup(_underground_wall_container, cell_occupancy, gd)
+
 	_log(
 		(
 			"Ground ready: %d layers, %dx%d cells, %d total ground cells"
@@ -367,6 +386,10 @@ func _remove_ground_cell(grid_pos: Vector3i) -> void:
 
 	# Add a grid overlay at the newly exposed floor level
 	_add_grid_at_y(grid_pos.y)
+
+	# Generate underground walls for this excavated cell
+	if _underground_wall_system:
+		_underground_wall_system.on_cell_excavated(grid_pos)
 
 
 func _setup_grid_overlay() -> void:
@@ -979,7 +1002,9 @@ func _apply_xray_to_panels(enable: bool) -> void:
 func _update_visibility_label() -> void:
 	if not _visibility_label:
 		return
-	var status := _visibility_controller.get_status_string()
+	if not _visibility_controller:
+		return
+	var status: String = _visibility_controller.get_status_string()
 	_visibility_label.text = status
 	_visibility_label.visible = status.length() > 0
 
@@ -1411,6 +1436,21 @@ func get_entrance_positions() -> Array[Vector3i]:
 	return positions
 
 
+func get_excavation_data() -> Dictionary:
+	## Returns excavation state for save/load.
+	## Includes underground wall system state and excavated cell positions.
+	if _underground_wall_system:
+		return _underground_wall_system.serialize()
+	return {"excavated_cells": []}
+
+
+func load_excavation_data(data: Dictionary) -> void:
+	## Restores excavation state from save data.
+	## Call this AFTER ground is set up but BEFORE blocks are placed.
+	if _underground_wall_system and data.has("excavated_cells"):
+		_underground_wall_system.deserialize(data)
+
+
 func _is_supported(cells: Array[Vector3i], definition: Resource) -> bool:
 	## Entrance blocks: need ground (occupancy -1) directly below at least one cell.
 	## All other blocks: need face-adjacency to a placed block (occupancy > 0).
@@ -1514,8 +1554,9 @@ func place_block(definition: Resource, origin: Vector3i, rot: int) -> RefCounted
 
 	# Cost check: deduct from treasury (skip if cost is 0)
 	var block_cost: int = definition.cost
-	if block_cost > 0 and not GameState.spend_money(block_cost):
-		_log("place_block FAILED: cannot afford %s (cost=%d, funds=%d)" % [definition.id, block_cost, GameState.get_money()])
+	if block_cost > 0 and _game_state and not _game_state.spend_money(block_cost):
+		var current_funds: int = _game_state.get_money() if _game_state else 0
+		_log("place_block FAILED: cannot afford %s (cost=%d, funds=%d)" % [definition.id, block_cost, current_funds])
 		_show_removal_warning("Not enough funds ($%d needed)" % block_cost)
 		return null
 
@@ -1594,8 +1635,8 @@ func remove_block(block_id: int) -> void:
 
 	# Refund block cost
 	var refund: int = block.definition.cost
-	if refund > 0:
-		GameState.add_money(refund)
+	if refund > 0 and _game_state:
+		_game_state.add_money(refund)
 
 	for cell in block.occupied_cells:
 		cell_occupancy.erase(cell)
@@ -2096,12 +2137,26 @@ func _update_ghost() -> void:
 	var cell_center := GridUtilsScript.grid_to_world_center(hit.grid_pos)
 	_face_highlight.transform = FaceScript.get_face_transform(face, cell_center, CELL_SIZE)
 	_face_highlight.visible = true
+	# Show excavation cost preview when hovering over ground
+	var excavation_info := ""
+	if collider and collider.has_meta("is_ground"):
+		var top_y := _find_top_ground_y(hit.grid_pos.x, hit.grid_pos.z)
+		if top_y >= -(_config.ground_depth) and top_y > -_config.ground_depth:
+			var excavation_cost: int = ExcavationSystemScript.calculate_excavation_cost(top_y)
+			var can_afford: bool = _game_state.can_afford(excavation_cost) if _game_state else true
+			var cost_str: String = ExcavationSystemScript.format_cost(excavation_cost)
+			var depth_cat: String = ExcavationSystemScript.get_depth_category(top_y)
+			excavation_info = "  |  RMB to excavate %s (%s)%s" % [
+				depth_cat, cost_str, "" if can_afford else " [Can't afford]"
+			]
+
 	_face_label.text = (
-		"Face: %s  |  Rotation: %d\u00b0  |  %s"
+		"Face: %s  |  Rotation: %d\u00b0  |  %s%s"
 		% [
 			FaceScript.to_label(face),
 			current_rotation,
 			current_definition.display_name,
+			excavation_info,
 		]
 	)
 	_face_label.visible = true
@@ -2328,6 +2383,16 @@ func _try_remove_block() -> void:
 				_log("Remove REJECTED: ground %s would orphan blocks above" % cell)
 				_show_removal_warning("Cannot remove: would leave blocks unsupported")
 				return
+			# Check excavation cost
+			var excavation_cost: int = ExcavationSystemScript.calculate_excavation_cost(cell.y)
+			if excavation_cost > 0 and not GameState.can_afford(excavation_cost):
+				_log("Excavate REJECTED: cannot afford %d for cell %s" % [excavation_cost, cell])
+				_show_removal_warning("Cannot afford excavation (%s)" % ExcavationSystemScript.format_cost(excavation_cost))
+				return
+			# Deduct cost and excavate
+			if excavation_cost > 0:
+				GameState.spend_money(excavation_cost)
+				_log("Excavation cost: %s for %s" % [ExcavationSystemScript.format_cost(excavation_cost), cell])
 			_log("Removing ground cell %s" % cell)
 			_remove_ground_cell(cell)
 		return
