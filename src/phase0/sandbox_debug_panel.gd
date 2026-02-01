@@ -65,6 +65,8 @@ func _setup_layout() -> void:
 	_panel_bg.offset_left = -PANEL_WIDTH - 12
 	_panel_bg.offset_right = -12
 	_panel_bg.offset_top = 12
+	_panel_bg.anchor_bottom = 1.0
+	_panel_bg.offset_bottom = -12
 	_panel_bg.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 
 	var style := StyleBoxFlat.new()
