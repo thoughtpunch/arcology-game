@@ -44,6 +44,10 @@ extends Node3D
 ##   Ctrl+1-9: Save camera bookmark to slot
 ##   Alt+1-9: Recall camera bookmark from slot
 ##
+## Keyboard — Path Recording:
+##   Ctrl+R: Start/stop recording camera path (captures keyframes)
+##   Ctrl+P: Start/stop playback of recorded path (smooth interpolation, loops)
+##
 ## Right-click behavior:
 ##   A right-click that is released without significant mouse movement
 ##   is NOT consumed by the camera, allowing the parent scene to handle
@@ -135,8 +139,23 @@ var _history_index: int = -1
 # Bookmarks (slots 0-8, mapped to keys 1-9)
 var _bookmarks: Dictionary = {}  # int -> Dictionary (slot -> camera state)
 
+# Path recording and playback
+var _path_keyframes: Array[Dictionary] = []  # Recorded camera path keyframes
+var _is_recording: bool = false
+var _is_playing: bool = false
+var _playback_time: float = 0.0
+var _playback_speed: float = 1.0  # Units per second (adjustable)
+const PATH_PLAYBACK_DURATION: float = 2.0  # Seconds between keyframes during playback
+const MIN_KEYFRAME_INTERVAL: float = 0.5  # Minimum seconds between auto-captured keyframes
+var _last_keyframe_time: float = 0.0
+
 signal bookmark_saved(slot: int)
 signal bookmark_recalled(slot: int)
+signal path_recording_started()
+signal path_recording_stopped(keyframe_count: int)
+signal path_playback_started(keyframe_count: int)
+signal path_playback_stopped()
+signal path_keyframe_added(index: int)
 
 
 func _ready() -> void:
@@ -175,8 +194,11 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_update_speed_factors()
-	_handle_keyboard(delta)
+	if _is_playing:
+		_update_playback(delta)
+	else:
+		_update_speed_factors()
+		_handle_keyboard(delta)
 	_smooth_interpolate(delta)
 	_update_camera_position()
 
@@ -529,6 +551,18 @@ func _handle_magnify_gesture(event: InputEventMagnifyGesture) -> void:
 
 
 func _handle_key(event: InputEventKey) -> void:
+	# Ctrl+R: toggle path recording
+	if event.keycode == KEY_R and event.ctrl_pressed and not event.alt_pressed:
+		toggle_path_recording()
+		get_viewport().set_input_as_handled()
+		return
+
+	# Ctrl+P: toggle path playback
+	if event.keycode == KEY_P and event.ctrl_pressed and not event.alt_pressed:
+		toggle_path_playback()
+		get_viewport().set_input_as_handled()
+		return
+
 	# Ctrl+1-9: save bookmark, Alt+1-9: recall bookmark
 	if event.keycode >= KEY_1 and event.keycode <= KEY_9:
 		var slot: int = event.keycode - KEY_1  # 0-8
@@ -804,3 +838,184 @@ func _restore_history(state: Dictionary) -> void:
 	_target_azimuth = state.azimuth
 	_target_elevation = state.elevation
 	_target_distance = state.distance
+
+
+# --- Path Recording and Playback ---
+
+
+func toggle_path_recording() -> void:
+	## Toggle camera path recording on/off.
+	## When recording starts, clears any existing path.
+	## When recording stops, the path is ready for playback.
+	if _is_playing:
+		stop_path_playback()
+	if _is_recording:
+		stop_path_recording()
+	else:
+		start_path_recording()
+
+
+func start_path_recording() -> void:
+	## Start recording camera path. Clears any existing keyframes.
+	_is_recording = true
+	_path_keyframes.clear()
+	_last_keyframe_time = 0.0
+	# Capture initial keyframe
+	add_path_keyframe()
+	path_recording_started.emit()
+	_log("Path recording started")
+
+
+func stop_path_recording() -> void:
+	## Stop recording camera path.
+	_is_recording = false
+	var count := _path_keyframes.size()
+	path_recording_stopped.emit(count)
+	_log("Path recording stopped (%d keyframes)" % count)
+
+
+func add_path_keyframe() -> void:
+	## Add current camera state as a path keyframe.
+	var keyframe := {
+		"target": _target_target,
+		"azimuth": _target_azimuth,
+		"elevation": _target_elevation,
+		"distance": _target_distance,
+		"fov": _target_fov,
+		"is_orthographic": is_orthographic,
+		"time": Time.get_ticks_msec() / 1000.0,
+	}
+	_path_keyframes.append(keyframe)
+	_last_keyframe_time = keyframe.time
+	var idx := _path_keyframes.size() - 1
+	path_keyframe_added.emit(idx)
+	_log("Path keyframe %d added (target=%s az=%.0f el=%.0f)" % [
+		idx, _target_target, _target_azimuth, _target_elevation])
+
+
+func is_recording_path() -> bool:
+	## Returns true if currently recording a camera path.
+	return _is_recording
+
+
+func get_path_keyframe_count() -> int:
+	## Returns the number of recorded keyframes.
+	return _path_keyframes.size()
+
+
+func clear_path() -> void:
+	## Clear all recorded keyframes.
+	_path_keyframes.clear()
+	_log("Path cleared")
+
+
+func toggle_path_playback() -> void:
+	## Toggle camera path playback on/off.
+	if _is_recording:
+		stop_path_recording()
+	if _is_playing:
+		stop_path_playback()
+	else:
+		start_path_playback()
+
+
+func start_path_playback() -> void:
+	## Start playing back the recorded camera path.
+	if _path_keyframes.size() < 2:
+		_log("Path playback requires at least 2 keyframes (have %d)" % _path_keyframes.size())
+		return
+	_is_playing = true
+	_playback_time = 0.0
+	# Set camera to first keyframe immediately
+	var first: Dictionary = _path_keyframes[0]
+	_target_target = first.target
+	_target_azimuth = first.azimuth
+	_target_elevation = first.elevation
+	_target_distance = first.distance
+	_target_fov = first.fov
+	if first.is_orthographic != is_orthographic:
+		_toggle_orthographic()
+	path_playback_started.emit(_path_keyframes.size())
+	_log("Path playback started (%d keyframes)" % _path_keyframes.size())
+
+
+func stop_path_playback() -> void:
+	## Stop path playback.
+	_is_playing = false
+	path_playback_stopped.emit()
+	_log("Path playback stopped")
+
+
+func is_playing_path() -> bool:
+	## Returns true if currently playing back a camera path.
+	return _is_playing
+
+
+func set_playback_speed(speed: float) -> void:
+	## Set the playback speed multiplier (default 1.0).
+	_playback_speed = maxf(0.1, speed)
+	_log("Playback speed set to %.1fx" % _playback_speed)
+
+
+func get_playback_speed() -> float:
+	## Get the current playback speed multiplier.
+	return _playback_speed
+
+
+func _update_playback(delta: float) -> void:
+	## Update playback position and interpolate camera state.
+	if not _is_playing or _path_keyframes.size() < 2:
+		return
+
+	_playback_time += delta * _playback_speed
+
+	# Calculate total path duration (keyframes evenly spaced)
+	var segment_count := _path_keyframes.size() - 1
+	var total_duration := segment_count * PATH_PLAYBACK_DURATION
+
+	# Loop or stop at end
+	if _playback_time >= total_duration:
+		# Loop back to start
+		_playback_time = fmod(_playback_time, total_duration)
+
+	# Find current segment and interpolation factor
+	var segment_index := int(_playback_time / PATH_PLAYBACK_DURATION)
+	segment_index = clampi(segment_index, 0, segment_count - 1)
+	var segment_t := fmod(_playback_time, PATH_PLAYBACK_DURATION) / PATH_PLAYBACK_DURATION
+
+	# Get keyframes for current segment
+	var kf_a: Dictionary = _path_keyframes[segment_index]
+	var kf_b: Dictionary = _path_keyframes[segment_index + 1]
+
+	# Smooth interpolation using smoothstep for easing
+	var t := _smoothstep(segment_t)
+
+	# Interpolate camera state
+	_target_target = kf_a.target.lerp(kf_b.target, t)
+	_target_azimuth = lerpf(kf_a.azimuth, kf_b.azimuth, t)
+	_target_elevation = lerpf(kf_a.elevation, kf_b.elevation, t)
+	_target_distance = lerpf(kf_a.distance, kf_b.distance, t)
+	_target_fov = lerpf(kf_a.fov, kf_b.fov, t)
+
+	# Handle orthographic transitions at segment boundaries
+	if kf_a.is_orthographic != kf_b.is_orthographic and segment_t > 0.5:
+		if is_orthographic != kf_b.is_orthographic:
+			_toggle_orthographic()
+	elif kf_a.is_orthographic != is_orthographic:
+		_toggle_orthographic()
+
+
+func _smoothstep(t: float) -> float:
+	## Hermite smoothstep for smooth easing: 3t² - 2t³
+	return t * t * (3.0 - 2.0 * t)
+
+
+func get_path_keyframes() -> Array[Dictionary]:
+	## Returns a copy of the recorded keyframes.
+	return _path_keyframes.duplicate()
+
+
+func set_path_keyframes(keyframes: Array[Dictionary]) -> void:
+	## Set keyframes directly (for loading saved paths).
+	_path_keyframes = keyframes.duplicate()
+	_log("Path loaded (%d keyframes)" % _path_keyframes.size())
