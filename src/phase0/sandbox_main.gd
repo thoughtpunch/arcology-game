@@ -682,6 +682,7 @@ func _setup_ui() -> void:
 		+ "WASD: Pan  |  Q/E: Up/Down  |  Scroll: Zoom  |  Shift+LMB: Zoom  |  RMB: Orbit\n"
 		+ "Alt+LMB: Orbit around cursor  |  Shift: Precision  |  Ctrl: Boost\n"
 		+ "F: Frame  |  H: Home  |  `: Hide UI  |  Tab: Cycle Category  |  1-9: Select Block\n"
+		+ "Ctrl+1-9: Save bookmark  |  Alt+1-9: Recall bookmark\n"
 		+ "F1/?: Help  |  F3: Debug  |  ESC: Pause"
 	)
 	canvas.add_child(_controls_label)
@@ -690,7 +691,7 @@ func _setup_ui() -> void:
 	_building_stats_hud = Label.new()
 	_building_stats_hud.name = "BuildingStatsHUD"
 	_building_stats_hud.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_building_stats_hud.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_building_stats_hud.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_building_stats_hud.offset_right = -20
 	_building_stats_hud.offset_top = 20
 	_building_stats_hud.add_theme_font_size_override("font_size", 15)

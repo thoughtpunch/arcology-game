@@ -35,6 +35,10 @@ extends Node3D
 ##   Numpad 7: Top view
 ##   Numpad 5: Toggle perspective / orthographic
 ##
+## Keyboard — Bookmarks:
+##   Ctrl+1-9: Save camera bookmark to slot
+##   Alt+1-9: Recall camera bookmark from slot
+##
 ## Right-click behavior:
 ##   A right-click that is released without significant mouse movement
 ##   is NOT consumed by the camera, allowing the parent scene to handle
@@ -119,6 +123,12 @@ var _prev_speed_mode: String = "normal"
 # History
 var _history: Array[Dictionary] = []
 var _history_index: int = -1
+
+# Bookmarks (slots 0-8, mapped to keys 1-9)
+var _bookmarks: Dictionary = {}  # int -> Dictionary (slot -> camera state)
+
+signal bookmark_saved(slot: int)
+signal bookmark_recalled(slot: int)
 
 
 func _ready() -> void:
@@ -463,6 +473,18 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 
 
 func _handle_key(event: InputEventKey) -> void:
+	# Ctrl+1-9: save bookmark, Alt+1-9: recall bookmark
+	if event.keycode >= KEY_1 and event.keycode <= KEY_9:
+		var slot: int = event.keycode - KEY_1  # 0-8
+		if event.ctrl_pressed and not event.alt_pressed:
+			save_bookmark(slot)
+			get_viewport().set_input_as_handled()
+			return
+		elif event.alt_pressed and not event.ctrl_pressed:
+			recall_bookmark(slot)
+			get_viewport().set_input_as_handled()
+			return
+
 	match event.keycode:
 		KEY_H:
 			go_home()
@@ -595,6 +617,67 @@ func go_home() -> void:
 	_target_elevation = _home_elevation
 	_target_distance = _home_distance
 	_log("Go home")
+
+
+# --- Bookmarks ---
+
+
+func save_bookmark(slot: int) -> void:
+	## Save current camera state to a bookmark slot (0-8).
+	_bookmarks[slot] = {
+		"target": _target_target,
+		"azimuth": _target_azimuth,
+		"elevation": _target_elevation,
+		"distance": _target_distance,
+		"fov": _target_fov,
+		"is_orthographic": is_orthographic,
+	}
+	bookmark_saved.emit(slot)
+	_log("Bookmark %d saved (target=%s az=%.0f el=%.0f dist=%.0f fov=%.0f)" % [
+		slot + 1, _target_target, _target_azimuth, _target_elevation,
+		_target_distance, _target_fov])
+
+
+func recall_bookmark(slot: int) -> void:
+	## Recall a previously saved bookmark. Does nothing if slot is empty.
+	if not _bookmarks.has(slot):
+		_log("Bookmark %d is empty" % (slot + 1))
+		return
+	_push_history()
+	var state: Dictionary = _bookmarks[slot]
+	_target_target = state.target
+	_target_azimuth = state.azimuth
+	_target_elevation = state.elevation
+	_target_distance = state.distance
+	_target_fov = state.fov
+	if state.is_orthographic != is_orthographic:
+		_toggle_orthographic()
+	bookmark_recalled.emit(slot)
+	_log("Bookmark %d recalled (target=%s az=%.0f el=%.0f dist=%.0f fov=%.0f)" % [
+		slot + 1, _target_target, _target_azimuth, _target_elevation,
+		_target_distance, _target_fov])
+
+
+func has_bookmark(slot: int) -> bool:
+	## Returns true if the given bookmark slot has been saved.
+	return _bookmarks.has(slot)
+
+
+func get_bookmark(slot: int) -> Dictionary:
+	## Returns the bookmark state at the given slot, or empty dict if not set.
+	return _bookmarks.get(slot, {})
+
+
+func clear_bookmark(slot: int) -> void:
+	## Clear a bookmark slot.
+	_bookmarks.erase(slot)
+	_log("Bookmark %d cleared" % (slot + 1))
+
+
+func clear_all_bookmarks() -> void:
+	## Clear all bookmark slots.
+	_bookmarks.clear()
+	_log("All bookmarks cleared")
 
 
 # --- Orthographic Views ---
