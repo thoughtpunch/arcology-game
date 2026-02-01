@@ -24,6 +24,7 @@ const PlacementValidatorScript = preload("res://src/game/placement_validator.gd"
 const CoreScenarioConfigScript = preload("res://src/game/structural_scenario_config.gd")
 const ViewCubeScript = preload("res://src/ui/view_cube.gd")
 const LODManagerScript = preload("res://src/game/lod_manager.gd")
+const VisibilityControllerScript = preload("res://src/game/visibility_controller.gd")
 const CELL_SIZE: float = 6.0
 const PLACE_INTERVAL: float = 0.1  # 100ms = 10 blocks/sec
 const BLOCK_INSET: float = 0.15  # Visual gap between adjacent blocks (per side)
@@ -55,6 +56,10 @@ var _placement_validator: RefCounted = null
 
 # --- LOD Manager ---
 var _lod_manager: RefCounted = null
+
+# --- Visibility Controller ---
+var _visibility_controller: RefCounted = null
+var _visibility_label: Label
 
 # Node references
 var _camera: Node3D
@@ -181,6 +186,7 @@ func _build_world() -> void:
 	_setup_ui()
 	_setup_audio()
 	_setup_lod()
+	_setup_visibility_controller()
 	_log(
 		(
 			"=== Sandbox ready: %d block types, build zone %s+%s, scenario=%s ==="
@@ -716,6 +722,17 @@ func _setup_ui() -> void:
 	_warning_label.visible = false
 	canvas.add_child(_warning_label)
 
+	# Visibility mode label (below warning label)
+	_visibility_label = Label.new()
+	_visibility_label.name = "VisibilityLabel"
+	_visibility_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_visibility_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_visibility_label.offset_top = 48
+	_visibility_label.add_theme_font_size_override("font_size", 18)
+	_visibility_label.add_theme_color_override("font_color", Color(0.3, 0.9, 1.0))
+	_visibility_label.visible = false
+	canvas.add_child(_visibility_label)
+
 	_face_label = Label.new()
 	_face_label.name = "FaceLabel"
 	_face_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
@@ -752,6 +769,7 @@ func _setup_ui() -> void:
 		+ "Alt+LMB: Orbit around cursor  |  Shift: Precision  |  Ctrl: Boost\n"
 		+ "F: Frame  |  H: Home  |  `: Hide UI  |  Tab: Cycle Category  |  1-9: Select Block\n"
 		+ "Ctrl+1-9: Save bookmark  |  Alt+1-9: Recall bookmark\n"
+		+ "X: X-ray mode  |  [/]: Adjust opacity  |  0/ESC: Normal mode\n"
 		+ "F1/?: Help  |  F3: Debug  |  ESC: Pause"
 	)
 	canvas.add_child(_controls_label)
@@ -860,6 +878,66 @@ func _setup_lod() -> void:
 	_lod_manager.set_camera(_camera.camera)
 	_lod_manager.enable()
 	_log("LOD manager ready (thresholds: LOD0<50m, LOD1<150m, LOD2<400m)")
+
+
+func _setup_visibility_controller() -> void:
+	_visibility_controller = VisibilityControllerScript.new()
+	_visibility_controller.mode_changed.connect(_on_visibility_mode_changed)
+	_visibility_controller.xray_opacity_changed.connect(_on_xray_opacity_changed)
+	_log("Visibility controller ready")
+
+
+func _on_visibility_mode_changed(new_mode: int) -> void:
+	_update_visibility_label()
+	# When entering X-ray mode, mark all panels as exterior
+	if new_mode == VisibilityControllerScript.Mode.XRAY:
+		_apply_xray_to_panels(true)
+	else:
+		_apply_xray_to_panels(false)
+
+
+func _on_xray_opacity_changed(_opacity: float) -> void:
+	_update_visibility_label()
+	# Update panel transparency if in X-ray mode
+	if _visibility_controller.current_mode == VisibilityControllerScript.Mode.XRAY:
+		_apply_xray_to_panels(true)
+
+
+func _apply_xray_to_panels(enable: bool) -> void:
+	## Apply X-ray transparency to all panel materials.
+	## Panels are exterior faces by definition.
+	var opacity: float = _visibility_controller.xray_opacity if enable else 1.0
+	for block_id in placed_blocks:
+		var block: RefCounted = placed_blocks[block_id]
+		var block_node: Node3D = block.node
+		if not block_node:
+			continue
+		var panels: Node3D = block_node.get_node_or_null("Panels")
+		if not panels:
+			continue
+		for child in panels.get_children():
+			if child is MeshInstance3D and child.material_override is StandardMaterial3D:
+				var mat: StandardMaterial3D = child.material_override
+				if enable:
+					mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+					mat.albedo_color.a = opacity
+				else:
+					# Restore original alpha and transparency mode
+					var original_alpha: float = mat.get_meta("original_alpha", 1.0)
+					var original_transparency: int = mat.get_meta(
+						"original_transparency",
+						BaseMaterial3D.TRANSPARENCY_DISABLED
+					)
+					mat.albedo_color.a = original_alpha
+					mat.transparency = original_transparency
+
+
+func _update_visibility_label() -> void:
+	if not _visibility_label:
+		return
+	var status := _visibility_controller.get_status_string()
+	_visibility_label.text = status
+	_visibility_label.visible = status.length() > 0
 
 
 # --- Process ---
@@ -1009,6 +1087,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseButton:
+		# Scroll wheel adjusts X-ray opacity when in X-ray mode
+		if _visibility_controller and _visibility_controller.current_mode == VisibilityControllerScript.Mode.XRAY:
+			if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+				_visibility_controller.adjust_xray_opacity(VisibilityControllerScript.XRAY_OPACITY_STEP)
+				get_viewport().set_input_as_handled()
+				return
+			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+				_visibility_controller.adjust_xray_opacity(-VisibilityControllerScript.XRAY_OPACITY_STEP)
+				get_viewport().set_input_as_handled()
+				return
+
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			# Alt+LMB without Ctrl is handled by the camera for orbit-around-cursor
 			if event.alt_pressed and not event.ctrl_pressed:
@@ -1071,6 +1160,26 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_QUOTELEFT:
 				_toggle_ui()
 				get_viewport().set_input_as_handled()
+			KEY_X:
+				# X toggles X-ray visibility mode
+				if not event.ctrl_pressed and not event.shift_pressed and not event.alt_pressed:
+					_visibility_controller.toggle_mode(VisibilityControllerScript.Mode.XRAY)
+					get_viewport().set_input_as_handled()
+			KEY_BRACKETLEFT:
+				# [ adjusts visibility mode parameter (decrease opacity in X-ray)
+				if _visibility_controller.current_mode == VisibilityControllerScript.Mode.XRAY:
+					_visibility_controller.adjust_xray_opacity(-VisibilityControllerScript.XRAY_OPACITY_STEP)
+					get_viewport().set_input_as_handled()
+			KEY_BRACKETRIGHT:
+				# ] adjusts visibility mode parameter (increase opacity in X-ray)
+				if _visibility_controller.current_mode == VisibilityControllerScript.Mode.XRAY:
+					_visibility_controller.adjust_xray_opacity(VisibilityControllerScript.XRAY_OPACITY_STEP)
+					get_viewport().set_input_as_handled()
+			KEY_0, KEY_ESCAPE:
+				# 0 or ESC returns to normal visibility mode (if in a mode)
+				if _visibility_controller.current_mode != VisibilityControllerScript.Mode.NORMAL:
+					_visibility_controller.set_mode(VisibilityControllerScript.Mode.NORMAL)
+					get_viewport().set_input_as_handled()
 			KEY_1:
 				_select_shape_by_index(0)
 			KEY_2:

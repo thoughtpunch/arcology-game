@@ -97,3 +97,7 @@ section_plane_offset={
 "type": "float",
 "value": 0.0
 }
+xray_opacity={
+"type": "float",
+"value": 0.15
+}

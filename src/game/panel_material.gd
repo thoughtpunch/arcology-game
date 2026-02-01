@@ -112,4 +112,8 @@ static func create_material(mat_type: int, block_color: Color) -> StandardMateri
 	mat.emission = emit_color
 	mat.emission_energy_multiplier = props.get("emission_energy", 0.0)
 
+	# Store original alpha for X-ray mode restore
+	mat.set_meta("original_alpha", blended.a)
+	mat.set_meta("original_transparency", mat.transparency)
+
 	return mat

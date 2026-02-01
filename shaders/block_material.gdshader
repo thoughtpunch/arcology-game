@@ -8,11 +8,15 @@ global uniform int visibility_mode;  // 0=normal, 1=cutaway, 2=xray, 3=isolate, 
 global uniform float cut_height;     // Y coordinate of cut plane
 global uniform vec3 section_plane_normal;   // Normal of section plane (horizontal)
 global uniform float section_plane_offset;  // Distance from origin along normal
+global uniform float xray_opacity;   // X-ray exterior transparency (0.0 = invisible, 1.0 = opaque)
 
 // Instance parameters (per-block)
 uniform vec4 albedo_color : source_color = vec4(0.8, 0.8, 0.8, 1.0);
 uniform float roughness : hint_range(0.0, 1.0) = 0.7;
 uniform float metallic : hint_range(0.0, 1.0) = 0.0;
+
+// Exterior flag for X-ray mode (1.0 = exterior surface, 0.0 = interior)
+uniform float is_exterior : hint_range(0.0, 1.0) = 0.0;
 
 // Selection/state effects
 uniform bool emission_enabled = false;
@@ -58,9 +62,12 @@ void fragment() {
         }
     }
     else if (visibility_mode == 2) {
-        // XRAY mode: placeholder for future implementation
-        // Would need exterior detection via vertex attribute
-        // For now, no change
+        // XRAY mode: exterior surfaces become transparent
+        // is_exterior is set per-instance by the game logic
+        if (is_exterior > 0.5) {
+            final_alpha = xray_opacity;
+        }
+        // Interior meshes (is_exterior = 0) remain fully opaque
     }
     else if (visibility_mode == 3) {
         // ISOLATE mode: placeholder for future implementation
