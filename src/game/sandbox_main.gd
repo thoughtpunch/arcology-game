@@ -23,6 +23,7 @@ const CorridorDragScript = preload("res://src/game/corridor_drag_builder.gd")
 const PlacementValidatorScript = preload("res://src/game/placement_validator.gd")
 const CoreScenarioConfigScript = preload("res://src/game/structural_scenario_config.gd")
 const ViewCubeScript = preload("res://src/ui/view_cube.gd")
+const LODManagerScript = preload("res://src/game/lod_manager.gd")
 const CELL_SIZE: float = 6.0
 const PLACE_INTERVAL: float = 0.1  # 100ms = 10 blocks/sec
 const BLOCK_INSET: float = 0.15  # Visual gap between adjacent blocks (per side)
@@ -51,6 +52,9 @@ var _config: RefCounted = null
 
 # --- Core Placement Validator ---
 var _placement_validator: RefCounted = null
+
+# --- LOD Manager ---
+var _lod_manager: RefCounted = null
 
 # Node references
 var _camera: Node3D
@@ -176,6 +180,7 @@ func _build_world() -> void:
 	_setup_compass_markers()
 	_setup_ui()
 	_setup_audio()
+	_setup_lod()
 	_log(
 		(
 			"=== Sandbox ready: %d block types, build zone %s+%s, scenario=%s ==="
@@ -850,6 +855,13 @@ func _setup_audio() -> void:
 	_log("Audio ready (procedural click/thud)")
 
 
+func _setup_lod() -> void:
+	_lod_manager = LODManagerScript.new()
+	_lod_manager.set_camera(_camera.camera)
+	_lod_manager.enable()
+	_log("LOD manager ready (thresholds: LOD0<50m, LOD1<150m, LOD2<400m)")
+
+
 # --- Process ---
 
 
@@ -857,6 +869,8 @@ func _process(delta: float) -> void:
 	if _config == null:
 		return  # Picker showing, world not built yet
 	_update_debug_stats()
+	if _lod_manager:
+		_lod_manager.update()
 	var blocked := (
 		(_pause_menu and _pause_menu.visible) or (_help_overlay and _help_overlay.visible)
 	)
@@ -1345,6 +1359,11 @@ func place_block(definition: Resource, origin: Vector3i, rot: int) -> RefCounted
 
 	placed_blocks[block.id] = block
 
+	# Register with LOD manager
+	if _lod_manager:
+		var block_center: Vector3 = GridUtilsScript.grid_to_world_center(block.origin)
+		_lod_manager.register_block(block.id, block.node, block_center)
+
 	# Track entrance blocks
 	if definition.id == "entrance":
 		_entrance_block_ids[block.id] = true
@@ -1401,6 +1420,10 @@ func remove_block(block_id: int) -> void:
 		_entrance_block_ids.erase(block_id)
 		_has_entrance = _entrance_block_ids.size() > 0
 		_update_entrance_prompt()
+
+	# Unregister from LOD manager
+	if _lod_manager:
+		_lod_manager.unregister_block(block_id)
 
 	selection.on_block_removed(block_id)
 	_animate_removal(block.node)
