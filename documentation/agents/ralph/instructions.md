@@ -151,13 +151,16 @@ A task is DONE when:
 ```bash
 # If Godot project exists:
 # 1. Project opens without errors
-# 2. Main scene runs without crashes
+# 2. Phase 0 sandbox scene runs without crashes (scenes/phase0_sandbox.tscn)
 # 3. No GDScript errors (check Output panel)
+# 4. 3D rendering works (blocks appear as procedural meshes, not sprites)
 
 # For any code:
 # - No syntax errors
 # - Functions have type hints where reasonable
 # - Classes have class_name declarations
+# - Grid positions use Vector3i with Y-up convention (x=east, y=up, z=north)
+# - World positions use Vector3 (grid_pos * CELL_SIZE where CELL_SIZE = 6.0)
 ```
 
 ---
@@ -225,10 +228,11 @@ If you discover a reusable pattern, add it to **## Codebase Patterns** at TOP of
 
 ```markdown
 ## Codebase Patterns
-- Use Vector3i for grid positions (x, y = horizontal, z = floor)
+- Use Vector3i for grid positions (Y-up: x = east, y = up, z = north)
+- CELL_SIZE = 6.0 (6m cubes), CHUNK_SIZE = 8 (8×8×8 cells)
+- 3D meshes via procedural geometry (BoxMesh, ArrayMesh) + PBR ShaderMaterial
 - Blocks emit signals, systems connect to them
 - Load balance numbers from data/balance.json, not hardcoded
-- Sprites go in assets/sprites/blocks/{category}/
 - [NEW PATTERN YOU DISCOVERED]
 ```
 

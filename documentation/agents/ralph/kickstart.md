@@ -15,7 +15,7 @@ Bootstrap prompts for starting Claude Code sessions with Ralph.
 Paste this into Claude Code:
 
 ```
-You're building Arcology, a 3D isometric city-builder in Godot 4. Use `bd` (Beads) for task tracking.
+You're building Arcology, a 3D city-builder in Godot 4 with free camera rotation on a cubic grid. Use `bd` (Beads) for task tracking.
 
 ## Setup
 
@@ -30,6 +30,8 @@ bd init --quiet
 
 - `documentation/README.md` - Documentation entry point
 - `documentation/architecture/` - Build milestones
+- `documentation/architecture/3d-refactor/specification.md` - 3D grid spec (CELL_SIZE=6.0, Y-up)
+- `documentation/quick-reference/3d-grid-math.md` - Coordinate math reference
 - `CLAUDE.md` - Quick reference
 
 ## Create Beads for M0-M3
@@ -56,7 +58,7 @@ Let Ralph run Claude Code in a loop until all tasks are done.
 ### 1. First Session - Setup & Create Beads
 
 ```
-You're building Arcology. Set up the project and create beads from the architecture docs.
+You're building Arcology, a 3D city-builder in Godot 4. Set up the project and create beads from the architecture docs.
 
 ```bash
 # Install tools
@@ -151,3 +153,4 @@ watch -n 5 'bd ready && echo "---" && bd list --status closed | tail -5'
 - [instructions.md](./instructions.md) - Full iteration workflow
 - [beads.md](./beads.md) - Beads commands
 - [../../architecture/milestones/](../../architecture/milestones/) - Milestone details
+- [../../architecture/3d-refactor/specification.md](../../architecture/3d-refactor/specification.md) - 3D architecture spec

@@ -8,6 +8,8 @@
 
 Ralph is an autonomous coding agent that builds Arcology incrementally, one task at a time. It runs in a loop, picking up tasks, implementing them, and moving on.
 
+**Current focus:** 3D city-builder with free orbital camera on a cubic grid (6m cells, Y-up coordinate system). Active code is in `src/phase0/` (block stacking sandbox). Blocks use procedural 3D geometry (BoxMesh, ArrayMesh), not sprites.
+
 ---
 
 ## Contents
@@ -47,6 +49,9 @@ Ralph is an autonomous coding agent that builds Arcology incrementally, one task
 |------|---------|
 | `scripts/ralph/progress.txt` | Cross-iteration learnings |
 | `.beads/issues.jsonl` | Task database (git-synced) |
+| `src/phase0/` | Current active code (block stacking sandbox) |
+| `scenes/phase0_sandbox.tscn` | Current active scene |
+| `data/blocks.json` | Block type definitions |
 
 ---
 

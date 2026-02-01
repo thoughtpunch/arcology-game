@@ -6,7 +6,7 @@
 
 ## Overview
 
-Instructions for AI coding agents working on the Arcology project.
+Instructions for AI coding agents working on the Arcology project — a 3D city-builder in Godot 4 with free orbital camera, cubic grid (6m cells, Y-up), and procedural 3D geometry (no sprites).
 
 ---
 
