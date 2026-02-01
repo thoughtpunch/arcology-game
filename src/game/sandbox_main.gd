@@ -884,6 +884,7 @@ func _setup_visibility_controller() -> void:
 	_visibility_controller = VisibilityControllerScript.new()
 	_visibility_controller.mode_changed.connect(_on_visibility_mode_changed)
 	_visibility_controller.xray_opacity_changed.connect(_on_xray_opacity_changed)
+	_visibility_controller.isolate_floor_changed.connect(_on_isolate_floor_changed)
 	_log("Visibility controller ready")
 
 
@@ -895,12 +896,55 @@ func _on_visibility_mode_changed(new_mode: int) -> void:
 	else:
 		_apply_xray_to_panels(false)
 
+	# Update floor navigator for isolate mode
+	var floor_nav := _find_floor_navigator()
+	if floor_nav:
+		if new_mode == VisibilityControllerScript.Mode.ISOLATE:
+			floor_nav.set_isolate_mode(true, _visibility_controller.isolate_floor)
+		else:
+			floor_nav.set_isolate_mode(false)
+
 
 func _on_xray_opacity_changed(_opacity: float) -> void:
 	_update_visibility_label()
 	# Update panel transparency if in X-ray mode
 	if _visibility_controller.current_mode == VisibilityControllerScript.Mode.XRAY:
 		_apply_xray_to_panels(true)
+
+
+func _on_isolate_floor_changed(floor_num: int) -> void:
+	_update_visibility_label()
+	# Update floor navigator with new isolated floor
+	var floor_nav := _find_floor_navigator()
+	if floor_nav and _visibility_controller.current_mode == VisibilityControllerScript.Mode.ISOLATE:
+		floor_nav.set_isolate_floor(floor_num)
+
+
+func _find_floor_navigator() -> FloorNavigator:
+	## Find the FloorNavigator in the scene tree.
+	var tree := get_tree()
+	if not tree:
+		return null
+	# Look for FloorNavigator which is typically in the HUD
+	var floor_navs := tree.get_nodes_in_group("floor_navigator")
+	if floor_navs.size() > 0:
+		return floor_navs[0] as FloorNavigator
+	# Fallback: search by name in the tree
+	for node in tree.root.get_children():
+		var found := _find_node_by_class(node, "FloorNavigator")
+		if found:
+			return found
+	return null
+
+
+func _find_node_by_class(parent: Node, class_name_str: String) -> FloorNavigator:
+	if parent.get_class() == class_name_str or (parent.has_method("get_floor_text")):
+		return parent as FloorNavigator
+	for child in parent.get_children():
+		var found := _find_node_by_class(child, class_name_str)
+		if found:
+			return found
+	return null
 
 
 func _apply_xray_to_panels(enable: bool) -> void:
@@ -1165,6 +1209,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				if not event.ctrl_pressed and not event.shift_pressed and not event.alt_pressed:
 					_visibility_controller.toggle_mode(VisibilityControllerScript.Mode.XRAY)
 					get_viewport().set_input_as_handled()
+			KEY_I:
+				# I toggles floor isolate visibility mode
+				if not event.ctrl_pressed and not event.shift_pressed and not event.alt_pressed:
+					_visibility_controller.toggle_mode(VisibilityControllerScript.Mode.ISOLATE)
+					get_viewport().set_input_as_handled()
 			KEY_BRACKETLEFT:
 				# [ adjusts visibility mode parameter (decrease opacity in X-ray)
 				if _visibility_controller.current_mode == VisibilityControllerScript.Mode.XRAY:
@@ -1179,6 +1228,40 @@ func _unhandled_input(event: InputEvent) -> void:
 				# 0 or ESC returns to normal visibility mode (if in a mode)
 				if _visibility_controller.current_mode != VisibilityControllerScript.Mode.NORMAL:
 					_visibility_controller.set_mode(VisibilityControllerScript.Mode.NORMAL)
+					get_viewport().set_input_as_handled()
+			KEY_E:
+				# E adjusts floor up in visibility modes (cutaway/isolate)
+				if not event.ctrl_pressed and not event.shift_pressed and not event.alt_pressed:
+					if _visibility_controller.current_mode == VisibilityControllerScript.Mode.CUTAWAY:
+						_visibility_controller.adjust_cut_floor(1)
+						get_viewport().set_input_as_handled()
+					elif _visibility_controller.current_mode == VisibilityControllerScript.Mode.ISOLATE:
+						_visibility_controller.adjust_isolate_floor(1)
+						get_viewport().set_input_as_handled()
+			KEY_C:
+				# C adjusts floor down in visibility modes (cutaway/isolate)
+				if not event.ctrl_pressed and not event.shift_pressed and not event.alt_pressed:
+					if _visibility_controller.current_mode == VisibilityControllerScript.Mode.CUTAWAY:
+						_visibility_controller.adjust_cut_floor(-1)
+						get_viewport().set_input_as_handled()
+					elif _visibility_controller.current_mode == VisibilityControllerScript.Mode.ISOLATE:
+						_visibility_controller.adjust_isolate_floor(-1)
+						get_viewport().set_input_as_handled()
+			KEY_PAGEUP:
+				# Page Up adjusts floor up in visibility modes
+				if _visibility_controller.current_mode == VisibilityControllerScript.Mode.CUTAWAY:
+					_visibility_controller.adjust_cut_floor(1)
+					get_viewport().set_input_as_handled()
+				elif _visibility_controller.current_mode == VisibilityControllerScript.Mode.ISOLATE:
+					_visibility_controller.adjust_isolate_floor(1)
+					get_viewport().set_input_as_handled()
+			KEY_PAGEDOWN:
+				# Page Down adjusts floor down in visibility modes
+				if _visibility_controller.current_mode == VisibilityControllerScript.Mode.CUTAWAY:
+					_visibility_controller.adjust_cut_floor(-1)
+					get_viewport().set_input_as_handled()
+				elif _visibility_controller.current_mode == VisibilityControllerScript.Mode.ISOLATE:
+					_visibility_controller.adjust_isolate_floor(-1)
 					get_viewport().set_input_as_handled()
 			KEY_1:
 				_select_shape_by_index(0)

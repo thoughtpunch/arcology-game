@@ -2,6 +2,7 @@ class_name FloorNavigator
 extends Control
 ## Floor navigation widget for HUD bottom bar
 ## Shows current floor with up/down buttons and extended floor list popup
+## In isolate visibility mode, shows the isolated floor instead
 ## See: documentation/ui/sidebars.md#floor-navigator
 
 signal floor_changed(floor_num: int)
@@ -14,6 +15,7 @@ const COLOR_PANEL_BG := Color("#16213e")
 const COLOR_PANEL_BORDER := Color("#0f3460")
 const COLOR_TEXT := Color("#ffffff")
 const COLOR_TEXT_HIGHLIGHT := Color("#e94560")
+const COLOR_ISOLATE_MODE := Color("#ff9800")  # Orange for isolate mode
 
 # Size constants
 const BUTTON_SIZE := Vector2(36, 36)
@@ -28,9 +30,12 @@ var _floor_list_popup: Control
 # State
 var _popup_visible := false
 var _show_all_floors := false
+var _isolate_mode := false
+var _isolate_floor := 0
 
 
 func _ready() -> void:
+	add_to_group("floor_navigator")
 	_setup_ui()
 	_connect_game_state()
 
@@ -286,19 +291,36 @@ func _update_display(floor_num: int) -> void:
 	if not _floor_button:
 		return
 
+	# Determine which floor to display based on mode
+	var display_floor := floor_num
+	if _isolate_mode:
+		display_floor = _isolate_floor
+
 	# Show view mode
 	if _show_all_floors:
 		_floor_button.text = "ALL"
 		_floor_button.tooltip_text = "Viewing all floors (V to toggle)"
+		_reset_floor_button_style()
+	elif _isolate_mode:
+		# Isolate mode: show isolated floor with indicator
+		if display_floor < 0:
+			_floor_button.text = "⊙B%d" % abs(display_floor)  # Basement isolated
+		elif display_floor == 0:
+			_floor_button.text = "⊙F0"  # Ground isolated
+		else:
+			_floor_button.text = "⊙F%d" % display_floor
+		_floor_button.tooltip_text = "Isolate mode: Floor %d only (I to exit, E/C adjust)" % display_floor
+		_apply_isolate_style()
 	else:
-		# Format floor display for cutaway mode
-		if floor_num < 0:
-			_floor_button.text = "B%d" % abs(floor_num)  # Basement
-		elif floor_num == 0:
+		# Format floor display for normal/cutaway mode
+		if display_floor < 0:
+			_floor_button.text = "B%d" % abs(display_floor)  # Basement
+		elif display_floor == 0:
 			_floor_button.text = "F0 (G)"  # Ground
 		else:
-			_floor_button.text = "F%d" % floor_num
+			_floor_button.text = "F%d" % display_floor
 		_floor_button.tooltip_text = "Click for floor list (V for all floors)"
+		_reset_floor_button_style()
 
 
 func _update_button_states() -> void:
@@ -516,6 +538,35 @@ func get_floor_text() -> String:
 func set_view_mode(show_all: bool) -> void:
 	_show_all_floors = show_all
 	# Update display with current floor
+	_refresh_display()
+
+
+## Set isolate mode state
+func set_isolate_mode(enabled: bool, floor_num: int = 0) -> void:
+	_isolate_mode = enabled
+	_isolate_floor = floor_num
+	_refresh_display()
+
+
+## Update the isolated floor (called when floor changes in isolate mode)
+func set_isolate_floor(floor_num: int) -> void:
+	_isolate_floor = floor_num
+	if _isolate_mode:
+		_refresh_display()
+
+
+## Check if currently in isolate mode
+func is_isolate_mode() -> bool:
+	return _isolate_mode
+
+
+## Get the current isolated floor
+func get_isolate_floor() -> int:
+	return _isolate_floor
+
+
+## Helper to refresh display with current floor
+func _refresh_display() -> void:
 	var tree := get_tree()
 	if tree:
 		var game_state = tree.get_root().get_node_or_null("/root/GameState")
@@ -523,3 +574,38 @@ func set_view_mode(show_all: bool) -> void:
 			_update_display(game_state.current_floor)
 			return
 	_update_display(0)
+
+
+## Apply orange styling for isolate mode indicator
+func _apply_isolate_style() -> void:
+	if not _floor_button:
+		return
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = COLOR_ISOLATE_MODE.darkened(0.6)
+	normal.border_color = COLOR_ISOLATE_MODE
+	normal.border_width_left = 2
+	normal.border_width_right = 2
+	normal.border_width_top = 2
+	normal.border_width_bottom = 2
+	normal.corner_radius_top_left = 4
+	normal.corner_radius_top_right = 4
+	normal.corner_radius_bottom_left = 4
+	normal.corner_radius_bottom_right = 4
+	normal.content_margin_left = 8
+	normal.content_margin_right = 8
+	normal.content_margin_top = 6
+	normal.content_margin_bottom = 6
+
+	var hover := normal.duplicate()
+	hover.border_color = COLOR_ISOLATE_MODE.lightened(0.3)
+
+	_floor_button.add_theme_stylebox_override("normal", normal)
+	_floor_button.add_theme_stylebox_override("hover", hover)
+	_floor_button.add_theme_color_override("font_color", COLOR_ISOLATE_MODE)
+
+
+## Reset floor button to default styling
+func _reset_floor_button_style() -> void:
+	if not _floor_button:
+		return
+	_style_floor_button(_floor_button)

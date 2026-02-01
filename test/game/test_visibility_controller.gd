@@ -203,6 +203,107 @@ func _init() -> void:
 		print("  FAIL: Expected NORMAL (0), got %d" % vc6.current_mode)
 		tests_failed += 1
 
+	# Test 19: isolate_floor default value
+	print("\nTest 19: isolate_floor default value")
+	var vc7 := VisibilityControllerScript.new()
+	if vc7.isolate_floor == 0:
+		print("  PASS: Default isolate_floor is 0")
+		tests_passed += 1
+	else:
+		print("  FAIL: Expected 0, got %d" % vc7.isolate_floor)
+		tests_failed += 1
+
+	# Test 20: set_isolate_floor sets value
+	print("\nTest 20: set_isolate_floor sets value")
+	vc7.set_isolate_floor(5)
+	if vc7.isolate_floor == 5:
+		print("  PASS: isolate_floor set to 5")
+		tests_passed += 1
+	else:
+		print("  FAIL: Expected 5, got %d" % vc7.isolate_floor)
+		tests_failed += 1
+
+	# Test 21: adjust_isolate_floor increases floor
+	print("\nTest 21: adjust_isolate_floor increases floor")
+	vc7.adjust_isolate_floor(2)
+	if vc7.isolate_floor == 7:  # 5 + 2
+		print("  PASS: isolate_floor increased to %d" % vc7.isolate_floor)
+		tests_passed += 1
+	else:
+		print("  FAIL: Expected 7, got %d" % vc7.isolate_floor)
+		tests_failed += 1
+
+	# Test 22: adjust_isolate_floor clamps to 0
+	print("\nTest 22: adjust_isolate_floor clamps to 0")
+	vc7.adjust_isolate_floor(-20)  # Should clamp at 0
+	if vc7.isolate_floor == 0:
+		print("  PASS: isolate_floor clamped to 0")
+		tests_passed += 1
+	else:
+		print("  FAIL: Expected 0, got %d" % vc7.isolate_floor)
+		tests_failed += 1
+
+	# Test 23: toggle_mode switches to ISOLATE
+	print("\nTest 23: toggle_mode switches to ISOLATE")
+	vc7.toggle_mode(VisibilityControllerScript.Mode.ISOLATE)
+	if vc7.current_mode == VisibilityControllerScript.Mode.ISOLATE:
+		print("  PASS: Mode toggled to ISOLATE")
+		tests_passed += 1
+	else:
+		print("  FAIL: Expected ISOLATE, got %d" % vc7.current_mode)
+		tests_failed += 1
+
+	# Test 24: get_status_string shows ISOLATE info
+	print("\nTest 24: get_status_string shows ISOLATE info")
+	var isolate_status := vc7.get_status_string()
+	if "ISOLATE" in isolate_status and "Floor" in isolate_status:
+		print("  PASS: Status string shows ISOLATE info")
+		tests_passed += 1
+	else:
+		print("  FAIL: Expected ISOLATE status, got '%s'" % isolate_status)
+		tests_failed += 1
+
+	# Test 25: isolate_ghost_alpha default value
+	print("\nTest 25: isolate_ghost_alpha default value")
+	var vc8 := VisibilityControllerScript.new()
+	if absf(vc8.isolate_ghost_alpha - 0.08) < 0.001:
+		print("  PASS: Default isolate_ghost_alpha is 0.08")
+		tests_passed += 1
+	else:
+		print("  FAIL: Expected 0.08, got %.2f" % vc8.isolate_ghost_alpha)
+		tests_failed += 1
+
+	# Test 26: NEGATIVE - adjust_isolate_floor doesn't go negative
+	print("\nTest 26: adjust_isolate_floor doesn't allow negative floors")
+	vc8.set_isolate_floor(2)
+	vc8.adjust_isolate_floor(-5)  # Should clamp to 0, not go to -3
+	if vc8.isolate_floor == 0:
+		print("  PASS: isolate_floor clamped to 0 (not negative)")
+		tests_passed += 1
+	else:
+		print("  FAIL: Expected 0, got %d" % vc8.isolate_floor)
+		tests_failed += 1
+
+	# Test 27: Mode enum values
+	print("\nTest 27: Mode enum values are correct")
+	var isolate_value: int = VisibilityControllerScript.Mode.ISOLATE
+	if isolate_value == 3:
+		print("  PASS: ISOLATE mode value is 3")
+		tests_passed += 1
+	else:
+		print("  FAIL: Expected 3, got %d" % isolate_value)
+		tests_failed += 1
+
+	# Test 28: get_mode_name returns Isolate for ISOLATE mode
+	print("\nTest 28: get_mode_name returns 'Isolate' for ISOLATE")
+	var isolate_name := VisibilityControllerScript.get_mode_name(VisibilityControllerScript.Mode.ISOLATE)
+	if isolate_name == "Isolate":
+		print("  PASS: Mode name is 'Isolate'")
+		tests_passed += 1
+	else:
+		print("  FAIL: Expected 'Isolate', got '%s'" % isolate_name)
+		tests_failed += 1
+
 	# Summary
 	print("\n=== Results ===")
 	print("Passed: %d" % tests_passed)

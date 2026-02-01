@@ -101,3 +101,15 @@ xray_opacity={
 "type": "float",
 "value": 0.15
 }
+isolate_floor_y={
+"type": "float",
+"value": 0.0
+}
+isolate_floor_top={
+"type": "float",
+"value": 6.0
+}
+isolate_ghost_alpha={
+"type": "float",
+"value": 0.08
+}

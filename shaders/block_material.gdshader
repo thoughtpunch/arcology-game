@@ -9,6 +9,9 @@ global uniform float cut_height;     // Y coordinate of cut plane
 global uniform vec3 section_plane_normal;   // Normal of section plane (horizontal)
 global uniform float section_plane_offset;  // Distance from origin along normal
 global uniform float xray_opacity;   // X-ray exterior transparency (0.0 = invisible, 1.0 = opaque)
+global uniform float isolate_floor_y;     // Y coordinate of isolated floor bottom
+global uniform float isolate_floor_top;   // Y coordinate of isolated floor top
+global uniform float isolate_ghost_alpha; // Alpha for non-isolated floors (ghost effect)
 
 // Instance parameters (per-block)
 uniform vec4 albedo_color : source_color = vec4(0.8, 0.8, 0.8, 1.0);
@@ -70,8 +73,19 @@ void fragment() {
         // Interior meshes (is_exterior = 0) remain fully opaque
     }
     else if (visibility_mode == 3) {
-        // ISOLATE mode: placeholder for future implementation
-        // Would need floor number comparison
+        // ISOLATE mode: show only the isolated floor, ghost others
+        // A fragment is on the isolated floor if its Y is within [isolate_floor_y, isolate_floor_top)
+        if (world_position.y < isolate_floor_y || world_position.y >= isolate_floor_top) {
+            // Not on isolated floor - show as ghost or discard
+            if (isolate_ghost_alpha > 0.001) {
+                // Show as faint ghost for spatial awareness
+                final_alpha = isolate_ghost_alpha;
+                color.rgb *= 0.5;  // Darken ghost floors
+            } else {
+                // Fully hide non-isolated floors
+                discard;
+            }
+        }
     }
     else if (visibility_mode == 4) {
         // SECTION mode: vertical slice along a plane defined by normal + offset
