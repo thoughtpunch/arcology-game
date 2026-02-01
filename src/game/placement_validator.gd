@@ -17,6 +17,11 @@ extends RefCounted
 
 const BASE_CANTILEVER: int = 2
 
+
+static func manhattan_distance(a: Vector3i, b: Vector3i) -> int:
+	return abs(a.x - b.x) + abs(a.y - b.y) + abs(a.z - b.z)
+
+
 # Shared horizontal offsets for BFS
 const _HORIZONTAL_OFFSETS: Array[Vector3i] = [
 	Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)
@@ -538,7 +543,7 @@ func _is_far_from_entrance(pos: Vector3i) -> bool:
 	var min_distance := 999999
 	for i in range(entrances.size()):
 		var entrance_pos: Vector3i = entrances[i]
-		var dist: int = Grid.manhattan_distance(pos, entrance_pos)
+		var dist: int = manhattan_distance(pos, entrance_pos)
 		if dist < min_distance:
 			min_distance = dist
 
@@ -582,7 +587,7 @@ func _is_far_from_utilities(pos: Vector3i) -> bool:
 
 	for i in range(all_positions.size()):
 		var check_pos: Vector3i = all_positions[i]
-		var dist: int = Grid.manhattan_distance(pos, check_pos)
+		var dist: int = manhattan_distance(pos, check_pos)
 		if dist > UTILITY_THRESHOLD:
 			continue
 

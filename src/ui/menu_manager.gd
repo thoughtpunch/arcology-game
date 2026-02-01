@@ -3,6 +3,17 @@ extends CanvasLayer
 ## Handles menu navigation, game state, and auto-save integration
 ## See: documentation/ui/menus.md
 
+# Preload menu scripts to avoid class_name resolution issues
+const MainMenuScript = preload("res://src/ui/main_menu.gd")
+const PauseMenuScript = preload("res://src/ui/pause_menu.gd")
+const SettingsMenuScript = preload("res://src/ui/settings_menu.gd")
+const NewGameMenuScript = preload("res://src/ui/new_game_menu.gd")
+const SaveLoadMenuScript = preload("res://src/ui/save_load_menu.gd")
+const CreditsScreenScript = preload("res://src/ui/credits_screen.gd")
+const HelpScreenScript = preload("res://src/ui/help_screen.gd")
+const GameConfirmationDialogScript = preload("res://src/ui/confirmation_dialog.gd")
+const AutoSaveScript = preload("res://src/game/auto_save.gd")
+
 signal game_started(config: Dictionary)
 signal game_loaded(save_path: String)
 signal game_resumed
@@ -15,16 +26,16 @@ enum MenuState { NONE, MAIN_MENU, PAUSE, SETTINGS, NEW_GAME, SAVE, LOAD, CREDITS
 # Pending confirmation state
 enum PendingConfirmation { NONE, DELETE_SAVE, UNSAVED_CHANGES }
 
-# Menu instances
-var main_menu: MainMenu
-var pause_menu: PauseMenu
-var settings_menu: SettingsMenu
-var new_game_menu: NewGameMenu
-var save_load_menu: SaveLoadMenu
-var credits_screen: CreditsScreen
-var help_screen: HelpScreen
-var confirmation_dialog: GameConfirmationDialog
-var auto_save: AutoSave
+# Menu instances (typed as Control/Node for compatibility)
+var main_menu: Control
+var pause_menu: Control
+var settings_menu: Control
+var new_game_menu: Control
+var save_load_menu: Control
+var credits_screen: Control
+var help_screen: Control
+var confirmation_dialog: Control
+var auto_save: Node
 
 # State
 var _current_state := MenuState.MAIN_MENU
@@ -47,55 +58,55 @@ func _ready() -> void:
 
 func _create_menus() -> void:
 	# Main menu
-	main_menu = MainMenu.new()
+	main_menu = MainMenuScript.new()
 	main_menu.name = "MainMenu"
 	main_menu.visible = false
 	add_child(main_menu)
 
 	# Pause menu
-	pause_menu = PauseMenu.new()
+	pause_menu = PauseMenuScript.new()
 	pause_menu.name = "PauseMenu"
 	pause_menu.visible = false
 	add_child(pause_menu)
 
 	# Settings menu
-	settings_menu = SettingsMenu.new()
+	settings_menu = SettingsMenuScript.new()
 	settings_menu.name = "SettingsMenu"
 	settings_menu.visible = false
 	add_child(settings_menu)
 
 	# New game menu
-	new_game_menu = NewGameMenu.new()
+	new_game_menu = NewGameMenuScript.new()
 	new_game_menu.name = "NewGameMenu"
 	new_game_menu.visible = false
 	add_child(new_game_menu)
 
 	# Save/Load menu
-	save_load_menu = SaveLoadMenu.new()
+	save_load_menu = SaveLoadMenuScript.new()
 	save_load_menu.name = "SaveLoadMenu"
 	save_load_menu.visible = false
 	add_child(save_load_menu)
 
 	# Credits screen
-	credits_screen = CreditsScreen.new()
+	credits_screen = CreditsScreenScript.new()
 	credits_screen.name = "CreditsScreen"
 	credits_screen.visible = false
 	add_child(credits_screen)
 
 	# Help screen
-	help_screen = HelpScreen.new()
+	help_screen = HelpScreenScript.new()
 	help_screen.name = "HelpScreen"
 	help_screen.visible = false
 	add_child(help_screen)
 
 	# Confirmation dialog (always on top)
-	confirmation_dialog = GameConfirmationDialog.new()
+	confirmation_dialog = GameConfirmationDialogScript.new()
 	confirmation_dialog.name = "ConfirmationDialog"
 	confirmation_dialog.visible = false
 	add_child(confirmation_dialog)
 
 	# Auto-save system
-	auto_save = AutoSave.new()
+	auto_save = AutoSaveScript.new()
 	auto_save.name = "AutoSave"
 	add_child(auto_save)
 
@@ -218,7 +229,7 @@ func show_save_menu() -> void:
 	_previous_state = _current_state
 	_current_state = MenuState.SAVE
 	_hide_all_menus()
-	save_load_menu.set_mode(SaveLoadMenu.Mode.SAVE)
+	save_load_menu.set_mode(SaveLoadMenuScript.Mode.SAVE)
 	save_load_menu.visible = true
 
 
@@ -227,7 +238,7 @@ func show_load_menu() -> void:
 	_previous_state = _current_state
 	_current_state = MenuState.LOAD
 	_hide_all_menus()
-	save_load_menu.set_mode(SaveLoadMenu.Mode.LOAD)
+	save_load_menu.set_mode(SaveLoadMenuScript.Mode.LOAD)
 	save_load_menu.visible = true
 
 
@@ -361,7 +372,7 @@ func _on_settings_back() -> void:
 
 func _on_settings_apply() -> void:
 	# Apply settings
-	var new_settings := settings_menu.get_settings()
+	var new_settings: Dictionary = settings_menu.get_settings()
 	_apply_settings(new_settings)
 	_on_settings_back()
 

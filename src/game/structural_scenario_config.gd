@@ -109,7 +109,7 @@ func get_seconds_per_hour() -> float:
 
 ## Load a ScenarioConfig from a JSON file.
 ## Returns null if the file doesn't exist or can't be parsed.
-static func load_from_json(path: String) -> ScenarioConfig:
+static func load_from_json(path: String) -> Resource:
 	if not FileAccess.file_exists(path):
 		push_warning("ScenarioConfig: File not found: %s" % path)
 		return null
@@ -132,14 +132,15 @@ static func load_from_json(path: String) -> ScenarioConfig:
 
 
 ## Load a named scenario from data/scenarios/<name>.json.
-static func load_scenario(scenario_name: String) -> ScenarioConfig:
+static func load_scenario(scenario_name: String) -> Resource:
 	var path := JSON_PATH_PREFIX + scenario_name + ".json"
 	return load_from_json(path)
 
 
 ## Create a ScenarioConfig from a Dictionary.
-static func from_dict(data: Dictionary) -> ScenarioConfig:
-	var config := ScenarioConfig.new()
+static func from_dict(data: Dictionary) -> Resource:
+	var script = load("res://src/game/structural_scenario_config.gd")
+	var config = script.new()
 
 	# Physics & Structure
 	config.gravity = data.get("gravity", 1.0)
@@ -200,8 +201,9 @@ func to_dict() -> Dictionary:
 
 
 ## Create a default Earth scenario config.
-static func create_default() -> ScenarioConfig:
-	return ScenarioConfig.new()  # Defaults are already Earth-standard
+static func create_default() -> Resource:
+	var script = load("res://src/game/structural_scenario_config.gd")
+	return script.new()  # Defaults are already Earth-standard
 
 
 ## Get a human-readable summary of the config.

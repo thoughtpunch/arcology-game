@@ -21,7 +21,7 @@ extends SceneTree
 ## Run: godot --path . --script res://tests/pyramid_test.gd
 
 const SCREENSHOT_DIR := "res://test_output/pyramid/"
-const ScenarioConfigScript = preload("res://src/game/scenario_config.gd")
+const ScenarioConfigScript = preload("res://src/game/visual_scenario_config.gd")
 
 var _sandbox: Node3D
 var _blocks_placed := 0
@@ -72,8 +72,8 @@ func _init() -> void:
 	DirAccess.make_dir_recursive_absolute(SCREENSHOT_DIR.replace("res://", ""))
 
 	# Load scene
-	print("[Setup] Loading phase0_sandbox...")
-	var scene = load("res://scenes/phase0_sandbox.tscn")
+	print("[Setup] Loading main scene...")
+	var scene = load("res://scenes/main.tscn")
 	if not scene:
 		_fatal("Failed to load scene")
 		return
@@ -642,14 +642,21 @@ func _orbit_camera_shots() -> void:
 
 func _screenshot(name: String) -> void:
 	_screenshot_count += 1
-	await RenderingServer.frame_post_draw
+
+	# In headless mode, frame_post_draw never fires - use process_frame instead
+	if DisplayServer.get_name() == "headless":
+		await process_frame
+	else:
+		await RenderingServer.frame_post_draw
 
 	var viewport = get_root().get_viewport()
 	if not viewport:
+		print("    [img] %s (skipped - no viewport)" % name)
 		return
 
 	var image = viewport.get_texture().get_image()
 	if not image:
+		print("    [img] %s (skipped - no image)" % name)
 		return
 
 	var path = SCREENSHOT_DIR + name + ".png"

@@ -920,7 +920,7 @@ func _on_visibility_mode_changed(new_mode: int) -> void:
 		_apply_xray_to_panels(false)
 
 	# Update floor navigator for isolate mode
-	var floor_nav := _find_floor_navigator()
+	var floor_nav: Node = _find_floor_navigator()
 	if floor_nav:
 		if new_mode == VisibilityControllerScript.Mode.ISOLATE:
 			floor_nav.set_isolate_mode(true, _visibility_controller.isolate_floor)
@@ -938,12 +938,12 @@ func _on_xray_opacity_changed(_opacity: float) -> void:
 func _on_isolate_floor_changed(floor_num: int) -> void:
 	_update_visibility_label()
 	# Update floor navigator with new isolated floor
-	var floor_nav := _find_floor_navigator()
+	var floor_nav: Node = _find_floor_navigator()
 	if floor_nav and _visibility_controller.current_mode == VisibilityControllerScript.Mode.ISOLATE:
 		floor_nav.set_isolate_floor(floor_num)
 
 
-func _find_floor_navigator() -> FloorNavigator:
+func _find_floor_navigator() -> Node:
 	## Find the FloorNavigator in the scene tree.
 	var tree := get_tree()
 	if not tree:
@@ -951,20 +951,20 @@ func _find_floor_navigator() -> FloorNavigator:
 	# Look for FloorNavigator which is typically in the HUD
 	var floor_navs := tree.get_nodes_in_group("floor_navigator")
 	if floor_navs.size() > 0:
-		return floor_navs[0] as FloorNavigator
+		return floor_navs[0]
 	# Fallback: search by name in the tree
 	for node in tree.root.get_children():
-		var found := _find_node_by_class(node, "FloorNavigator")
+		var found: Node = _find_node_by_class(node, "FloorNavigator")
 		if found:
 			return found
 	return null
 
 
-func _find_node_by_class(parent: Node, class_name_str: String) -> FloorNavigator:
+func _find_node_by_class(parent: Node, class_name_str: String) -> Node:
 	if parent.get_class() == class_name_str or (parent.has_method("get_floor_text")):
-		return parent as FloorNavigator
+		return parent
 	for child in parent.get_children():
-		var found := _find_node_by_class(child, class_name_str)
+		var found: Node = _find_node_by_class(child, class_name_str)
 		if found:
 			return found
 	return null
@@ -2385,13 +2385,13 @@ func _try_remove_block() -> void:
 				return
 			# Check excavation cost
 			var excavation_cost: int = ExcavationSystemScript.calculate_excavation_cost(cell.y)
-			if excavation_cost > 0 and not GameState.can_afford(excavation_cost):
+			if excavation_cost > 0 and _game_state and not _game_state.can_afford(excavation_cost):
 				_log("Excavate REJECTED: cannot afford %d for cell %s" % [excavation_cost, cell])
 				_show_removal_warning("Cannot afford excavation (%s)" % ExcavationSystemScript.format_cost(excavation_cost))
 				return
 			# Deduct cost and excavate
-			if excavation_cost > 0:
-				GameState.spend_money(excavation_cost)
+			if excavation_cost > 0 and _game_state:
+				_game_state.spend_money(excavation_cost)
 				_log("Excavation cost: %s for %s" % [ExcavationSystemScript.format_cost(excavation_cost), cell])
 			_log("Removing ground cell %s" % cell)
 			_remove_ground_cell(cell)
