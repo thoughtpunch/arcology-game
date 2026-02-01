@@ -1,0 +1,3 @@
+# Placeholder for future external 3D block models (.glb, .gltf)
+# Currently using procedural mesh generation (BoxMesh, PlaneMesh, etc.)
+# See documentation/architecture/3d-refactor/specification.md for model requirements
